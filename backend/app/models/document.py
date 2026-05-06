@@ -19,6 +19,6 @@ class Document(Base):
     file_size = Column(Integer, nullable=False)
     upload_time = Column(DateTime(timezone=True), server_default=func.now())
     process_status = Column(Enum(DocumentStatus), default=DocumentStatus.UPLOADED)
-    metadata = Column(Text, nullable=True)
+    doc_metadata = Column(Text, nullable=True)
     content_text = Column(Text, nullable=True)
     vector_id = Column(String(100), nullable=True)

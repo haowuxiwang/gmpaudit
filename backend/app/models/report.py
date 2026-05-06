@@ -18,5 +18,5 @@ class Report(Base):
     file_path = Column(String(500), nullable=True)
     summary = Column(Text, nullable=True)
     content = Column(Text, nullable=True)
-    metadata = Column(JSON, nullable=True)
+    report_metadata = Column(JSON, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import List
+from pydantic import BaseModel
 
 from app.core.database import get_db
 from app.models.audit_task import AuditTask, TaskStatus, TaskType
@@ -11,12 +12,17 @@ from app.services.audit_engine import get_audit_engine, AuditConfig
 
 router = APIRouter()
 
+class AuditTaskCreate(BaseModel):
+    task_name: str
+    task_type: TaskType
+    document_ids: List[int]
+
 @router.post("/tasks")
-async def create_audit_task(task_name: str, task_type: TaskType, document_ids: List[int], db: AsyncSession = Depends(get_db)):
+async def create_audit_task(task_data: AuditTaskCreate, db: AsyncSession = Depends(get_db)):
     task = AuditTask(
-        task_name=task_name,
-        task_type=task_type,
-        document_ids=document_ids,
+        task_name=task_data.task_name,
+        task_type=task_data.task_type,
+        document_ids=task_data.document_ids,
         status=TaskStatus.PENDING
     )
     db.add(task)
