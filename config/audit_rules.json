@@ -1,0 +1,23 @@
+{
+  "version": "1.0.0",
+  "description": "GMP审计规则配置",
+  "risk_levels": {
+    "high": { "label": "高风险", "score": 20, "color": "#ff4d4f" },
+    "medium": { "label": "中风险", "score": 10, "color": "#faad14" },
+    "low": { "label": "低风险", "score": 5, "color": "#52c41a" },
+    "info": { "label": "信息", "score": 0, "color": "#1890ff" }
+  },
+  "finding_types": {
+    "logic_flaw": { "label": "逻辑漏洞" },
+    "compliance_risk": { "label": "合规性风险" },
+    "inconsistency": { "label": "不一致" },
+    "missing_info": { "label": "信息缺失" },
+    "best_practice": { "label": "最佳实践" }
+  },
+  "audit_templates": {
+    "deviation_analysis": { "name": "偏差分析", "checks": ["偏差原因分析完整性", "调查过程规范性", "根本原因明确性", "CAPA措施充分性"] },
+    "sop_compliance": { "name": "SOP合规检查", "checks": ["步骤完整性", "职责明确性", "控制点识别", "法规符合性"] },
+    "consistency_check": { "name": "一致性检查", "checks": ["逻辑一致性", "时间一致性", "数据一致性", "流程一致性"] },
+    "risk_assessment": { "name": "风险评估", "checks": ["风险识别", "影响分析", "可能性评估", "缓解措施"] }
+  }
+}
