@@ -18,14 +18,23 @@ class Settings(BaseSettings):
     PROCESSED_DIR: str = os.path.join(PROJECT_ROOT, "data", "processed")
     REPORTS_DIR: str = os.path.join(PROJECT_ROOT, "data", "reports")
 
-    # LLM配置
+    # LLM配置 - 所有 OpenAI 兼容提供商使用统一的 base_url 格式（含 /v1）
     DEEPSEEK_API_KEY: Optional[str] = None
-    DEEPSEEK_BASE_URL: str = "https://api.deepseek.com"
+    DEEPSEEK_BASE_URL: str = "https://api.deepseek.com/v1"
     QWEN_API_KEY: Optional[str] = None
+    QWEN_BASE_URL: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
     GLM_API_KEY: Optional[str] = None
+    GLM_BASE_URL: str = "https://open.bigmodel.cn/api/paas/v4"
     OPENAI_API_KEY: Optional[str] = None
-    OPENAI_BASE_URL: str = "https://api.openai.com"
+    OPENAI_BASE_URL: str = "https://api.openai.com/v1"
     ANTHROPIC_API_KEY: Optional[str] = None
+    ANTHROPIC_BASE_URL: str = "https://api.anthropic.com"
+    SILICONFLOW_API_KEY: Optional[str] = None
+    SILICONFLOW_BASE_URL: str = "https://api.siliconflow.cn/v1"
+    OPENROUTER_API_KEY: Optional[str] = None
+    OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
+    MIMO_API_KEY: Optional[str] = None
+    MIMO_BASE_URL: str = "https://api.minimax.chat/v1"
 
     # 飞书配置
     FEISHU_APP_ID: Optional[str] = None

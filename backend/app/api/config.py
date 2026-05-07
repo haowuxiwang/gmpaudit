@@ -39,10 +39,28 @@ async def update_config(key: str, value: str, description: str = None, db: Async
 
 @router.get("/llm/models")
 async def get_available_models():
+    from app.services.llm_engine import get_llm_engine
+    engine = get_llm_engine()
+    providers = engine.get_available_providers()
+
+    # Provider display names
+    names = {
+        "deepseek": "DeepSeek",
+        "qwen": "通义千问",
+        "glm": "智谱GLM",
+        "openai": "OpenAI",
+        "anthropic": "Anthropic/Claude",
+        "siliconflow": "SiliconFlow",
+        "openrouter": "OpenRouter",
+        "mimo": "Mimo/MiniMax",
+    }
+
     return [
-        {"id": "deepseek", "name": "DeepSeek", "description": "DeepSeek Chat模型"},
-        {"id": "qwen", "name": "通义千问", "description": "阿里云通义千问模型"},
-        {"id": "glm", "name": "智谱GLM", "description": "智谱AI GLM模型"},
-        {"id": "openai", "name": "OpenAI", "description": "OpenAI GPT模型"},
-        {"id": "anthropic", "name": "Anthropic", "description": "Claude模型"},
+        {
+            "id": p["name"],
+            "name": names.get(p["name"], p["name"]),
+            "model": p["model"],
+            "available": p["available"],
+        }
+        for p in providers
     ]

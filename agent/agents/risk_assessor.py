@@ -70,7 +70,7 @@ async def risk_assessor_node(state: AuditState) -> dict:
 
     # Call LLM for analysis
     try:
-        llm = get_llm(provider="siliconflow", temperature=0.2)
+        llm = get_llm(provider=None, temperature=0.2)
         prompt_template = _load_prompt()
         prompt = prompt_template.format(
             document_content=doc_content,

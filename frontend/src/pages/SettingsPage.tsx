@@ -8,8 +8,11 @@ const MODEL_OPTIONS = [
   { value: 'deepseek', label: 'DeepSeek' },
   { value: 'qwen', label: '通义千问' },
   { value: 'glm', label: '智谱GLM' },
+  { value: 'siliconflow', label: 'SiliconFlow' },
   { value: 'openai', label: 'OpenAI' },
   { value: 'anthropic', label: 'Anthropic/Claude' },
+  { value: 'openrouter', label: 'OpenRouter' },
+  { value: 'mimo', label: 'Mimo/MiniMax' },
 ];
 
 const LOG_LEVEL_OPTIONS = [
@@ -109,6 +112,27 @@ const SettingsPage: React.FC = () => {
                     value={getVal('anthropic_api_key')}
                     onChange={(e) => handleSave('anthropic_api_key', e.target.value)}
                     placeholder="请输入Anthropic API Key"
+                  />
+                </Form.Item>
+                <Form.Item label="SiliconFlow API Key">
+                  <Input.Password
+                    value={getVal('siliconflow_api_key')}
+                    onChange={(e) => handleSave('siliconflow_api_key', e.target.value)}
+                    placeholder="请输入SiliconFlow API Key"
+                  />
+                </Form.Item>
+                <Form.Item label="OpenRouter API Key">
+                  <Input.Password
+                    value={getVal('openrouter_api_key')}
+                    onChange={(e) => handleSave('openrouter_api_key', e.target.value)}
+                    placeholder="请输入OpenRouter API Key"
+                  />
+                </Form.Item>
+                <Form.Item label="Mimo/MiniMax API Key">
+                  <Input.Password
+                    value={getVal('mimo_api_key')}
+                    onChange={(e) => handleSave('mimo_api_key', e.target.value)}
+                    placeholder="请输入Mimo/MiniMax API Key"
                   />
                 </Form.Item>
                 <Form.Item label="Temperature">

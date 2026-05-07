@@ -56,7 +56,7 @@ async def report_writer_node(state: AuditState) -> dict:
 
     # Call LLM to generate the report
     try:
-        llm = get_llm(provider="siliconflow", temperature=0.3)
+        llm = get_llm(provider=None, temperature=0.3)
         prompt_template = _load_prompt()
         prompt = prompt_template.format(
             document_name=doc_name,
