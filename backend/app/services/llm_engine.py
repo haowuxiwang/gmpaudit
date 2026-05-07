@@ -1,4 +1,5 @@
 import httpx
+import json
 import logging
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any, Optional, AsyncGenerator
@@ -82,7 +83,7 @@ class DeepSeekAdapter(BaseLLMAdapter):
                         data = line[6:]
                         if data == "[DONE]":
                             break
-                        import json
+
                         chunk = json.loads(data)
                         if "choices" in chunk and len(chunk["choices"]) > 0:
                             delta = chunk["choices"][0].get("delta", {})
@@ -90,42 +91,273 @@ class DeepSeekAdapter(BaseLLMAdapter):
                                 yield delta["content"]
 
 class QwenAdapter(BaseLLMAdapter):
-    """通义千问适配器"""
+    """通义千问适配器 (OpenAI兼容模式)"""
 
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: str, base_url: str = "https://dashscope.aliyuncs.com/compatible-mode/v1", model: str = "qwen-plus"):
         self.api_key = api_key
-        self.base_url = "https://dashscope.aliyuncs.com/api/v1"
-        self.model = "qwen-turbo"
+        self.base_url = base_url
+        self.model = model
 
     async def chat(self, messages: List[Dict[str, str]], **kwargs) -> LLMResponse:
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                f"{self.base_url}/services/aigc/text-generation/generation",
+                f"{self.base_url}/chat/completions",
                 headers={
                     "Authorization": f"Bearer {self.api_key}",
                     "Content-Type": "application/json"
                 },
                 json={
                     "model": kwargs.get("model", self.model),
-                    "input": {"messages": messages},
-                    "parameters": {
-                        "temperature": kwargs.get("temperature", 0.7),
-                        "max_tokens": kwargs.get("max_tokens", 4096)
-                    }
+                    "messages": messages,
+                    "temperature": kwargs.get("temperature", 0.7),
+                    "max_tokens": kwargs.get("max_tokens", 4096)
                 },
                 timeout=kwargs.get("timeout", 120)
             )
 
             data = response.json()
             return LLMResponse(
-                content=data["output"]["text"],
-                model=self.model,
+                content=data["choices"][0]["message"]["content"],
+                model=data["model"],
                 usage=data["usage"],
-                finish_reason="stop"
+                finish_reason=data["choices"][0]["finish_reason"]
             )
 
     async def chat_stream(self, messages: List[Dict[str, str]], **kwargs) -> AsyncGenerator[str, None]:
-        yield ""
+
+        async with httpx.AsyncClient() as client:
+            async with client.stream(
+                "POST",
+                f"{self.base_url}/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": kwargs.get("model", self.model),
+                    "messages": messages,
+                    "temperature": kwargs.get("temperature", 0.7),
+                    "max_tokens": kwargs.get("max_tokens", 4096),
+                    "stream": True
+                },
+                timeout=kwargs.get("timeout", 120)
+            ) as response:
+                async for line in response.aiter_lines():
+                    if line.startswith("data: "):
+                        data = line[6:]
+                        if data == "[DONE]":
+                            break
+                        chunk = json.loads(data)
+                        if "choices" in chunk and len(chunk["choices"]) > 0:
+                            delta = chunk["choices"][0].get("delta", {})
+                            if "content" in delta:
+                                yield delta["content"]
+
+class OpenAIAdapter(BaseLLMAdapter):
+    """OpenAI适配器"""
+
+    def __init__(self, api_key: str, base_url: str = "https://api.openai.com", model: str = "gpt-4o"):
+        self.api_key = api_key
+        self.base_url = base_url
+        self.model = model
+
+    async def chat(self, messages: List[Dict[str, str]], **kwargs) -> LLMResponse:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{self.base_url}/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": kwargs.get("model", self.model),
+                    "messages": messages,
+                    "temperature": kwargs.get("temperature", 0.7),
+                    "max_tokens": kwargs.get("max_tokens", 4096)
+                },
+                timeout=kwargs.get("timeout", 120)
+            )
+
+            data = response.json()
+            return LLMResponse(
+                content=data["choices"][0]["message"]["content"],
+                model=data["model"],
+                usage=data["usage"],
+                finish_reason=data["choices"][0]["finish_reason"]
+            )
+
+    async def chat_stream(self, messages: List[Dict[str, str]], **kwargs) -> AsyncGenerator[str, None]:
+        import json
+        async with httpx.AsyncClient() as client:
+            async with client.stream(
+                "POST",
+                f"{self.base_url}/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": kwargs.get("model", self.model),
+                    "messages": messages,
+                    "temperature": kwargs.get("temperature", 0.7),
+                    "max_tokens": kwargs.get("max_tokens", 4096),
+                    "stream": True
+                },
+                timeout=kwargs.get("timeout", 120)
+            ) as response:
+                async for line in response.aiter_lines():
+                    if line.startswith("data: "):
+                        data = line[6:]
+                        if data == "[DONE]":
+                            break
+                        chunk = json.loads(data)
+                        if "choices" in chunk and len(chunk["choices"]) > 0:
+                            delta = chunk["choices"][0].get("delta", {})
+                            if "content" in delta:
+                                yield delta["content"]
+
+class AnthropicAdapter(BaseLLMAdapter):
+    """Anthropic适配器"""
+
+    def __init__(self, api_key: str, base_url: str = "https://api.anthropic.com", model: str = "claude-sonnet-4-20250514"):
+        self.api_key = api_key
+        self.base_url = base_url
+        self.model = model
+
+    @staticmethod
+    def _extract_system(messages: List[Dict[str, str]]) -> tuple[str, List[Dict[str, str]]]:
+        """Extract system message from messages array (Anthropic requires separate system param)."""
+        system = ""
+        filtered = []
+        for msg in messages:
+            if msg["role"] == "system":
+                system = msg["content"]
+            else:
+                filtered.append(msg)
+        return system, filtered
+
+    async def chat(self, messages: List[Dict[str, str]], **kwargs) -> LLMResponse:
+        system, user_messages = self._extract_system(messages)
+        body: Dict[str, Any] = {
+            "model": kwargs.get("model", self.model),
+            "max_tokens": kwargs.get("max_tokens", 4096),
+            "messages": user_messages,
+        }
+        if system:
+            body["system"] = system
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{self.base_url}/v1/messages",
+                headers={
+                    "x-api-key": self.api_key,
+                    "anthropic-version": "2023-06-01",
+                    "content-type": "application/json"
+                },
+                json=body,
+                timeout=kwargs.get("timeout", 120)
+            )
+
+            data = response.json()
+            return LLMResponse(
+                content=data["content"][0]["text"],
+                model=data["model"],
+                usage=data["usage"],
+                finish_reason=data.get("stop_reason", "end_turn")
+            )
+
+    async def chat_stream(self, messages: List[Dict[str, str]], **kwargs) -> AsyncGenerator[str, None]:
+
+        system, user_messages = self._extract_system(messages)
+        body: Dict[str, Any] = {
+            "model": kwargs.get("model", self.model),
+            "max_tokens": kwargs.get("max_tokens", 4096),
+            "messages": user_messages,
+            "stream": True,
+        }
+        if system:
+            body["system"] = system
+
+        async with httpx.AsyncClient() as client:
+            async with client.stream(
+                "POST",
+                f"{self.base_url}/v1/messages",
+                headers={
+                    "x-api-key": self.api_key,
+                    "anthropic-version": "2023-06-01",
+                    "content-type": "application/json"
+                },
+                json=body,
+                timeout=kwargs.get("timeout", 120)
+            ) as response:
+                async for line in response.aiter_lines():
+                    if line.startswith("data: "):
+                        data = json.loads(line[6:])
+                        if data["type"] == "content_block_delta":
+                            yield data["delta"]["text"]
+
+class GLMAdapter(BaseLLMAdapter):
+    """智谱AI适配器"""
+
+    def __init__(self, api_key: str, base_url: str = "https://open.bigmodel.cn/api/paas/v4", model: str = "glm-4-flash"):
+        self.api_key = api_key
+        self.base_url = base_url
+        self.model = model
+
+    async def chat(self, messages: List[Dict[str, str]], **kwargs) -> LLMResponse:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{self.base_url}/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": kwargs.get("model", self.model),
+                    "messages": messages,
+                    "temperature": kwargs.get("temperature", 0.7),
+                    "max_tokens": kwargs.get("max_tokens", 4096)
+                },
+                timeout=kwargs.get("timeout", 120)
+            )
+
+            data = response.json()
+            return LLMResponse(
+                content=data["choices"][0]["message"]["content"],
+                model=data["model"],
+                usage=data["usage"],
+                finish_reason=data["choices"][0]["finish_reason"]
+            )
+
+    async def chat_stream(self, messages: List[Dict[str, str]], **kwargs) -> AsyncGenerator[str, None]:
+        import json
+        async with httpx.AsyncClient() as client:
+            async with client.stream(
+                "POST",
+                f"{self.base_url}/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": kwargs.get("model", self.model),
+                    "messages": messages,
+                    "temperature": kwargs.get("temperature", 0.7),
+                    "max_tokens": kwargs.get("max_tokens", 4096),
+                    "stream": True
+                },
+                timeout=kwargs.get("timeout", 120)
+            ) as response:
+                async for line in response.aiter_lines():
+                    if line.startswith("data: "):
+                        data = line[6:]
+                        if data == "[DONE]":
+                            break
+                        chunk = json.loads(data)
+                        if "choices" in chunk and len(chunk["choices"]) > 0:
+                            delta = chunk["choices"][0].get("delta", {})
+                            if "content" in delta:
+                                yield delta["content"]
 
 class LLMEngine:
     """LLM引擎"""
@@ -142,7 +374,19 @@ class LLMEngine:
             )
 
         if settings.QWEN_API_KEY:
-            self.adapters["qwen"] = QwenAdapter(api_key=settings.QWEN_API_KEY)
+            self.adapters["qwen"] = QwenAdapter(
+                api_key=settings.QWEN_API_KEY,
+                base_url=getattr(settings, 'QWEN_BASE_URL', 'https://dashscope.aliyuncs.com/compatible-mode/v1')
+            )
+
+        if settings.OPENAI_API_KEY:
+            self.adapters["openai"] = OpenAIAdapter(settings.OPENAI_API_KEY, settings.OPENAI_BASE_URL)
+
+        if settings.ANTHROPIC_API_KEY:
+            self.adapters["anthropic"] = AnthropicAdapter(settings.ANTHROPIC_API_KEY)
+
+        if settings.GLM_API_KEY:
+            self.adapters["glm"] = GLMAdapter(settings.GLM_API_KEY)
 
     async def analyze(self, document: str, prompt: str, model: str = "deepseek") -> LLMResponse:
         adapter = self.adapters.get(model)

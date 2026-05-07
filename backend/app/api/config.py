@@ -4,7 +4,6 @@ from sqlalchemy import select
 
 from app.core.database import get_db
 from app.models.configuration import Configuration
-from app.core.config import settings
 
 router = APIRouter()
 
@@ -40,11 +39,10 @@ async def update_config(key: str, value: str, description: str = None, db: Async
 
 @router.get("/llm/models")
 async def get_available_models():
-    models = []
-    if settings.DEEPSEEK_API_KEY:
-        models.append({"id": "deepseek", "name": "DeepSeek", "description": "DeepSeek Chat模型"})
-    if settings.QWEN_API_KEY:
-        models.append({"id": "qwen", "name": "通义千问", "description": "阿里云通义千问模型"})
-    if settings.GLM_API_KEY:
-        models.append({"id": "glm", "name": "智谱GLM", "description": "智谱AI GLM模型"})
-    return models
+    return [
+        {"id": "deepseek", "name": "DeepSeek", "description": "DeepSeek Chat模型"},
+        {"id": "qwen", "name": "通义千问", "description": "阿里云通义千问模型"},
+        {"id": "glm", "name": "智谱GLM", "description": "智谱AI GLM模型"},
+        {"id": "openai", "name": "OpenAI", "description": "OpenAI GPT模型"},
+        {"id": "anthropic", "name": "Anthropic", "description": "Claude模型"},
+    ]

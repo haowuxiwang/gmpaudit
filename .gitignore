@@ -45,3 +45,17 @@ Thumbs.db
 # Build
 frontend/build/
 frontend/dist/
+
+# Local model files (large, download separately)
+model/
+
+# GraphRAG build artifacts
+graphrag_index/output/
+graphrag_index/logs/
+
+# Test artifacts
+backend/test.db
+data/test_documents/
+
+# Pip install artifacts (malformed command output)
+backend/=*

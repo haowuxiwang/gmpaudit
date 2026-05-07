@@ -1,3 +1,7 @@
+import sys
+import logging
+from pathlib import Path
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -7,8 +11,22 @@ from pydantic import BaseModel
 from app.core.database import get_db
 from app.models.audit_task import AuditTask, TaskStatus, TaskType
 from app.models.document import Document
-from app.models.finding import Finding
+from app.models.finding import Finding, SeverityLevel, FindingType
 from app.services.audit_engine import get_audit_engine, AuditConfig
+from app.services.notification import notify_audit_complete
+
+logger = logging.getLogger(__name__)
+
+# Import agent system at module level (once)
+AGENT_AVAILABLE = False
+try:
+    _project_root = str(Path(__file__).parent.parent.parent.parent)
+    if _project_root not in sys.path:
+        sys.path.insert(0, _project_root)
+    from agent.graph import build_audit_graph
+    AGENT_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"Agent system not available: {e}")
 
 router = APIRouter()
 
@@ -67,49 +85,92 @@ async def run_audit_task(task_id: int, db: AsyncSession = Depends(get_db)):
     await db.commit()
 
     try:
-        documents = []
+        if not AGENT_AVAILABLE:
+            raise HTTPException(status_code=503, detail="Agent审计系统不可用，请检查依赖安装")
+
+        # Get document paths for agent
+        document_paths = []
         for doc_id in task.document_ids:
             doc_result = await db.execute(select(Document).where(Document.id == doc_id))
             doc = doc_result.scalar_one_or_none()
-            if doc and doc.content_text:
-                documents.append(doc.content_text)
+            if doc:
+                document_paths.append(doc.file_path)
 
-        if not documents:
-            raise HTTPException(status_code=400, detail="没有可分析的文档内容")
+        if not document_paths:
+            raise HTTPException(status_code=400, detail="没有可分析的文档")
 
-        audit_engine = get_audit_engine()
-        config = AuditConfig()
-
+        graph = build_audit_graph()
         all_findings = []
 
-        if task.task_type == TaskType.DEVIATION_ANALYSIS:
-            for doc in documents:
-                findings = await audit_engine.analyze_deviation(doc, config)
-                all_findings.extend(findings)
-        elif task.task_type == TaskType.SOP_COMPLIANCE:
-            for doc in documents:
-                findings = await audit_engine.analyze_sop(doc, config)
-                all_findings.extend(findings)
-        elif task.task_type == TaskType.CONSISTENCY_CHECK:
-            findings = await audit_engine.check_consistency(documents, config)
-            all_findings.extend(findings)
+        for doc_path in document_paths:
+            task.progress = 30
+            await db.commit()
 
-        for finding_data in all_findings[:config.max_findings]:
+            initial_state = {
+                "document_name": doc_path,
+                "document_type": task.task_type.value,
+                "audit_focus": "",
+                "document_content": "",
+                "next_agent": "",
+                "supervisor_reasoning": "",
+                "matched_regulations": [],
+                "regulation_summary": "",
+                "findings": [],
+                "risk_score": 0,
+                "risk_level": "",
+                "report_markdown": "",
+                "report_path": "",
+                "messages": [],
+                "iteration": 0,
+                "status": "running",
+            }
+
+            agent_result = await graph.ainvoke(initial_state)
+            all_findings.extend(agent_result.get("findings", []))
+
+            task.progress = 80
+            await db.commit()
+
+        # Map agent findings to DB model
+        for finding_data in all_findings:
+            severity_raw = finding_data.get("severity", "medium").lower()
+            if severity_raw in ("high", "critical"):
+                severity = SeverityLevel.HIGH
+            elif severity_raw in ("low", "info"):
+                severity = SeverityLevel.LOW
+            else:
+                severity = SeverityLevel.MEDIUM
+
+            finding_type_raw = finding_data.get("type", "compliance_risk").lower()
+            type_map = {
+                "logic_flaw": FindingType.LOGIC_FLAW,
+                "compliance": FindingType.COMPLIANCE_RISK,
+                "compliance_risk": FindingType.COMPLIANCE_RISK,
+                "inconsistency": FindingType.INCONSISTENCY,
+                "missing_info": FindingType.MISSING_INFO,
+                "best_practice": FindingType.BEST_PRACTICE,
+            }
+            finding_type = type_map.get(finding_type_raw, FindingType.COMPLIANCE_RISK)
+
             finding = Finding(
                 task_id=task.id,
-                finding_type=finding_data.get("type", "logic_flaw"),
-                severity=finding_data.get("severity", "medium"),
+                finding_type=finding_type,
+                severity=severity,
                 title=finding_data.get("title", "未知问题"),
                 description=finding_data.get("description", ""),
                 evidence=finding_data.get("evidence", ""),
                 suggestion=finding_data.get("suggestion", ""),
-                location=finding_data.get("location", "")
+                location=finding_data.get("location", ""),
             )
             db.add(finding)
 
         task.status = TaskStatus.COMPLETED
         task.progress = 100
         await db.commit()
+
+        high_count = sum(1 for f in all_findings if f.get("severity", "").lower() in ("high", "critical"))
+        medium_count = sum(1 for f in all_findings if f.get("severity", "").lower() == "medium")
+        await notify_audit_complete(task.task_name, len(all_findings), high_count, medium_count)
 
         return {"status": "success", "findings_count": len(all_findings)}
     except Exception as e:
@@ -134,3 +195,37 @@ async def get_task_risk_assessment(task_id: int, db: AsyncSession = Depends(get_
     audit_engine = get_audit_engine()
     risk = await audit_engine.assess_risk([{"severity": f.severity.value} for f in findings])
     return risk
+
+
+@router.get("/dashboard")
+async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
+    """Aggregate stats for dashboard charts."""
+    from sqlalchemy import func
+
+    # Task counts by status
+    task_counts = {}
+    for status in TaskStatus:
+        result = await db.execute(
+            select(func.count()).select_from(AuditTask).where(AuditTask.status == status)
+        )
+        task_counts[status.value] = result.scalar()
+
+    # Finding counts by severity
+    severity_counts = {}
+    from app.models.finding import SeverityLevel
+    for level in SeverityLevel:
+        result = await db.execute(
+            select(func.count()).select_from(Finding).where(Finding.severity == level)
+        )
+        severity_counts[level.value] = result.scalar()
+
+    # Total counts
+    total_tasks = sum(task_counts.values())
+    total_findings = sum(severity_counts.values())
+
+    return {
+        "task_counts": task_counts,
+        "severity_counts": severity_counts,
+        "total_tasks": total_tasks,
+        "total_findings": total_findings,
+    }

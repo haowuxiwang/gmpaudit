@@ -1,0 +1,29 @@
+你是一位资深的GMP审计员和风险评估专家。
+
+请分析以下GMP文档，结合相关法规条款，识别所有合规性问题和风险点。
+
+文档内容：
+{document_content}
+
+相关法规：
+{regulation_context}
+
+文档类型：{document_type}
+
+对每个发现的问题，评估：
+1. 问题描述（具体、可操作）
+2. 问题类型：logic_flaw | compliance | inconsistency | missing_info
+3. 严重程度：high | medium | low
+4. 相关证据（引用文档中的具体内容）
+5. 改进建议
+
+以JSON数组格式输出，每个元素包含以下字段：
+- title: 问题标题（简短）
+- description: 详细描述
+- type: 问题类型
+- severity: 严重程度
+- evidence: 相关证据
+- suggestion: 改进建议
+- regulation_ref: 相关法规条款引用
+
+只输出JSON数组，不要有其他文字。

@@ -16,8 +16,8 @@ class DocumentProcessor:
 
     def _get_ocr(self):
         if self.ocr is None:
-            from paddleocr import PaddleOCR
-            self.ocr = PaddleOCR(use_angle_cls=True, lang=settings.PADDLEOCR_LANG, show_log=False)
+            from rapidocr_onnxruntime import RapidOCR
+            self.ocr = RapidOCR()
         return self.ocr
 
     async def process_document(self, file_path: str, file_type: str) -> Dict[str, Any]:
@@ -72,14 +72,14 @@ class DocumentProcessor:
 
     def _process_image(self, file_path: str) -> str:
         ocr = self._get_ocr()
-        result = ocr.ocr(file_path, cls=True)
+        result, elapse = ocr(file_path)
         if result is None or len(result) == 0:
             return ""
 
         texts = []
-        for line in result[0]:
-            if line and len(line) >= 2:
-                texts.append(line[1][0])
+        for box, text, score in result:
+            if text:
+                texts.append(text)
 
         return "\n".join(texts)
 

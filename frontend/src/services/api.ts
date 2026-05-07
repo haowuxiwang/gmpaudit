@@ -7,9 +7,22 @@ const api = axios.create({
   timeout: 30000,
 });
 
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('access_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
 api.interceptors.response.use(
   (response) => response.data,
   (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('user');
+      window.location.href = '/login';
+    }
     console.error('API Error:', error);
     return Promise.reject(error);
   }
@@ -44,6 +57,7 @@ export const auditApi = {
   runTask: (id: number) => api.post(`/audit/tasks/${id}/run`),
   getFindings: (taskId: number) => api.get(`/audit/tasks/${taskId}/findings`),
   getRiskAssessment: (taskId: number) => api.get(`/audit/tasks/${taskId}/risk`),
+  getDashboard: () => api.get('/audit/dashboard'),
 };
 
 export const reportApi = {
@@ -57,6 +71,19 @@ export const configApi = {
   get: (key: string) => api.get(`/config/${key}`),
   update: (key: string, value: string) => api.put(`/config/${key}`, null, { params: { value } }),
   getAvailableModels: () => api.get('/config/llm/models'),
+};
+
+export const authApi = {
+  getFeishuLoginUrl: () => api.get('/auth/feishu/login'),
+  handleCallback: (code: string, state: string) =>
+    api.get('/auth/feishu/callback', { params: { code, state } }),
+  getMe: () => api.get('/auth/me'),
+};
+
+export const alertsApi = {
+  list: (status?: string) => api.get('/alerts/', { params: { status } }),
+  acknowledge: (id: number) => api.put(`/alerts/${id}/acknowledge`),
+  resolve: (id: number) => api.put(`/alerts/${id}/resolve`),
 };
 
 export default api;

@@ -17,7 +17,7 @@ const AuditTasksPage: React.FC = () => {
   const loadTasks = async () => {
     try {
       setLoading(true);
-      const result = await auditApi.listTasks();
+      const result: any = await auditApi.listTasks();
       setTasks(result || []);
     } catch (error) {
       message.error('加载任务列表失败');
@@ -28,7 +28,7 @@ const AuditTasksPage: React.FC = () => {
 
   const loadDocuments = async () => {
     try {
-      const result = await documentApi.list();
+      const result: any = await documentApi.list();
       setDocuments(result || []);
     } catch (error) {
       console.error('加载文档列表失败');

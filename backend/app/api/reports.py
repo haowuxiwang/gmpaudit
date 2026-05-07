@@ -41,7 +41,7 @@ async def generate_report(task_id: int, db: AsyncSession = Depends(get_db)):
         report_type=ReportType.FULL_REPORT,
         title=f"审计报告 - {task.task_name}",
         content=report_content,
-        metadata={"findings_count": len(findings), "task_type": task.task_type.value}
+        report_metadata={"findings_count": len(findings), "task_type": task.task_type.value}
     )
     db.add(report)
     await db.commit()

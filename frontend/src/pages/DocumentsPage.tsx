@@ -15,7 +15,7 @@ const DocumentsPage: React.FC = () => {
   const loadDocuments = async () => {
     try {
       setLoading(true);
-      const result = await documentApi.list();
+      const result: any = await documentApi.list();
       setDocuments(result || []);
     } catch (error) {
       message.error('加载文档列表失败');

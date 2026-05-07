@@ -4,6 +4,7 @@ from sqlalchemy import select
 from typing import List
 import os
 import shutil
+import uuid
 
 from app.core.database import get_db
 from app.core.config import settings
@@ -12,19 +13,32 @@ from app.utils.file_utils import get_file_type, get_file_size
 
 router = APIRouter()
 
+
+def _generate_safe_filename(original_filename: str) -> str:
+    """生成安全的文件名，防止路径遍历攻击"""
+    # 获取文件扩展名
+    ext = os.path.splitext(original_filename)[1].lower()
+    # 使用 UUID 生成唯一文件名
+    safe_name = f"{uuid.uuid4().hex}{ext}"
+    return safe_name
+
+
 @router.post("/upload")
 async def upload_document(file: UploadFile = File(...), db: AsyncSession = Depends(get_db)):
     file_type = get_file_type(file.filename)
     if file_type == "unknown":
         raise HTTPException(status_code=400, detail="不支持的文件类型")
 
-    file_path = os.path.join(settings.UPLOAD_DIR, file.filename)
+    # 使用安全的文件名
+    safe_filename = _generate_safe_filename(file.filename)
+    file_path = os.path.join(settings.UPLOAD_DIR, safe_filename)
+
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
     document = Document(
-        filename=file.filename,
-        file_path=file_path,
+        filename=file.filename,  # 保留原始文件名用于显示
+        file_path=file_path,     # 使用安全的路径
         file_type=file_type,
         file_size=get_file_size(file_path),
         process_status=DocumentStatus.UPLOADED
@@ -36,6 +50,7 @@ async def upload_document(file: UploadFile = File(...), db: AsyncSession = Depen
 
     return {"id": document.id, "filename": document.filename, "status": "uploaded"}
 
+
 @router.post("/upload/batch")
 async def upload_documents_batch(files: List[UploadFile] = File(...), db: AsyncSession = Depends(get_db)):
     results = []
@@ -44,7 +59,10 @@ async def upload_documents_batch(files: List[UploadFile] = File(...), db: AsyncS
         if file_type == "unknown":
             continue
 
-        file_path = os.path.join(settings.UPLOAD_DIR, file.filename)
+        # 使用安全的文件名
+        safe_filename = _generate_safe_filename(file.filename)
+        file_path = os.path.join(settings.UPLOAD_DIR, safe_filename)
+
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
