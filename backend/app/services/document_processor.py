@@ -1,5 +1,6 @@
 import os
 import logging
+import tempfile
 from typing import Optional, Dict, Any
 from pathlib import Path
 
@@ -54,11 +55,14 @@ class DocumentProcessor:
 
             if len(text.strip()) < 50:
                 pix = page.get_pixmap()
-                img_path = f"/tmp/page_{page_num}.png"
+                with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
+                    img_path = tmp.name
                 pix.save(img_path)
-                ocr_text = self._process_image(img_path)
-                texts.append(ocr_text)
-                os.remove(img_path)
+                try:
+                    ocr_text = self._process_image(img_path)
+                    texts.append(ocr_text)
+                finally:
+                    os.remove(img_path)
             else:
                 texts.append(text)
 

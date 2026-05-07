@@ -20,6 +20,7 @@ class AuditEngine:
         self.llm = get_llm_engine()
 
     async def analyze_deviation(self, document: str, config: AuditConfig) -> List[Dict[str, Any]]:
+        logger.info(f"Audit: analyzing deviation report, doc_len={len(document)}")
         prompt = """你是一个资深的GMP审计员。请分析以下偏差报告，识别：
 
 1. 逻辑漏洞：偏差原因分析是否合理、调查过程是否完整、根本原因是否明确
@@ -29,9 +30,12 @@ class AuditEngine:
 请以JSON格式输出发现，每个发现包含：type, severity, title, description, evidence, suggestion"""
 
         response = await self.llm.analyze(document, prompt)
-        return self._parse_findings(response.content)
+        findings = self._parse_findings(response.content)
+        logger.info(f"Audit deviation: found {len(findings)} findings")
+        return findings
 
     async def analyze_sop(self, document: str, config: AuditConfig) -> List[Dict[str, Any]]:
+        logger.info(f"Audit: analyzing SOP document, doc_len={len(document)}")
         prompt = """你是一个资深的GMP审计员。请分析以下SOP文档，检查：
 
 1. SOP完整性：是否包含所有必要的步骤、职责分工是否明确、是否有关键控制点
@@ -41,7 +45,9 @@ class AuditEngine:
 请以JSON格式输出发现，每个发现包含：type, severity, title, description, location, suggestion"""
 
         response = await self.llm.analyze(document, prompt)
-        return self._parse_findings(response.content)
+        findings = self._parse_findings(response.content)
+        logger.info(f"Audit SOP: found {len(findings)} findings")
+        return findings
 
     async def check_consistency(self, documents: List[str], config: AuditConfig) -> List[Dict[str, Any]]:
         if len(documents) < 2:
@@ -58,7 +64,9 @@ class AuditEngine:
 请以JSON格式输出发现，每个发现包含：type, severity, title, description, evidence, suggestion"""
 
         response = await self.llm.analyze(docs_text, prompt)
-        return self._parse_findings(response.content)
+        findings = self._parse_findings(response.content)
+        logger.info(f"Audit consistency: checked {len(documents)} docs, found {len(findings)} findings")
+        return findings
 
     async def assess_risk(self, findings: List[Dict[str, Any]]) -> Dict[str, Any]:
         high_count = sum(1 for f in findings if f.get("severity") == "high")

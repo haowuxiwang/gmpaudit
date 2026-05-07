@@ -55,6 +55,8 @@ graphrag_index/logs/
 
 # Test artifacts
 backend/test.db
+backend/.coverage
+backend/htmlcov/
 data/test_documents/
 
 # Pip install artifacts (malformed command output)

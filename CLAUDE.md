@@ -9,11 +9,12 @@ GMP Compliance Audit System - AI-powered document analysis and compliance checki
 - **Database:** SQLAlchemy 2.0 (async) + aiosqlite (SQLite)
 - **Agent System:** LangGraph (StateGraph with Supervisor pattern)
 - **Knowledge Graph:** Microsoft GraphRAG (regulation retrieval)
-- **Embedding:** SiliconFlow API (Qwen/Qwen3-Embedding-8B)
+- **Embedding:** Local BAAI/bge-large-zh-v1.5 via sentence-transformers
 - **Document Processing:** PyMuPDF (PDF), python-docx (DOCX), RapidOCR (OCR)
-- **HTTP Client:** httpx (async), requests (embedding API)
+- **HTTP Client:** httpx (async)
 - **Config:** pydantic-settings, loads from `config/.env`
-- **Testing:** pytest + pytest-asyncio (asyncio_mode = auto)
+- **Testing:** pytest + pytest-asyncio + pytest-cov (asyncio_mode = auto)
+- **Security:** JWT auth with Feishu OAuth (CSRF state validation), itsdangerous
 
 ### Frontend (TypeScript)
 - **Framework:** React 18 + React Router 6

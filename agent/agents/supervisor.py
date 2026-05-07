@@ -4,7 +4,10 @@ Phase 2: deterministic routing based on state fields.
 Phase 2 upgrade: LLM-driven routing for more flexible workflows.
 """
 
+import logging
 from agent.state import AuditState
+
+logger = logging.getLogger(__name__)
 
 
 async def supervisor_node(state: AuditState) -> dict:
@@ -13,6 +16,7 @@ async def supervisor_node(state: AuditState) -> dict:
     Routing order: regulation_expert -> risk_assessor -> report_writer -> FINISH
     """
     iteration = state.get("iteration", 0) + 1
+    logger.info(f"Supervisor: iteration={iteration}")
 
     # Safety: prevent infinite loops
     if iteration > 10:

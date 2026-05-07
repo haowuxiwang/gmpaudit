@@ -3,10 +3,13 @@
 Generates a structured GMP audit report in Markdown format.
 """
 
+import logging
 from datetime import date
 from pathlib import Path
 
 from agent.config import get_llm
+
+logger = logging.getLogger(__name__)
 from agent.state import AuditState
 from agent.tools.risk_matrix import format_risk_summary
 
@@ -49,6 +52,7 @@ async def report_writer_node(state: AuditState) -> dict:
     doc_type = state.get("document_type", "unknown")
     risk_score = state.get("risk_score", 0)
     risk_level = state.get("risk_level", "unknown")
+    logger.info(f"Report Writer: generating report for {doc_name}")
     regulation_summary = state.get("regulation_summary", "")
     findings = state.get("findings", [])
 
@@ -69,7 +73,8 @@ async def report_writer_node(state: AuditState) -> dict:
 
         response = await llm.ainvoke(prompt)
         report_md = response.content
-    except Exception:
+    except Exception as e:
+        logger.warning(f"Report Writer LLM call failed, using fallback: {e}")
         # Fallback: generate a basic report without LLM
         report_md = _generate_fallback_report(
             doc_name, doc_type, risk_score, risk_level,
@@ -84,6 +89,7 @@ async def report_writer_node(state: AuditState) -> dict:
     report_path = report_dir / report_filename
 
     report_path.write_text(report_md, encoding="utf-8")
+    logger.info(f"Report Writer: report saved to {report_path}")
 
     return {
         "report_markdown": report_md,

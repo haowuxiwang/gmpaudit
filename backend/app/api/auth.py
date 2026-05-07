@@ -1,15 +1,19 @@
+import logging
 import secrets
 from datetime import datetime, timezone
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.auth import create_access_token, get_current_user
 from app.models.user import User
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -18,25 +22,64 @@ FEISHU_APP_TOKEN_URL = "https://open.feishu.cn/open-apis/auth/v3/app_access_toke
 FEISHU_USER_TOKEN_URL = "https://open.feishu.cn/open-apis/authen/v1/oidc/access_token"
 FEISHU_USER_INFO_URL = "https://open.feishu.cn/open-apis/authen/v1/user_info"
 
+CSRF_MAX_AGE = 300  # 5 minutes
+
+
+def _get_csrf_serializer():
+    return URLSafeTimedSerializer(settings.JWT_SECRET_KEY)
+
 
 @router.get("/feishu/login")
-async def feishu_login():
+async def feishu_login(response: Response):
     state = secrets.token_urlsafe(16)
+    serializer = _get_csrf_serializer()
+    signed_state = serializer.dumps(state)
+
     url = (
         f"{FEISHU_AUTHORIZE_URL}"
         f"?app_id={settings.FEISHU_APP_ID}"
         f"&redirect_uri={settings.FEISHU_REDIRECT_URI}"
         f"&state={state}"
     )
+
+    response.set_cookie(
+        key="feishu_csrf_state",
+        value=signed_state,
+        max_age=CSRF_MAX_AGE,
+        httponly=True,
+        samesite="lax",
+    )
+    logger.info("Feishu login: state generated and cookie set")
     return {"url": url}
 
 
 @router.get("/feishu/callback")
 async def feishu_callback(
+    request: Request,
     code: str = Query(...),
     state: str = Query(None),
     db: AsyncSession = Depends(get_db),
 ):
+    # CSRF state validation
+    cookie_state = request.cookies.get("feishu_csrf_state")
+    if not cookie_state or not state:
+        logger.warning("Feishu callback: missing CSRF state")
+        raise HTTPException(status_code=400, detail="Missing CSRF state")
+
+    serializer = _get_csrf_serializer()
+    try:
+        expected_state = serializer.loads(cookie_state, max_age=CSRF_MAX_AGE)
+    except SignatureExpired:
+        logger.warning("Feishu callback: CSRF state expired")
+        raise HTTPException(status_code=400, detail="CSRF state expired")
+    except BadSignature:
+        logger.warning("Feishu callback: invalid CSRF state signature")
+        raise HTTPException(status_code=400, detail="Invalid CSRF state")
+
+    if state != expected_state:
+        logger.warning("Feishu callback: CSRF state mismatch")
+        raise HTTPException(status_code=400, detail="CSRF state mismatch")
+
     async with httpx.AsyncClient() as client:
         # Step 1: Get app_access_token
         app_token_resp = await client.post(

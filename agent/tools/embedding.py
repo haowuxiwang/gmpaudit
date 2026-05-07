@@ -1,34 +1,31 @@
-"""Embedding tool using SiliconFlow API.
+"""Embedding tool using local BAAI/bge-large-zh-v1.5 model.
 
-Uses Qwen/Qwen3-Embedding-8B via SiliconFlow API for Chinese text embedding.
-This is the fallback when local BGE model is not available.
+Uses sentence-transformers for local inference — no API calls needed.
 """
 
-import os
+import logging
 from typing import List
-
-import requests
-from dotenv import load_dotenv
 from pathlib import Path
 
-# Load environment variables
-_project_root = Path(__file__).parent.parent.parent
-load_dotenv(_project_root / "config" / ".env")
+logger = logging.getLogger(__name__)
 
-SILICONFLOW_API_URL = "https://api.siliconflow.cn/v1/embeddings"
-EMBEDDING_MODEL = "Qwen/Qwen3-Embedding-8B"
+_model = None
+_MODEL_DIR = Path(__file__).parent.parent.parent / "model"
 
 
-def _get_api_key() -> str:
-    """Get SiliconFlow API key from environment."""
-    api_key = os.getenv("SILICONFLOW_API_KEY", "")
-    if not api_key:
-        raise ValueError("SILICONFLOW_API_KEY not set in config/.env")
-    return api_key
+def _get_model():
+    """Lazy-load the sentence-transformers model."""
+    global _model
+    if _model is None:
+        from sentence_transformers import SentenceTransformer
+        logger.info(f"Loading local embedding model from {_MODEL_DIR}")
+        _model = SentenceTransformer(str(_MODEL_DIR))
+        logger.info(f"Embedding model loaded, dim={_model.get_sentence_embedding_dimension()}")
+    return _model
 
 
 def embed_texts(texts: List[str]) -> List[List[float]]:
-    """Embed a list of texts using SiliconFlow API.
+    """Embed a list of texts using local BGE model.
 
     Args:
         texts: List of text strings to embed
@@ -36,28 +33,10 @@ def embed_texts(texts: List[str]) -> List[List[float]]:
     Returns:
         List of embedding vectors
     """
-    api_key = _get_api_key()
-
-    response = requests.post(
-        SILICONFLOW_API_URL,
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json"
-        },
-        json={
-            "model": EMBEDDING_MODEL,
-            "input": texts
-        },
-        timeout=60
-    )
-
-    if response.status_code != 200:
-        raise RuntimeError(f"Embedding API failed: {response.status_code} {response.text}")
-
-    data = response.json()
-    # Sort by index to maintain order
-    embeddings = sorted(data["data"], key=lambda x: x["index"])
-    return [item["embedding"] for item in embeddings]
+    model = _get_model()
+    embeddings = model.encode(texts, normalize_embeddings=True)
+    logger.info(f"Embedded {len(texts)} texts, dim={len(embeddings[0]) if len(embeddings) > 0 else 0}")
+    return embeddings.tolist()
 
 
 def embed_query(query: str) -> List[float]:
@@ -73,9 +52,11 @@ def embed_query(query: str) -> List[float]:
     return embeddings[0]
 
 
-# For GraphRAG integration
 class SiliconFlowEmbeddingFunction:
-    """Embedding function compatible with GraphRAG/LanceDB."""
+    """Embedding function compatible with GraphRAG/LanceDB.
+
+    Kept for interface compatibility — now uses local model.
+    """
 
     def __call__(self, texts: List[str]) -> List[List[float]]:
         """Embed texts and return as list of lists."""
@@ -83,7 +64,6 @@ class SiliconFlowEmbeddingFunction:
 
 
 if __name__ == "__main__":
-    # Test the embedding
     test_texts = ["GMP合规性审计", "偏差处理流程", "变更控制管理"]
     try:
         embeddings = embed_texts(test_texts)

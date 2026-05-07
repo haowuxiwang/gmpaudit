@@ -5,10 +5,13 @@ to find relevant GMP clauses for the document.
 """
 
 import json
+import logging
 import re
 from pathlib import Path
 
 from agent.config import get_llm
+
+logger = logging.getLogger(__name__)
 from agent.state import AuditState
 from agent.tools.regulation_db import search_regulations
 
@@ -52,6 +55,7 @@ async def regulation_expert_node(state: AuditState) -> dict:
     """
     doc_content = state.get("document_content", "")[:3000]
     doc_type = state.get("document_type", "unknown")
+    logger.info(f"Regulation Expert: analyzing doc_type={doc_type}, content_len={len(doc_content)}")
 
     # Step 1: Search regulation database
     # Try GraphRAG first, fall back to hardcoded DB
@@ -59,7 +63,8 @@ async def regulation_expert_node(state: AuditState) -> dict:
         from agent.tools.graphrag_tool import graphrag_search
         reg_results = await graphrag_search(doc_content)
         source = "GraphRAG"
-    except (ImportError, Exception):
+    except (ImportError, Exception) as e:
+        logger.info(f"GraphRAG unavailable ({e}), using fallback regulation DB")
         # Fallback: keyword search in hardcoded regulations
         keywords = f"{doc_type} 偏差 变更 CAPA 文件管理 设备维护"
         reg_results = search_regulations(keywords, n_results=5)
@@ -74,6 +79,7 @@ async def regulation_expert_node(state: AuditState) -> dict:
         response = await llm.ainvoke(prompt)
         llm_analysis = _parse_llm_json(response.content)
     except Exception as e:
+        logger.warning(f"Regulation Expert LLM call failed: {e}")
         llm_analysis = []
         # Continue with fallback results even if LLM fails
 
@@ -90,6 +96,7 @@ async def regulation_expert_node(state: AuditState) -> dict:
         reg_name = reg.get("regulation", "Unknown")
         summary_lines.append(f"- {reg_name}: {title}")
 
+    logger.info(f"Regulation Expert: found {len(matched)} clauses from {source}")
     return {
         "matched_regulations": matched,
         "regulation_summary": "\n".join(summary_lines),

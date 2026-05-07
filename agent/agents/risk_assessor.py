@@ -5,10 +5,13 @@ compliance issues and calculate risk scores.
 """
 
 import json
+import logging
 import re
 from pathlib import Path
 
 from agent.config import get_llm
+
+logger = logging.getLogger(__name__)
 from agent.state import AuditState
 from agent.tools.risk_matrix import calculate_risk_score, format_risk_summary
 
@@ -64,6 +67,7 @@ async def risk_assessor_node(state: AuditState) -> dict:
     doc_content = state.get("document_content", "")[:3000]
     doc_type = state.get("document_type", "unknown")
     regulations = state.get("matched_regulations", [])
+    logger.info(f"Risk Assessor: doc_type={doc_type}, regulations={len(regulations)}")
 
     # Format regulation context for the prompt
     regulation_context = _format_regulations(regulations)
@@ -80,7 +84,8 @@ async def risk_assessor_node(state: AuditState) -> dict:
 
         response = await llm.ainvoke(prompt)
         findings = _parse_llm_json(response.content)
-    except Exception:
+    except Exception as e:
+        logger.warning(f"Risk Assessor LLM call failed: {e}")
         findings = []
 
     # Ensure each finding has required fields
@@ -95,6 +100,7 @@ async def risk_assessor_node(state: AuditState) -> dict:
 
     # Format summary
     summary = format_risk_summary(findings)
+    logger.info(f"Risk Assessor: {len(findings)} findings, score={risk_score}, level={risk_level}")
 
     return {
         "findings": findings,

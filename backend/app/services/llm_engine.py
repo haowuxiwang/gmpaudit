@@ -249,6 +249,7 @@ class LLMEngine:
                 model=model,
                 name=name,
             )
+            logger.info(f"Initialized LLM adapter: {name} (model={model})")
 
         # Anthropic uses a different API format
         if settings.ANTHROPIC_API_KEY:
@@ -257,6 +258,10 @@ class LLMEngine:
                 api_key=settings.ANTHROPIC_API_KEY,
                 base_url=base_url,
             )
+            logger.info("Initialized LLM adapter: anthropic")
+
+        if not self.adapters:
+            logger.warning("No LLM adapters initialized — check API keys in config/.env")
 
     async def analyze(self, document: str, prompt: str, model: str = "deepseek") -> LLMResponse:
         adapter = self.adapters.get(model)
@@ -264,11 +269,18 @@ class LLMEngine:
             available = list(self.adapters.keys())
             raise ValueError(f"不支持的模型: {model}，可用: {available}")
 
+        logger.info(f"LLM analyze: provider={model}, doc_len={len(document)}")
         messages = [
             {"role": "system", "content": prompt},
             {"role": "user", "content": document},
         ]
-        return await adapter.chat(messages)
+        try:
+            response = await adapter.chat(messages)
+            logger.info(f"LLM analyze complete: provider={model}, usage={response.usage}")
+            return response
+        except Exception as e:
+            logger.error(f"LLM analyze failed: provider={model}, error={e}")
+            raise
 
     async def compare(self, doc1: str, doc2: str, criteria: str, model: str = "deepseek") -> LLMResponse:
         adapter = self.adapters.get(model)

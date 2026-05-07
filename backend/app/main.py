@@ -1,9 +1,13 @@
+import logging
+import os
+from logging.handlers import RotatingFileHandler
+
 from fastapi import FastAPI, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from app.api import documents, audit, reports, config, auth, alerts, agent_audit
 from app.core.database import engine, Base
-from app.core.auth import get_current_user
+from app.core.auth import get_current_user, decode_access_token
 
 app = FastAPI(
     title="GMP合规性审计系统",
@@ -53,7 +57,9 @@ async def auth_middleware(request: Request, call_next):
                 content={"detail": "未提供认证凭据"}
             )
 
-        # 验证 token (在中间件中只做基本验证，具体路由中获取用户)
+        token = auth_header[7:]  # Remove "Bearer " prefix
+        # Validate JWT signature and expiry in middleware
+        decode_access_token(token)
         return await call_next(request)
     except Exception as e:
         return JSONResponse(
@@ -74,18 +80,37 @@ app.include_router(agent_audit.router, prefix="/api/agent-audit", tags=["agent-a
 
 @app.on_event("startup")
 async def startup():
-    # 检查 JWT 密钥安全性
     from app.core.config import settings
+
+    # 配置日志系统
+    log_level = getattr(logging, settings.LOG_LEVEL.upper(), logging.INFO)
+    log_format = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+    log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "logs")
+    os.makedirs(log_dir, exist_ok=True)
+    log_file = os.path.join(log_dir, "app.log")
+
+    file_handler = RotatingFileHandler(log_file, maxBytes=10 * 1024 * 1024, backupCount=5, encoding="utf-8")
+    file_handler.setFormatter(logging.Formatter(log_format))
+
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(logging.Formatter(log_format))
+
+    root_logger = logging.getLogger()
+    root_logger.setLevel(log_level)
+    root_logger.addHandler(file_handler)
+    root_logger.addHandler(console_handler)
+
+    logger = logging.getLogger(__name__)
+    logger.info("GMP审计系统启动中...")
+
+    # JWT 密钥安全检查 — refuse to start with default key
     if settings.JWT_SECRET_KEY == "gmp-audit-secret-key-change-in-production":
-        import warnings
-        warnings.warn(
-            "WARNING: JWT_SECRET_KEY is using default value! "
-            "Set a secure key in config/.env for production use.",
-            UserWarning
-        )
+        logger.critical("JWT_SECRET_KEY 使用默认值！必须在 config/.env 中设置安全密钥。")
+        raise RuntimeError("JWT_SECRET_KEY must be changed from default. Set it in config/.env")
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    logger.info("数据库表已创建/验证")
 
 
 @app.get("/")
