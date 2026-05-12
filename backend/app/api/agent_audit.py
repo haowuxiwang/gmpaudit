@@ -1,197 +1,183 @@
-"""Agent-based audit API routes.
+"""Agent-based audit API routes."""
 
-This module provides API endpoints that use the LangGraph Agent system
-for GMP compliance auditing. This replaces the old audit_engine approach.
-"""
-
-import sys
+import asyncio
 import logging
-from pathlib import Path
-from datetime import date
-
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from pydantic import BaseModel
+from datetime import datetime, timezone
 from typing import Optional
 
-from app.core.database import get_db, async_session
-from app.models.document import Document, DocumentStatus
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.auth import get_current_user
+from app.core.config import settings
+from app.core.database import async_session, get_db
+from app.models.user import User
 from app.models.audit_task import AuditTask, TaskStatus, TaskType
-from app.models.finding import Finding, SeverityLevel, FindingType
+from app.models.document import Document, DocumentStatus
+from app.models.finding import Finding, SeverityLevel
+from app.models.risk_alert import RiskAlert, AlertLevel
+from app.services.notification import notify_audit_complete, notify_high_risk_finding, notify_task_failed
+from app.utils.agent_helpers import AGENT_AVAILABLE, build_audit_graph, build_initial_state, normalize_finding
 
 logger = logging.getLogger(__name__)
 
-# Import agent system at module level
-AGENT_AVAILABLE = False
-try:
-    _project_root = str(Path(__file__).parent.parent.parent.parent)
-    if _project_root not in sys.path:
-        sys.path.insert(0, _project_root)
-    from agent.graph import build_audit_graph
-    AGENT_AVAILABLE = True
-except ImportError as e:
-    logger.warning(f"Agent system not available: {e}")
-
 router = APIRouter()
+
+AUDIT_TYPE_TO_TASK_TYPE = {
+    "deviation": TaskType.DEVIATION_ANALYSIS,
+    "sop": TaskType.SOP_COMPLIANCE,
+    "change_control": TaskType.CONSISTENCY_CHECK,
+}
 
 
 class AgentAuditRequest(BaseModel):
-    """Request model for agent-based audit"""
     document_id: int
-    audit_type: str = "deviation"  # deviation, sop, change_control
+    audit_type: str = "deviation"
     focus: Optional[str] = None
 
 
 class AgentAuditResponse(BaseModel):
-    """Response model for agent-based audit"""
     task_id: int
     status: str
     message: str
 
 
-async def _run_agent_audit(task_id: int, document_path: str, document_type: str, focus: str = ""):
-    """Background task to run agent audit with proper task state management."""
+async def _run_agent_audit(task_id: int, document_id: int, document_path: str, document_type: str, focus: str = ""):
+    task = None
+    timeout_seconds = settings.DOCUMENT_PROCESS_TIMEOUT or 300
+
     async with async_session() as db:
         try:
             if not AGENT_AVAILABLE:
-                raise RuntimeError("Agent审计系统不可用，请检查依赖安装")
+                raise RuntimeError("Agent 审计系统不可用，请检查依赖安装")
 
-            # Mark task as running
             result = await db.execute(select(AuditTask).where(AuditTask.id == task_id))
             task = result.scalar_one_or_none()
             if not task:
-                logger.error(f"Task {task_id} not found")
+                logger.error("Task %s not found", task_id)
                 return
 
             graph = build_audit_graph()
+            agent_result = await asyncio.wait_for(
+                graph.ainvoke(build_initial_state(document_path, document_type, focus)),
+                timeout=timeout_seconds,
+            )
 
-            initial_state = {
-                "document_name": document_path,
-                "document_type": document_type,
-                "audit_focus": focus,
-                "document_content": "",
-                "next_agent": "",
-                "supervisor_reasoning": "",
-                "matched_regulations": [],
-                "regulation_summary": "",
-                "findings": [],
-                "risk_score": 0,
-                "risk_level": "",
-                "report_markdown": "",
-                "report_path": "",
-                "messages": [],
-                "iteration": 0,
-                "status": "running",
-            }
+            for finding_data in agent_result.get("findings", []):
+                db.add(normalize_finding(finding_data, task_id, document_id))
 
-            agent_result = await graph.ainvoke(initial_state)
-
-            # Store findings in database
-            findings = agent_result.get("findings", [])
-            for finding_data in findings:
-                severity_raw = finding_data.get("severity", "medium").lower()
-                if severity_raw in ("high", "critical"):
-                    severity = SeverityLevel.HIGH
-                elif severity_raw in ("low", "info"):
-                    severity = SeverityLevel.LOW
-                else:
-                    severity = SeverityLevel.MEDIUM
-
-                finding_type_raw = finding_data.get("type", "compliance_risk").lower()
-                type_map = {
-                    "logic_flaw": FindingType.LOGIC_FLAW,
-                    "compliance": FindingType.COMPLIANCE_RISK,
-                    "compliance_risk": FindingType.COMPLIANCE_RISK,
-                    "inconsistency": FindingType.INCONSISTENCY,
-                    "missing_info": FindingType.MISSING_INFO,
-                    "best_practice": FindingType.BEST_PRACTICE,
-                }
-                finding_type = type_map.get(finding_type_raw, FindingType.COMPLIANCE_RISK)
-
-                finding = Finding(
+            report_md = agent_result.get("report_markdown")
+            if report_md:
+                from app.models.report import Report, ReportType
+                db.add(Report(
                     task_id=task_id,
-                    finding_type=finding_type,
-                    severity=severity,
-                    title=finding_data.get("title", "未知问题"),
-                    description=finding_data.get("description", ""),
-                    evidence=finding_data.get("evidence", ""),
-                    suggestion=finding_data.get("suggestion", ""),
-                    location=finding_data.get("location", ""),
-                )
-                db.add(finding)
+                    report_type=ReportType.FULL_REPORT,
+                    title=f"Agent审计报告 - {document_type}",
+                    content=report_md,
+                ))
 
-            # Update task status to completed
             task.status = TaskStatus.COMPLETED
             task.progress = 100
+            task.completed_at = datetime.now(timezone.utc)
             await db.commit()
-            logger.info(f"Agent audit completed for task {task_id}: {len(findings)} findings")
+            logger.info("Agent audit completed for task %s", task_id)
 
-        except Exception as e:
-            logger.error(f"Agent audit failed for task {task_id}: {e}")
+            # Create RiskAlert records for high/critical findings
+            result = await db.execute(select(Finding).where(Finding.task_id == task_id))
+            saved_findings = result.scalars().all()
+            for f in saved_findings:
+                if f.severity == SeverityLevel.HIGH:
+                    db.add(RiskAlert(finding_id=f.id, alert_level=AlertLevel.CRITICAL))
+                elif f.severity == SeverityLevel.MEDIUM:
+                    db.add(RiskAlert(finding_id=f.id, alert_level=AlertLevel.WARNING))
+            await db.commit()
+
+            # Send notifications
+            findings = agent_result.get("findings", [])
+            high_count = sum(1 for f in findings if f.get("severity", "").lower() in ("high", "critical"))
+            medium_count = sum(1 for f in findings if f.get("severity", "").lower() == "medium")
+            top_findings = [
+                {"title": f.get("title", ""), "severity": f.get("severity", "")}
+                for f in findings if f.get("severity", "").lower() in ("high", "critical")
+            ][:3]
+            await notify_audit_complete(task.task_name, len(findings), high_count, medium_count, top_findings)
+            for f in findings:
+                if f.get("severity", "").lower() in ("high", "critical"):
+                    await notify_high_risk_finding(task.task_name, f.get("title", ""), f.get("severity", ""), f.get("description", ""))
+        except asyncio.TimeoutError:
+            logger.error("Agent audit timed out for task %s after %d seconds", task_id, timeout_seconds)
+            error_msg = f"审计任务超时（超过 {timeout_seconds} 秒）"
+            await notify_task_failed(task.task_name if task is not None else f"Task {task_id}", error_msg)
             try:
-                # Update task status to failed
                 result = await db.execute(select(AuditTask).where(AuditTask.id == task_id))
                 task = result.scalar_one_or_none()
                 if task:
                     task.status = TaskStatus.FAILED
-                    task.error_message = str(e)
+                    task.error_message = error_msg
+                    task.completed_at = datetime.now(timezone.utc)
                     await db.commit()
-            except Exception as db_err:
-                logger.error(f"Failed to update task status: {db_err}")
+            except Exception:
+                logger.exception("Failed to persist timeout state for task %s", task_id)
+        except Exception as exc:
+            logger.exception("Agent audit failed for task %s", task_id)
+            await notify_task_failed(task.task_name if task is not None else f"Task {task_id}", str(exc))
+            try:
+                result = await db.execute(select(AuditTask).where(AuditTask.id == task_id))
+                task = result.scalar_one_or_none()
+                if task:
+                    task.status = TaskStatus.FAILED
+                    task.error_message = str(exc)
+                    task.completed_at = datetime.now(timezone.utc)
+                    await db.commit()
+            except Exception:
+                logger.exception("Failed to persist failure state for task %s", task_id)
 
 
 @router.post("/run", response_model=AgentAuditResponse)
 async def run_agent_audit(
     request: AgentAuditRequest,
     background_tasks: BackgroundTasks,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
-    """Run an agent-based audit on a document"""
-
     if not AGENT_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Agent审计系统不可用，请检查依赖安装")
+        raise HTTPException(status_code=503, detail="Agent 审计系统不可用，请检查依赖安装")
 
-    # Get document
     result = await db.execute(select(Document).where(Document.id == request.document_id))
     document = result.scalar_one_or_none()
     if not document:
         raise HTTPException(status_code=404, detail="文档不存在")
-
     if document.process_status != DocumentStatus.PROCESSED:
         raise HTTPException(status_code=400, detail="文档尚未处理完成")
 
-    # Create audit task
+    audit_type = request.audit_type if request.audit_type in AUDIT_TYPE_TO_TASK_TYPE else "deviation"
     task = AuditTask(
         task_name=f"Agent审计 - {document.filename}",
-        task_type=TaskType.DEVIATION_ANALYSIS,  # Default
+        task_type=AUDIT_TYPE_TO_TASK_TYPE[audit_type],
         status=TaskStatus.RUNNING,
         document_ids=[request.document_id],
-        progress=0
+        progress=0,
     )
     db.add(task)
     await db.commit()
     await db.refresh(task)
 
-    # Run agent audit in background
     background_tasks.add_task(
         _run_agent_audit,
         task.id,
+        document.id,
         document.file_path,
-        request.audit_type,
-        request.focus or ""
+        audit_type,
+        request.focus or "",
     )
 
-    return AgentAuditResponse(
-        task_id=task.id,
-        status="running",
-        message="Agent审计已启动"
-    )
+    return AgentAuditResponse(task_id=task.id, status="running", message="Agent审计已启动")
 
 
 @router.get("/status/{task_id}")
-async def get_agent_audit_status(task_id: int, db: AsyncSession = Depends(get_db)):
-    """Get the status of an agent audit task"""
+async def get_agent_audit_status(task_id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     result = await db.execute(select(AuditTask).where(AuditTask.id == task_id))
     task = result.scalar_one_or_none()
     if not task:
@@ -201,5 +187,6 @@ async def get_agent_audit_status(task_id: int, db: AsyncSession = Depends(get_db
         "task_id": task.id,
         "status": task.status.value,
         "progress": task.progress,
-        "error_message": task.error_message
+        "error_message": task.error_message,
+        "completed_at": task.completed_at,
     }

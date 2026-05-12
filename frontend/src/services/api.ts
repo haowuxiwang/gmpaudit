@@ -1,6 +1,22 @@
 import axios from 'axios';
+import type {
+  Document,
+  PaginatedResponse,
+  AuditTask,
+  Report,
+  RiskAlert,
+  KGStatus,
+  KGDocument,
+  KGQueryResult,
+  AgentAuditRequest,
+  AgentAuditResponse,
+  AgentAuditStatus,
+  DashboardData,
+  GraphData,
+  ConfigItem,
+} from '../types/api';
 
-const API_BASE_URL = 'http://localhost:8000/api';
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -17,73 +33,73 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(
   (response) => response.data,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
-    }
-    console.error('API Error:', error);
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
 export const documentApi = {
-  upload: (file: File) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    return api.post('/documents/upload', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
-  },
   uploadBatch: (files: File[]) => {
     const formData = new FormData();
     files.forEach((file) => formData.append('files', file));
-    return api.post('/documents/upload/batch', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    return api.post('/documents/upload/batch', formData) as Promise<{ message: string }>;
   },
-  list: (page = 1, pageSize = 20) => api.get('/documents/', { params: { page, page_size: pageSize } }),
-  get: (id: number) => api.get(`/documents/${id}`),
-  process: (id: number) => api.post(`/documents/${id}/process`),
-  delete: (id: number) => api.delete(`/documents/${id}`),
+  list: (page = 1, pageSize = 20) =>
+    api.get('/documents/', { params: { page, page_size: pageSize } }) as Promise<PaginatedResponse<Document>>,
+  delete: (id: number) => api.delete(`/documents/${id}`) as Promise<{ message: string }>,
 };
 
 export const auditApi = {
   createTask: (data: { task_name: string; task_type: string; document_ids: number[] }) =>
-    api.post('/audit/tasks', data),
-  listTasks: (status?: string) => api.get('/audit/tasks', { params: { status } }),
-  getTask: (id: number) => api.get(`/audit/tasks/${id}`),
-  runTask: (id: number) => api.post(`/audit/tasks/${id}/run`),
-  getFindings: (taskId: number) => api.get(`/audit/tasks/${taskId}/findings`),
-  getRiskAssessment: (taskId: number) => api.get(`/audit/tasks/${taskId}/risk`),
-  getDashboard: () => api.get('/audit/dashboard'),
+    api.post('/audit/tasks', data) as Promise<AuditTask>,
+  listTasks: (status?: string) =>
+    api.get('/audit/tasks', { params: { status } }) as Promise<PaginatedResponse<AuditTask>>,
+  runTask: (id: number) => api.post(`/audit/tasks/${id}/run`) as Promise<{ message: string }>,
+  getDashboard: () => api.get('/audit/dashboard') as Promise<DashboardData>,
+};
+
+export const agentAuditApi = {
+  run: (data: AgentAuditRequest) =>
+    api.post('/agent-audit/run', data) as Promise<AgentAuditResponse>,
+  getStatus: (taskId: number) =>
+    api.get(`/agent-audit/status/${taskId}`) as Promise<AgentAuditStatus>,
 };
 
 export const reportApi = {
-  list: (taskId?: number) => api.get('/reports/', { params: { task_id: taskId } }),
-  generate: (taskId: number) => api.post(`/reports/generate/${taskId}`),
-  get: (id: number) => api.get(`/reports/${id}`),
+  list: (taskId?: number) =>
+    api.get('/reports/', { params: { task_id: taskId } }) as Promise<PaginatedResponse<Report>>,
+  get: (id: number) => api.get(`/reports/${id}`) as Promise<Report>,
+  exportMarkdown: (id: number) =>
+    api.get(`/reports/${id}`, { responseType: 'blob' }) as Promise<Blob>,
 };
 
 export const configApi = {
-  getAll: () => api.get('/config/'),
-  get: (key: string) => api.get(`/config/${key}`),
-  update: (key: string, value: string) => api.put(`/config/${key}`, null, { params: { value } }),
-  getAvailableModels: () => api.get('/config/llm/models'),
-};
-
-export const authApi = {
-  getFeishuLoginUrl: () => api.get('/auth/feishu/login'),
-  handleCallback: (code: string, state: string) =>
-    api.get('/auth/feishu/callback', { params: { code, state } }),
-  getMe: () => api.get('/auth/me'),
+  getAll: () => api.get('/config/') as Promise<ConfigItem[]>,
+  batchUpdate: (configs: Record<string, string>) =>
+    api.post('/config/batch', { configs }) as Promise<{ message: string }>,
+  testWebhook: () => api.post('/config/test-webhook') as Promise<{ message: string }>,
 };
 
 export const alertsApi = {
-  list: (status?: string) => api.get('/alerts/', { params: { status } }),
-  acknowledge: (id: number) => api.put(`/alerts/${id}/acknowledge`),
-  resolve: (id: number) => api.put(`/alerts/${id}/resolve`),
+  list: (status?: string) =>
+    api.get('/alerts/', { params: { status } }) as Promise<PaginatedResponse<RiskAlert>>,
+  acknowledge: (id: number) => api.put(`/alerts/${id}/acknowledge`) as Promise<RiskAlert>,
+  resolve: (id: number) => api.put(`/alerts/${id}/resolve`) as Promise<RiskAlert>,
+};
+
+export const kgApi = {
+  getStatus: () => api.get('/kg/status') as Promise<KGStatus>,
+  build: (force = false) => api.post('/kg/build', null, { params: { force } }) as Promise<{ message: string }>,
+  getBuildStatus: () => api.get('/kg/build-status') as Promise<{ building: boolean; message: string }>,
+  query: (query: string, method = 'local') =>
+    api.post('/kg/query', { query, method }) as Promise<KGQueryResult>,
+  getDocuments: () => api.get('/kg/documents') as Promise<KGDocument[]>,
+  getGraphData: () => api.get('/kg/graph') as Promise<GraphData>,
+  uploadDocument: (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post('/kg/documents/upload', formData) as Promise<{ message: string; filename: string }>;
+  },
+  deleteDocument: (filename: string) =>
+    api.delete(`/kg/documents/${filename}`) as Promise<{ message: string }>,
 };
 
 export default api;

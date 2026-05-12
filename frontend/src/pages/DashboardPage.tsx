@@ -1,36 +1,39 @@
 import React, { useState, useEffect } from 'react';
-import { Row, Col, Typography, Card, Statistic, Spin } from 'antd';
-import { FileTextOutlined, AuditOutlined, CheckCircleOutlined, WarningOutlined } from '@ant-design/icons';
+import { Row, Col, Typography, Card, Statistic, Button, Space, message, Empty } from 'antd';
+import { FileTextOutlined, AuditOutlined, CheckCircleOutlined, WarningOutlined, UploadOutlined, BranchesOutlined, SettingOutlined, PlusOutlined, FileSearchOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import ReactECharts from 'echarts-for-react';
 import { auditApi, documentApi } from '../services/api';
+import type { DashboardData } from '../types/api';
 
 const { Title } = Typography;
 
 const DashboardPage: React.FC = () => {
   const [stats, setStats] = useState({ totalDocuments: 0, totalTasks: 0, completedTasks: 0, highRiskFindings: 0 });
-  const [dashboard, setDashboard] = useState<any>(null);
+  const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
-  useEffect(() => { loadDashboardData(); }, []);
+  useEffect(() => { void loadDashboardData(); }, []);
 
   const loadDashboardData = async () => {
     try {
       setLoading(true);
-      const [docResult, tasksResult, dashResult] = await Promise.all([
-        documentApi.list(1, 1000) as any,
-        auditApi.listTasks() as any,
-        auditApi.getDashboard() as any,
+      const [docResult, dashResult] = await Promise.allSettled([
+        documentApi.list(1, 1),
+        auditApi.getDashboard(),
       ]);
-      const tasks = tasksResult || [];
+      const docData = docResult.status === 'fulfilled' ? docResult.value : null;
+      const dashData = dashResult.status === 'fulfilled' ? dashResult.value : null;
       setStats({
-        totalDocuments: docResult?.length || 0,
-        totalTasks: tasks.length,
-        completedTasks: tasks.filter((t: any) => t.status === 'completed').length,
-        highRiskFindings: dashResult?.severity_counts?.high || 0,
+        totalDocuments: docData?.total || 0,
+        totalTasks: dashData?.total_tasks || 0,
+        completedTasks: dashData?.task_counts?.completed || 0,
+        highRiskFindings: dashData?.severity_counts?.high || 0,
       });
-      setDashboard(dashResult);
-    } catch (error) {
-      console.error('加载仪表盘数据失败:', error);
+      setDashboard(dashData);
+    } catch {
+      message.error('加载仪表盘数据失败');
     } finally {
       setLoading(false);
     }
@@ -76,7 +79,13 @@ const DashboardPage: React.FC = () => {
     }],
   } : null;
 
-  if (loading) return <Spin size="large" style={{ display: 'block', margin: '100px auto' }} />;
+  if (loading) {
+    return (
+      <div style={{ padding: 40, textAlign: 'center' }}>
+        <div style={{ fontSize: 24, marginBottom: 16 }}>加载中...</div>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -95,12 +104,36 @@ const DashboardPage: React.FC = () => {
           <Card><Statistic title="高风险发现" value={stats.highRiskFindings} prefix={<WarningOutlined />} valueStyle={{ color: '#cf1322' }} /></Card>
         </Col>
       </Row>
+
+      {/* Quick actions */}
+      <Card title="快速操作" size="small" style={{ marginBottom: 16 }}>
+        <Space size="middle">
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/audit')}>创建审计任务</Button>
+          <Button icon={<UploadOutlined />} onClick={() => navigate('/documents')}>上传文档</Button>
+          <Button icon={<FileSearchOutlined />} onClick={() => navigate('/reports')}>查看报告</Button>
+          <Button icon={<BranchesOutlined />} onClick={() => navigate('/kg')}>知识图谱</Button>
+          <Button icon={<SettingOutlined />} onClick={() => navigate('/settings')}>系统设置</Button>
+        </Space>
+      </Card>
+
       <Row gutter={[16, 16]}>
         <Col span={12}>
-          <Card>{taskStatusOption && <ReactECharts option={taskStatusOption} style={{ height: 300 }} />}</Card>
+          <Card>
+            {taskStatusOption && taskStatusOption.series[0].data.length > 0 ? (
+              <ReactECharts option={taskStatusOption} style={{ height: 300 }} />
+            ) : (
+              <Empty description="暂无任务数据" style={{ height: 300, display: 'flex', flexDirection: 'column', justifyContent: 'center' }} />
+            )}
+          </Card>
         </Col>
         <Col span={12}>
-          <Card>{severityOption && <ReactECharts option={severityOption} style={{ height: 300 }} />}</Card>
+          <Card>
+            {severityOption ? (
+              <ReactECharts option={severityOption} style={{ height: 300 }} />
+            ) : (
+              <Empty description="暂无发现数据" style={{ height: 300, display: 'flex', flexDirection: 'column', justifyContent: 'center' }} />
+            )}
+          </Card>
         </Col>
       </Row>
     </div>

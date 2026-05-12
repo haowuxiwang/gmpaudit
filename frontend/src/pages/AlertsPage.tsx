@@ -2,13 +2,22 @@ import React, { useState, useEffect } from 'react';
 import { Typography, Table, Button, Tag, Select, Space, message } from 'antd';
 import { CheckCircleOutlined, IssuesCloseOutlined } from '@ant-design/icons';
 import { alertsApi } from '../services/api';
+import type { RiskAlert } from '../types/api';
 
 const { Title } = Typography;
 
 const alertLevelColors: Record<string, string> = {
   critical: 'red',
-  warning: 'orange',
-  info: 'blue',
+  high: 'red',
+  medium: 'orange',
+  low: 'blue',
+};
+
+const alertLevelLabels: Record<string, string> = {
+  critical: '严重',
+  high: '高',
+  medium: '中',
+  low: '低',
 };
 
 const statusColors: Record<string, string> = {
@@ -24,18 +33,18 @@ const statusLabels: Record<string, string> = {
 };
 
 const AlertsPage: React.FC = () => {
-  const [alerts, setAlerts] = useState<any[]>([]);
+  const [alerts, setAlerts] = useState<RiskAlert[]>([]);
   const [loading, setLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
 
-  useEffect(() => { loadAlerts(); }, [statusFilter]);
+  useEffect(() => { void loadAlerts(); }, [statusFilter]);
 
   const loadAlerts = async () => {
     try {
       setLoading(true);
-      const result: any = await alertsApi.list(statusFilter);
-      setAlerts(result || []);
-    } catch (error) {
+      const result = await alertsApi.list(statusFilter);
+      setAlerts(result?.items || []);
+    } catch {
       message.error('加载警报列表失败');
     } finally {
       setLoading(false);
@@ -46,8 +55,8 @@ const AlertsPage: React.FC = () => {
     try {
       await alertsApi.acknowledge(id);
       message.success('已确认警报');
-      loadAlerts();
-    } catch (error) {
+      void loadAlerts();
+    } catch {
       message.error('操作失败');
     }
   };
@@ -56,8 +65,8 @@ const AlertsPage: React.FC = () => {
     try {
       await alertsApi.resolve(id);
       message.success('已解决警报');
-      loadAlerts();
-    } catch (error) {
+      void loadAlerts();
+    } catch {
       message.error('操作失败');
     }
   };
@@ -70,7 +79,7 @@ const AlertsPage: React.FC = () => {
       key: 'alert_level',
       width: 100,
       render: (level: string) => (
-        <Tag color={alertLevelColors[level] || 'default'}>{level}</Tag>
+        <Tag color={alertLevelColors[level] || 'default'}>{alertLevelLabels[level] || level}</Tag>
       ),
     },
     {
@@ -101,13 +110,13 @@ const AlertsPage: React.FC = () => {
       title: '操作',
       key: 'action',
       width: 160,
-      render: (_: any, record: any) => (
+      render: (_: unknown, record: RiskAlert) => (
         <Space>
           {record.status === 'active' && (
             <Button
               type="link"
               icon={<CheckCircleOutlined />}
-              onClick={() => handleAcknowledge(record.id)}
+              onClick={() => void handleAcknowledge(record.id)}
             >
               确认
             </Button>
@@ -116,7 +125,7 @@ const AlertsPage: React.FC = () => {
             <Button
               type="link"
               icon={<IssuesCloseOutlined />}
-              onClick={() => handleResolve(record.id)}
+              onClick={() => void handleResolve(record.id)}
             >
               解决
             </Button>
