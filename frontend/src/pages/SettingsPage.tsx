@@ -16,6 +16,8 @@ import {
 import { SaveOutlined, SendOutlined } from '@ant-design/icons';
 
 import { configApi } from '../services/api';
+import type { ConfigMap } from '../types/api';
+import { THEME } from '../constants/theme';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -52,11 +54,11 @@ const SettingsPage: React.FC = () => {
   const loadConfig = async () => {
     try {
       setLoading(true);
-      const result: any = await configApi.getAll();
+      const result: ConfigMap = await configApi.getAll();
       const flat: Record<string, string> = {};
       if (result) {
         for (const [key, val] of Object.entries(result)) {
-          flat[key] = (val as any)?.value ?? '';
+          flat[key] = val.value ?? '';
         }
       }
       setConfig(flat);
@@ -113,15 +115,15 @@ const SettingsPage: React.FC = () => {
       if (secret) payload.feishu_webhook_secret = secret;
 
       await configApi.batchUpdate(payload);
-      const result: any = await configApi.testWebhook();
+      const result: { success: boolean; error: string | null } = await configApi.testWebhook();
       if (result.success) {
         setTestWebhookResult('测试消息发送成功');
         message.success('测试消息发送成功');
       } else {
         setTestWebhookResult(`Webhook 测试失败: ${result?.error || '未知错误'}`);
       }
-    } catch (error: any) {
-      const detail = error?.response?.data?.detail || error?.message || '网络或地址异常';
+    } catch (error: unknown) {
+      const detail = error instanceof Error ? error.message : '网络或地址异常';
       setTestWebhookResult(`Webhook 测试失败: ${detail}`);
     }
   };
@@ -140,15 +142,14 @@ const SettingsPage: React.FC = () => {
         style={{
           marginBottom: 24,
           borderRadius: 12,
-          background: '#FFFFFF',
-          borderLeft: '4px solid #D97757',
+          borderLeft: `4px solid ${THEME.primary}`,
         }}
         styles={{ body: { padding: 28 } }}
       >
-        <Title level={2} style={{ color: '#1A1A1A', marginTop: 0 }}>
+        <Title level={2} style={{ color: THEME.text, marginTop: 0 }}>
           系统设置
         </Title>
-        <Paragraph style={{ color: '#6B7280', fontSize: 16, marginBottom: 0 }}>
+        <Paragraph style={{ color: THEME.textSecondary, fontSize: 16, marginBottom: 0 }}>
           选择审计任务的默认大模型，配置各模型的密钥和参数
         </Paragraph>
       </Card>
@@ -260,7 +261,7 @@ const SettingsPage: React.FC = () => {
                   <Form.Item>
                     <Space>
                       <Button icon={<SendOutlined />} onClick={handleTestWebhook}>
-                        发送测试
+                        保存并测试
                       </Button>
                       {testWebhookResult && (
                         <Text type={testWebhookResult.includes('成功') ? 'success' : 'danger'}>

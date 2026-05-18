@@ -29,6 +29,7 @@ import { useSearchParams } from 'react-router-dom';
 
 import { kgApi } from '../services/api';
 import type { GraphData, GraphNode, KGDocument, KGQueryResult, KGStatus } from '../types/api';
+import { THEME } from '../constants/theme';
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -129,9 +130,9 @@ const KnowledgeGraphPage: React.FC = () => {
       setBuilding(true);
       await kgApi.build(force);
       message.info('图谱构建已在后台启动');
-    } catch (error: any) {
+    } catch (error: unknown) {
       setBuilding(false);
-      message.error(error?.response?.data?.detail || '启动图谱构建失败');
+      message.error(error instanceof Error ? error.message : '启动图谱构建失败');
     }
   };
 
@@ -147,8 +148,8 @@ const KnowledgeGraphPage: React.FC = () => {
     try {
       const result = await kgApi.query(nextQuery);
       setQueryResults(result?.results || []);
-    } catch (error: any) {
-      message.error(error?.response?.data?.detail || '查询失败');
+    } catch (error: unknown) {
+      message.error(error instanceof Error ? error.message : '查询失败');
       setQueryResults([]);
     } finally {
       setQueryLoading(false);
@@ -294,7 +295,7 @@ const KnowledgeGraphPage: React.FC = () => {
       dataIndex: 'modified',
       key: 'modified',
       width: 220,
-      render: (value: string) => (value ? new Date(value).toLocaleString() : '-'),
+      render: (value: string) => (value ? new Date(value).toLocaleString('zh-CN') : '-'),
     },
     {
       title: '操作',
@@ -315,8 +316,8 @@ const KnowledgeGraphPage: React.FC = () => {
         style={{
           marginBottom: 24,
           borderRadius: 12,
-          background: '#FFFFFF',
-          borderLeft: '4px solid #D97757',
+          background: THEME.bgContainer,
+          borderLeft: `4px solid ${THEME.primary}`,
         }}
         styles={{ body: { padding: 28 } }}
       >
@@ -324,10 +325,10 @@ const KnowledgeGraphPage: React.FC = () => {
           <Tag color="#D97757" style={{ borderRadius: 999, alignSelf: 'flex-start' }}>
             知识图谱
           </Tag>
-          <Title level={2} style={{ color: '#1A1A1A', margin: 0 }}>
+          <Title level={2} style={{ color: THEME.text, margin: 0 }}>
             基于法规文档构建知识图谱，支持语义检索
           </Title>
-          <Paragraph style={{ color: '#6B7280', fontSize: 16, marginBottom: 0 }}>
+          <Paragraph style={{ color: THEME.textSecondary, fontSize: 16, marginBottom: 0 }}>
             使用与审计智能体相同的检索词查询图谱，在审批报告前审查关联的法规概念
           </Paragraph>
           <Input.Search

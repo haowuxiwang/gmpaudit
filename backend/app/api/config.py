@@ -13,6 +13,18 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+
+def _mask_value(key: str, value: str) -> str:
+    """Mask sensitive config values (keys containing 'key' or 'secret')."""
+    if not value:
+        return value
+    lower_key = key.lower()
+    if "key" not in lower_key and "secret" not in lower_key:
+        return value
+    if len(value) <= 8:
+        return "****"
+    return value[:4] + "****" + value[-4:]
+
 # Mapping from config key to (settings_attr, provider_name)
 _LLM_KEY_MAP = {
     "deepseek_api_key": ("DEEPSEEK_API_KEY", "deepseek"),
@@ -89,7 +101,7 @@ async def _reload_llm_provider(provider: str):
 async def get_config(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Configuration))
     configs = result.scalars().all()
-    return {c.config_key: {"value": c.config_value, "type": c.config_type, "description": c.description} for c in configs}
+    return {c.config_key: {"value": _mask_value(c.config_key, c.config_value), "type": c.config_type, "description": c.description} for c in configs}
 
 @router.get("/llm/models")
 async def get_available_models():
@@ -126,7 +138,7 @@ async def get_config_by_key(key: str, db: AsyncSession = Depends(get_db)):
     config = result.scalar_one_or_none()
     if not config:
         raise HTTPException(status_code=404, detail="配置不存在")
-    return {"key": config.config_key, "value": config.config_value, "type": config.config_type, "description": config.description}
+    return {"key": config.config_key, "value": _mask_value(config.config_key, config.config_value), "type": config.config_type, "description": config.description}
 
 
 @router.put("/{key}")

@@ -18,6 +18,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { agentAuditApi, documentApi } from '../services/api';
 import type { Document } from '../types/api';
+import { THEME } from '../constants/theme';
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -190,8 +191,8 @@ const DocumentsPage: React.FC = () => {
         style={{
           marginBottom: 24,
           borderRadius: 12,
-          background: '#FFFFFF',
-          borderLeft: '4px solid #D97757',
+          background: THEME.bgContainer,
+          borderLeft: `4px solid ${THEME.primary}`,
         }}
         styles={{ body: { padding: 28 } }}
       >
@@ -199,10 +200,10 @@ const DocumentsPage: React.FC = () => {
           <Tag color="#D97757" style={{ borderRadius: 999, alignSelf: 'flex-start' }}>
             文档管理
           </Tag>
-          <Title level={2} style={{ color: '#1A1A1A', margin: 0 }}>
+          <Title level={2} style={{ color: THEME.text, margin: 0 }}>
             上传文档，系统自动解析后用于审计分析
           </Title>
-          <Paragraph style={{ color: '#6B7280', fontSize: 16, marginBottom: 0 }}>
+          <Paragraph style={{ color: THEME.textSecondary, fontSize: 16, marginBottom: 0 }}>
             上传原始文档，等待解析完成后即可提交审计
           </Paragraph>
         </Space>
@@ -237,7 +238,7 @@ const DocumentsPage: React.FC = () => {
       </Upload.Dragger>
 
       {pendingCount > 0 && (
-        <Card size="small" style={{ marginBottom: 16, borderRadius: 8, background: '#FFFBEB' }}>
+        <Card size="small" style={{ marginBottom: 16, borderRadius: 8, background: THEME.bgWarning }}>
           <Text>{pendingCount} 个文档正在处理中</Text>
         </Card>
       )}

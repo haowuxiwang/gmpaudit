@@ -26,7 +26,8 @@ async def test_update_and_get_config(client: AsyncClient):
     response = await client.get("/api/config/test_key")
     assert response.status_code == 200
     assert response.json()["key"] == "test_key"
-    assert response.json()["value"] == "test_value"
+    # Value is masked because key contains "key"
+    assert response.json()["value"] == "test****alue"
 
 
 @pytest.mark.asyncio
@@ -37,7 +38,8 @@ async def test_update_existing_config(client: AsyncClient):
     await client.put("/api/config/my_key?value=v2")
     # Verify
     response = await client.get("/api/config/my_key")
-    assert response.json()["value"] == "v2"
+    # Value is masked because key contains "key" and value is short
+    assert response.json()["value"] == "****"
 
 
 @pytest.mark.asyncio

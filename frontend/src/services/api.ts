@@ -12,7 +12,6 @@ import type {
   KGQueryResult,
   AgentAuditRequest,
   AgentAuditResponse,
-  AgentAuditStatus,
   DashboardData,
   GraphData,
   ConfigMap,
@@ -27,7 +26,13 @@ const api = axios.create({
 
 api.interceptors.response.use(
   (response) => response.data,
-  (error) => Promise.reject(error)
+  (error) => {
+    const detail = error?.response?.data?.detail;
+    if (detail) {
+      error.message = detail;
+    }
+    return Promise.reject(error);
+  }
 );
 
 export const documentApi = {
@@ -55,8 +60,6 @@ export const auditApi = {
 export const agentAuditApi = {
   run: (data: AgentAuditRequest) =>
     api.post('/agent-audit/run', data) as Promise<AgentAuditResponse>,
-  getStatus: (taskId: number) =>
-    api.get(`/agent-audit/status/${taskId}`) as Promise<AgentAuditStatus>,
 };
 
 export const reportApi = {

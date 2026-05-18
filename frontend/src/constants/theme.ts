@@ -1,0 +1,15 @@
+export const THEME = {
+  primary: '#D97757',
+  text: '#1A1A1A',
+  textSecondary: '#6B7280',
+  border: '#E8E5E0',
+  bgLayout: '#FAFAF8',
+  bgContainer: '#FFFFFF',
+  bgWarm: '#FFF8F5',
+  bgSelected: '#FFF5F2',
+  bgWarning: '#FFFBEB',
+  bgError: '#FEF2F2',
+  error: '#DC2626',
+  success: '#10B981',
+  pending: '#D1D5DB',
+} as const;

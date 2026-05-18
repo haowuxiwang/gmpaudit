@@ -1,4 +1,6 @@
+import markdown
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import HTMLResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -116,3 +118,40 @@ async def get_report(
         "created_at": report.created_at,
         "report_metadata": report.report_metadata,
     }
+
+
+@router.get("/{report_id}/export/html", response_class=HTMLResponse)
+async def export_report_html(
+    report_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    report = (await db.execute(select(Report).where(Report.id == report_id))).scalar_one_or_none()
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+    html_body = markdown.markdown(report.content or "", extensions=["tables", "fenced_code"])
+    html = f"""<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>{report.title}</title>
+<style>
+  body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; color: #1a1a1a; line-height: 1.6; }}
+  h1 {{ color: #D97757; border-bottom: 2px solid #E8E5E0; padding-bottom: 8px; }}
+  h2 {{ color: #1a1a1a; margin-top: 24px; }}
+  table {{ border-collapse: collapse; width: 100%; margin: 16px 0; }}
+  th, td {{ border: 1px solid #E8E5E0; padding: 8px 12px; text-align: left; }}
+  th {{ background: #FAFAF8; font-weight: 600; }}
+  code {{ background: #FAFAF8; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; }}
+  pre {{ background: #FAFAF8; padding: 16px; border-radius: 8px; overflow-x: auto; }}
+  .meta {{ color: #6B7280; font-size: 0.9em; margin-bottom: 24px; }}
+  @media print {{ body {{ margin: 20px; }} }}
+</style>
+</head>
+<body>
+<h1>{report.title}</h1>
+<div class="meta">类型: {report.report_type.value} | 生成时间: {report.created_at}</div>
+{html_body}
+</body>
+</html>"""
+    return HTMLResponse(content=html)

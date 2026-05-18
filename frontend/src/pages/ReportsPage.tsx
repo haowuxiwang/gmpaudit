@@ -1,11 +1,12 @@
-import React, { useEffect, useState } from 'react';
-import { Button, Card, Empty, Modal, Space, Spin, Table, Tag, Typography, message } from 'antd';
-import { DownloadOutlined, FileTextOutlined } from '@ant-design/icons';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Button, Card, Empty, Modal, Select, Space, Spin, Table, Tag, Typography, message } from 'antd';
+import { DownloadOutlined, FileTextOutlined, PrinterOutlined } from '@ant-design/icons';
 import ReactMarkdown from 'react-markdown';
 import { useSearchParams } from 'react-router-dom';
 
 import { reportApi } from '../services/api';
 import type { Report } from '../types/api';
+import { THEME } from '../constants/theme';
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -23,6 +24,7 @@ const ReportsPage: React.FC = () => {
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailContent, setDetailContent] = useState<Report | null>(null);
+  const [typeFilter, setTypeFilter] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     void loadReports();
@@ -53,6 +55,11 @@ const ReportsPage: React.FC = () => {
       setDetailLoading(false);
     }
   };
+
+  const filteredReports = useMemo(() => {
+    if (!typeFilter) return reports;
+    return reports.filter((r) => r.report_type === typeFilter);
+  }, [reports, typeFilter]);
 
   const handleExport = () => {
     if (!detailContent?.content) return;
@@ -98,7 +105,7 @@ const ReportsPage: React.FC = () => {
       dataIndex: 'created_at',
       key: 'created_at',
       width: 200,
-      render: (value: string) => (value ? new Date(value).toLocaleString() : '-'),
+      render: (value: string) => (value ? new Date(value).toLocaleString('zh-CN') : '-'),
     },
     {
       title: '操作',
@@ -119,24 +126,37 @@ const ReportsPage: React.FC = () => {
         style={{
           marginBottom: 24,
           borderRadius: 12,
-          background: '#FFFFFF',
-          borderLeft: '4px solid #D97757',
+          borderLeft: `4px solid ${THEME.primary}`,
         }}
         styles={{ body: { padding: 28 } }}
       >
-        <Title level={2} style={{ color: '#1A1A1A', marginTop: 0 }}>
+        <Title level={2} style={{ color: THEME.text, marginTop: 0 }}>
           审计报告
         </Title>
-        <Paragraph style={{ color: '#6B7280', fontSize: 16, marginBottom: 0 }}>
+        <Paragraph style={{ color: THEME.textSecondary, fontSize: 16, marginBottom: 0 }}>
           查看审计报告，追溯报告来源和生成方式
         </Paragraph>
       </Card>
 
       <Card bordered={false} style={{ borderRadius: 12 }}>
-        <Title level={4}>报告列表</Title>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <Title level={4} style={{ margin: 0 }}>报告列表</Title>
+          <Select
+            allowClear
+            placeholder="按类型筛选"
+            value={typeFilter}
+            onChange={(value) => setTypeFilter(value)}
+            style={{ width: 160 }}
+            options={[
+              { value: 'full_report', label: '完整报告' },
+              { value: 'summary', label: '摘要' },
+              { value: 'audit_report', label: '审计报告' },
+            ]}
+          />
+        </div>
         <Table
           columns={columns}
-          dataSource={reports}
+          dataSource={filteredReports}
           loading={loading}
           rowKey="id"
           pagination={{ pageSize: 10 }}
@@ -155,8 +175,16 @@ const ReportsPage: React.FC = () => {
         footer={
           <Space>
             <Button onClick={() => setDetailOpen(false)}>关闭</Button>
-            <Button type="primary" icon={<DownloadOutlined />} onClick={handleExport} disabled={!detailContent?.content}>
-              导出
+            <Button icon={<DownloadOutlined />} onClick={handleExport} disabled={!detailContent?.content}>
+              导出 Markdown
+            </Button>
+            <Button
+              type="primary"
+              icon={<PrinterOutlined />}
+              disabled={!detailContent?.id}
+              onClick={() => window.open(`http://localhost:8000/api/reports/${detailContent?.id}/export/html`, '_blank')}
+            >
+              打印 / 导出 PDF
             </Button>
           </Space>
         }
@@ -168,7 +196,7 @@ const ReportsPage: React.FC = () => {
         ) : detailContent ? (
           <Space direction="vertical" size={16} style={{ width: '100%' }}>
             <Space wrap>
-              <Tag color="blue">{detailContent.report_type}</Tag>
+              <Tag color="blue">{REPORT_TYPE_LABELS[detailContent.report_type] || detailContent.report_type}</Tag>
               <Tag>{detailContent.report_metadata?.report_source || '未知来源'}</Tag>
               <Tag>{detailContent.report_metadata?.report_mode || '未知模式'}</Tag>
             </Space>

@@ -2,17 +2,16 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Button,
   Card,
-  Col,
+  Drawer,
   Empty,
   Form,
   Input,
   List,
   Modal,
   Progress,
-  Row,
   Select,
   Space,
-  Statistic,
+  Steps,
   Table,
   Tag,
   Timeline,
@@ -24,8 +23,6 @@ import {
   FileSearchOutlined,
   PlayCircleOutlined,
   PlusOutlined,
-  RobotOutlined,
-  ThunderboltOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
@@ -39,10 +36,31 @@ import {
   SEVERITY_COLORS,
   DOC_STATUS_LABELS,
 } from '../constants/audit';
+import { THEME } from '../constants/theme';
 
 const { Title, Paragraph, Text } = Typography;
 
 const TASK_TYPE_OPTIONS = Object.entries(TASK_TYPE_LABELS).map(([value, label]) => ({ value, label }));
+
+const STATUS_FILTER_OPTIONS = [
+  { value: '', label: '全部状态' },
+  { value: 'pending', label: '待处理' },
+  { value: 'running', label: '进行中' },
+  { value: 'completed', label: '已完成' },
+  { value: 'failed', label: '失败' },
+];
+
+const TYPE_FILTER_OPTIONS = [
+  { value: '', label: '全部类型' },
+  ...TASK_TYPE_OPTIONS,
+];
+
+const STATUS_DOT_COLORS: Record<string, string> = {
+  pending: THEME.pending,
+  running: THEME.primary,
+  completed: THEME.success,
+  failed: THEME.error,
+};
 
 const AuditTasksPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -58,6 +76,10 @@ const AuditTasksPage: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
   const [selectedTask, setSelectedTask] = useState<AuditTask | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
+
   const taskIdParam = searchParams.get('task_id');
 
   const syncSelectedTask = useCallback((items: AuditTask[], preferredId?: number | null) => {
@@ -161,6 +183,7 @@ const AuditTasksPage: React.FC = () => {
       setShowModal(false);
       form.resetFields();
       message.success('审计任务已创建');
+      setDrawerOpen(true);
       await loadTasks(true, result.id);
     } catch {
       message.error('创建审计任务失败');
@@ -180,9 +203,20 @@ const AuditTasksPage: React.FC = () => {
     }
   };
 
-  const runningCount = tasks.filter((task) => task.status === 'running').length;
-  const completedCount = tasks.filter((task) => task.status === 'completed').length;
-  const failedCount = tasks.filter((task) => task.status === 'failed').length;
+  const handleSelectTask = (task: AuditTask) => {
+    setSelectedTaskId(task.id);
+    setSearchParams({ task_id: String(task.id) }, { replace: true });
+    setDrawerOpen(true);
+  };
+
+  const filteredTasks = useMemo(() => {
+    return tasks.filter((task) => {
+      if (statusFilter && task.status !== statusFilter) return false;
+      if (typeFilter && task.task_type !== typeFilter) return false;
+      return true;
+    });
+  }, [tasks, statusFilter, typeFilter]);
+
   const selectedQuery = encodeURIComponent(
     findings[0]?.title || selectedTask?.task_name || 'GMP 偏差处理',
   );
@@ -192,288 +226,330 @@ const AuditTasksPage: React.FC = () => {
     [selectedTask],
   );
 
-  const columns = [
-    {
-      title: '任务',
-      dataIndex: 'task_name',
-      key: 'task_name',
-      render: (value: string, record: AuditTask) => (
-        <Space direction="vertical" size={0}>
-          <Text strong>{value}</Text>
-          <Text type="secondary">{TASK_TYPE_LABELS[record.task_type] || record.task_type}</Text>
-        </Space>
-      ),
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      width: 140,
-      render: (status: string) => <Tag color={STATUS_COLORS[status] || 'default'}>{STATUS_LABELS[status] || status}</Tag>,
-    },
-    {
-      title: '阶段',
-      dataIndex: 'stage',
-      key: 'stage',
-      width: 200,
-      render: (stage?: string) => (
-        <Tag>{STAGE_LABELS[stage || 'pending'] || stage || '等待执行'}</Tag>
-      ),
-    },
-    {
-      title: '进度',
-      dataIndex: 'progress',
-      key: 'progress',
-      width: 180,
-      render: (value: number, record: AuditTask) => (
-        <Progress
-          percent={value || 0}
-          size="small"
-          status={record.status === 'completed' ? 'success' : record.status === 'failed' ? 'exception' : 'active'}
-        />
-      ),
-    },
-    {
-      title: '操作',
-      key: 'action',
-      width: 220,
-      render: (_: unknown, record: AuditTask) => (
-        <Space>
-          {record.status === 'pending' && (
-            <Button type="link" icon={<PlayCircleOutlined />} onClick={() => void handleRun(record.id)}>
-              运行
-            </Button>
-          )}
-          <Button type="link" onClick={() => void loadTaskDetails(record.id)}>
-            查看
-          </Button>
-          {record.report_id && (
-            <Button type="link" icon={<FileSearchOutlined />} onClick={() => navigate(`/reports?task_id=${record.id}`)}>
-              报告
-            </Button>
-          )}
-        </Space>
-      ),
-    },
-  ];
-
   return (
     <div>
+      {/* Toolbar */}
       <Card
         bordered={false}
-        style={{
-          marginBottom: 24,
-          borderRadius: 12,
-          background: '#FFFFFF',
-          borderLeft: '4px solid #D97757',
-        }}
-        styles={{ body: { padding: 28 } }}
+        style={{ marginBottom: 16, borderRadius: 12 }}
+        styles={{ body: { padding: '12px 20px' } }}
       >
-        <Row gutter={[24, 24]} align="middle">
-          <Col xs={24} xl={16}>
-            <Space direction="vertical" size={12}>
-              <Tag color="#D97757" style={{ borderRadius: 999, alignSelf: 'flex-start' }}>
-                审计任务
-              </Tag>
-              <Title level={2} style={{ color: '#1A1A1A', margin: 0 }}>
-                创建审计任务，多智能体协作完成合规分析
-              </Title>
-              <Paragraph style={{ color: '#6B7280', fontSize: 16, marginBottom: 0 }}>
-                实时查看任务进度、文档解析状态、审计发现和知识图谱溯源
-              </Paragraph>
-              <Space wrap>
-                <Button type="primary" icon={<PlusOutlined />} onClick={() => setShowModal(true)}>
-                  新建任务
-                </Button>
-                <Button onClick={() => navigate('/documents')}>上传文档</Button>
-                {selectedTask && (
-                  <Button
-                    icon={<BranchesOutlined />}
-                    onClick={() => navigate(`/kg?q=${selectedQuery}&task_id=${selectedTask.id}`)}
-                  >
-                    知识图谱
-                  </Button>
-                )}
-              </Space>
-            </Space>
-          </Col>
-          <Col xs={24} xl={8}>
-            <Card bordered={false} style={{ borderRadius: 12, background: '#FAFAF8' }}>
-              <Space direction="vertical" size={12} style={{ width: '100%' }}>
-                <Text style={{ color: '#6B7280' }}>当前任务</Text>
-                <Title level={4} style={{ color: '#1A1A1A', margin: 0 }}>
-                  {selectedTask?.task_name || '未选择任务'}
-                </Title>
-                <Text style={{ color: '#6B7280' }}>
-                  {selectedTask ? STAGE_LABELS[selectedTask.stage || 'pending'] || selectedTask.stage : '请选择任务'}
-                </Text>
-                <Progress
-                  percent={selectedTask?.progress || 0}
-                  strokeColor="#D97757"
-                  trailColor="#E8E5E0"
-                />
-              </Space>
-            </Card>
-          </Col>
-        </Row>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setShowModal(true)}>
+            新建任务
+          </Button>
+          <Select
+            value={statusFilter}
+            onChange={setStatusFilter}
+            options={STATUS_FILTER_OPTIONS}
+            style={{ width: 130 }}
+          />
+          <Select
+            value={typeFilter}
+            onChange={setTypeFilter}
+            options={TYPE_FILTER_OPTIONS}
+            style={{ width: 160 }}
+          />
+          <div style={{ flex: 1 }} />
+          <Text type="secondary">共 {filteredTasks.length} 个任务</Text>
+        </div>
       </Card>
 
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        <Col xs={24} md={8}>
-          <Card bordered={false} style={{ borderRadius: 12 }}>
-            <Statistic title="进行中" value={runningCount} prefix={<ThunderboltOutlined />} />
-          </Card>
-        </Col>
-        <Col xs={24} md={8}>
-          <Card bordered={false} style={{ borderRadius: 12 }}>
-            <Statistic title="已完成" value={completedCount} prefix={<FileSearchOutlined />} />
-          </Card>
-        </Col>
-        <Col xs={24} md={8}>
-          <Card bordered={false} style={{ borderRadius: 12 }}>
-            <Statistic title="失败" value={failedCount} prefix={<RobotOutlined />} />
-          </Card>
-        </Col>
-      </Row>
+      {/* Task List */}
+      <Card bordered={false} style={{ borderRadius: 12 }} styles={{ body: { padding: 0 } }}>
+        {loading && tasks.length === 0 ? (
+          <div style={{ padding: 60, textAlign: 'center' }}>加载中...</div>
+        ) : filteredTasks.length === 0 ? (
+          <Empty description="暂无审计任务" style={{ padding: 60 }} />
+        ) : (
+          <List
+            dataSource={filteredTasks}
+            rowKey="id"
+            renderItem={(task) => {
+              const isSelected = task.id === selectedTaskId;
+              const dotColor = STATUS_DOT_COLORS[task.status] || STATUS_DOT_COLORS.pending;
+              const isRunning = task.status === 'running';
 
-      <Row gutter={[16, 16]}>
-        <Col xs={24} xl={13}>
-          <Card
-            bordered={false}
-            style={{ borderRadius: 12 }}
-            title="任务列表"
-            extra={<Button type="link" onClick={() => void loadTasks(true, selectedTaskId)}>刷新</Button>}
-          >
-            <Table
-              columns={columns}
-              dataSource={tasks}
-              rowKey="id"
-              loading={loading}
-              pagination={{ pageSize: 8 }}
-              onRow={(record) => ({
-                onClick: () => {
-                  setSelectedTaskId(record.id);
-                  setSearchParams({ task_id: String(record.id) }, { replace: true });
-                },
-              })}
-              rowClassName={(record) => (record.id === selectedTaskId ? 'ant-table-row-selected' : '')}
-              locale={{ emptyText: <Empty description="暂无审计任务" /> }}
-            />
-          </Card>
-        </Col>
+              return (
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => handleSelectTask(task)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleSelectTask(task); }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 16,
+                    padding: '14px 20px',
+                    cursor: 'pointer',
+                    borderBottom: `1px solid ${THEME.border}`,
+                    background: isSelected ? THEME.bgSelected : 'transparent',
+                    borderLeft: isSelected ? `3px solid ${THEME.primary}` : '3px solid transparent',
+                    transition: 'background 0.15s, border-color 0.15s',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isSelected) (e.currentTarget.style.background = THEME.bgLayout);
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isSelected) (e.currentTarget.style.background = 'transparent');
+                  }}
+                >
+                  {/* Status dot */}
+                  <div
+                    style={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: '50%',
+                      background: dotColor,
+                      flexShrink: 0,
+                      boxShadow: isRunning ? `0 0 0 3px ${dotColor}33` : 'none',
+                      animation: isRunning ? 'pulse-dot 2s infinite' : 'none',
+                    }}
+                  />
 
-        <Col xs={24} xl={11}>
-          <Space direction="vertical" size={16} style={{ width: '100%' }}>
-            <Card
-              bordered={false}
-              style={{ borderRadius: 12 }}
-              title="执行时间线"
-              extra={
-                selectedTask?.report_id ? (
-                  <Button type="link" onClick={() => navigate(`/reports?task_id=${selectedTask.id}`)}>
-                    查看报告
-                  </Button>
-                ) : null
-              }
-            >
-              {selectedTask ? (
-                <Space direction="vertical" size={16} style={{ width: '100%' }}>
-                  <Space wrap>
-                    <Tag color={STATUS_COLORS[selectedTask.status] || 'default'}>{STATUS_LABELS[selectedTask.status] || selectedTask.status}</Tag>
-                    <Tag>{TASK_TYPE_LABELS[selectedTask.task_type] || selectedTask.task_type}</Tag>
-                    {selectedTask.stage && <Tag>{STAGE_LABELS[selectedTask.stage] || selectedTask.stage}</Tag>}
+                  {/* Task info */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <Text strong style={{ fontSize: 14 }}>{task.task_name}</Text>
+                    <div style={{ marginTop: 2 }}>
+                      <Text type="secondary" style={{ fontSize: 12 }}>
+                        {TASK_TYPE_LABELS[task.task_type] || task.task_type}
+                      </Text>
+                    </div>
+                  </div>
+
+                  {/* Stage tag */}
+                  <Tag style={{ borderRadius: 999, margin: 0 }}>
+                    {STAGE_LABELS[task.stage || 'pending'] || task.stage || '等待执行'}
+                  </Tag>
+
+                  {/* Status tag */}
+                  <Tag color={STATUS_COLORS[task.status] || 'default'} style={{ borderRadius: 999, margin: 0 }}>
+                    {STATUS_LABELS[task.status] || task.status}
+                  </Tag>
+
+                  {/* Progress */}
+                  <div style={{ width: 100, flexShrink: 0 }}>
+                    <Progress
+                      percent={task.progress || 0}
+                      size="small"
+                      strokeColor={THEME.primary}
+                      trailColor={THEME.border}
+                      status={task.status === 'failed' ? 'exception' : undefined}
+                    />
+                  </div>
+
+                  {/* Actions */}
+                  <Space size={0} onClick={(e) => e.stopPropagation()}>
+                    {task.status === 'pending' && (
+                      <Button
+                        type="link"
+                        size="small"
+                        icon={<PlayCircleOutlined />}
+                        onClick={() => void handleRun(task.id)}
+                      >
+                        运行
+                      </Button>
+                    )}
+                    {task.report_id && (
+                      <Button
+                        type="link"
+                        size="small"
+                        icon={<FileSearchOutlined />}
+                        onClick={() => navigate(`/reports?task_id=${task.id}`)}
+                      >
+                        报告
+                      </Button>
+                    )}
                   </Space>
-                  <Progress percent={selectedTask.progress || 0} status={selectedTask.status === 'failed' ? 'exception' : 'active'} />
+                </div>
+              );
+            }}
+          />
+        )}
+      </Card>
+
+      {/* Pulse animation for running status dot */}
+      <style>{`
+        @keyframes pulse-dot {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
+      `}</style>
+
+      {/* Detail Drawer */}
+      <Drawer
+        title={selectedTask?.task_name || '任务详情'}
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        width={480}
+        styles={{ body: { padding: '16px 24px' } }}
+      >
+        {selectedTask ? (
+          <Space direction="vertical" size={20} style={{ width: '100%' }}>
+            {/* Header info */}
+            <div>
+              <Space wrap style={{ marginBottom: 12 }}>
+                <Tag color={STATUS_COLORS[selectedTask.status] || 'default'} style={{ borderRadius: 999 }}>
+                  {STATUS_LABELS[selectedTask.status] || selectedTask.status}
+                </Tag>
+                <Tag style={{ borderRadius: 999 }}>
+                  {TASK_TYPE_LABELS[selectedTask.task_type] || selectedTask.task_type}
+                </Tag>
+                {selectedTask.stage && (
+                  <Tag style={{ borderRadius: 999 }}>
+                    {STAGE_LABELS[selectedTask.stage] || selectedTask.stage}
+                  </Tag>
+                )}
+              </Space>
+              <Progress
+                percent={selectedTask.progress || 0}
+                strokeColor={THEME.primary}
+                trailColor={THEME.border}
+                status={selectedTask.status === 'failed' ? 'exception' : selectedTask.status === 'completed' ? 'success' : 'active'}
+              />
+            </div>
+
+            {/* Timeline */}
+            {selectedTask.events && selectedTask.events.length > 0 && (
+              <div>
+                <Text strong style={{ fontSize: 13, color: THEME.textSecondary }}>执行时间线</Text>
+                <div style={{ marginTop: 12 }}>
                   <Timeline
-                    items={(selectedTask.events || []).map((event) => ({
-                      color: event.level === 'error' ? 'red' : event.level === 'warning' ? 'orange' : 'blue',
+                    items={selectedTask.events.map((event) => ({
+                      color: event.level === 'error' ? 'red' : event.level === 'warning' ? 'orange' : THEME.primary,
                       children: (
-                        <Space direction="vertical" size={0}>
-                          <Text strong>{event.message}</Text>
-                          <Text type="secondary">
-                            {event.stage} · {new Date(event.time).toLocaleString()}
+                        <div>
+                          <Text>{event.message}</Text>
+                          <br />
+                          <Text type="secondary" style={{ fontSize: 12 }}>
+                            {STAGE_LABELS[event.stage] || event.stage} · {new Date(event.time).toLocaleString('zh-CN')}
                           </Text>
-                        </Space>
+                        </div>
                       ),
                     }))}
                   />
-                  {selectedTask.error_message && (
-                    <Card size="small" style={{ borderRadius: 8, background: '#FEF2F2' }}>
-                      <Text strong>错误</Text>
-                      <Paragraph style={{ margin: '8px 0 0' }}>{selectedTask.error_message}</Paragraph>
-                    </Card>
-                  )}
-                </Space>
-              ) : (
-                <Empty description="请选择一个审计任务查看详情" />
-              )}
-            </Card>
+                </div>
+              </div>
+            )}
 
-            <Card bordered={false} style={{ borderRadius: 12 }} title="审计发现">
-              {selectedTask ? (
-                <Space direction="vertical" size={16} style={{ width: '100%' }}>
-                  <div>
-                    <Text strong>任务文档</Text>
-                    <List
-                      style={{ marginTop: 8 }}
-                      dataSource={evidenceDocuments}
-                      locale={{ emptyText: '暂无文档记录' }}
-                      renderItem={(item) => (
-                        <List.Item>
-                          <Space direction="vertical" size={0} style={{ width: '100%' }}>
-                            <Text strong>{item.filename}</Text>
-                            <Space wrap>
-                              <Tag>{DOC_STATUS_LABELS[item.status] || item.status}</Tag>
-                              <Tag color="blue">{item.risk_level || '未知风险'}</Tag>
-                              <Text type="secondary">{item.findings_count} 项发现</Text>
-                            </Space>
-                          </Space>
-                        </List.Item>
-                      )}
-                    />
-                  </div>
-                  <div>
-                    <Text strong>审计发现</Text>
-                    <List
-                      style={{ marginTop: 8 }}
-                      dataSource={findings}
-                      locale={{ emptyText: '暂无审计发现' }}
-                      renderItem={(item) => (
-                        <List.Item
-                          actions={[
-                            <Button
-                              key="graph"
-                              type="link"
-                              onClick={() =>
-                                navigate(`/kg?q=${encodeURIComponent(item.title)}&task_id=${selectedTask.id}`)
-                              }
-                            >
-                              图谱溯源
-                            </Button>,
-                          ]}
+            {/* Error message */}
+            {selectedTask.error_message && (
+              <div style={{ borderRadius: 8, background: THEME.bgError, padding: '10px 14px' }}>
+                <Text strong style={{ color: THEME.error }}>错误</Text>
+                <Paragraph style={{ margin: '6px 0 0', fontSize: 13 }}>{selectedTask.error_message}</Paragraph>
+              </div>
+            )}
+
+            {/* Findings */}
+            <div>
+              <Text strong style={{ fontSize: 13, color: THEME.textSecondary }}>
+                审计发现 {findings.length > 0 && `(${findings.length} 项)`}
+              </Text>
+              {findings.length > 0 ? (
+                <List
+                  style={{ marginTop: 8 }}
+                  dataSource={findings}
+                  size="small"
+                  renderItem={(item) => (
+                    <List.Item
+                      style={{ padding: '8px 0' }}
+                      actions={[
+                        <Button
+                          key="graph"
+                          type="link"
+                          size="small"
+                          icon={<BranchesOutlined />}
+                          onClick={() => {
+                            setDrawerOpen(false);
+                            navigate(`/kg?q=${encodeURIComponent(item.title)}&task_id=${selectedTask.id}`);
+                          }}
                         >
-                          <List.Item.Meta
-                            title={
-                              <Space wrap>
-                                <Tag color={SEVERITY_COLORS[item.severity] || 'default'}>{item.severity}</Tag>
-                                <span>{item.title}</span>
-                              </Space>
-                            }
-                            description={item.description || '暂无描述'}
-                          />
-                        </List.Item>
-                      )}
-                    />
-                  </div>
-                </Space>
+                          图谱溯源
+                        </Button>,
+                      ]}
+                    >
+                      <Space direction="vertical" size={2} style={{ width: '100%' }}>
+                        <Space wrap size={6}>
+                          <Tag color={SEVERITY_COLORS[item.severity] || 'default'} style={{ margin: 0, borderRadius: 4 }}>
+                            {item.severity}
+                          </Tag>
+                          <Text strong style={{ fontSize: 13 }}>{item.title}</Text>
+                        </Space>
+                        <Text type="secondary" style={{ fontSize: 12 }}>
+                          {item.description || '暂无描述'}
+                        </Text>
+                      </Space>
+                    </List.Item>
+                  )}
+                />
               ) : (
-                <Empty description="请选择任务查看审计发现" />
+                <Text type="secondary" style={{ display: 'block', marginTop: 8, fontSize: 13 }}>
+                  暂无审计发现
+                </Text>
               )}
-            </Card>
-          </Space>
-        </Col>
-      </Row>
+            </div>
 
+            {/* Documents */}
+            <div>
+              <Text strong style={{ fontSize: 13, color: THEME.textSecondary }}>
+                任务文档 {evidenceDocuments.length > 0 && `(${evidenceDocuments.length} 个)`}
+              </Text>
+              {evidenceDocuments.length > 0 ? (
+                <List
+                  style={{ marginTop: 8 }}
+                  dataSource={evidenceDocuments}
+                  size="small"
+                  renderItem={(item) => (
+                    <List.Item style={{ padding: '8px 0' }}>
+                      <Space direction="vertical" size={2} style={{ width: '100%' }}>
+                        <Text strong style={{ fontSize: 13 }}>{item.filename}</Text>
+                        <Space wrap size={6}>
+                          <Tag style={{ margin: 0, borderRadius: 4 }}>{DOC_STATUS_LABELS[item.status] || item.status}</Tag>
+                          <Tag color="blue" style={{ margin: 0, borderRadius: 4 }}>{item.risk_level || '未知风险'}</Tag>
+                          <Text type="secondary" style={{ fontSize: 12 }}>{item.findings_count} 项发现</Text>
+                        </Space>
+                      </Space>
+                    </List.Item>
+                  )}
+                />
+              ) : (
+                <Text type="secondary" style={{ display: 'block', marginTop: 8, fontSize: 13 }}>
+                  暂无文档记录
+                </Text>
+              )}
+            </div>
+
+            {/* Actions */}
+            <div style={{ borderTop: `1px solid ${THEME.border}`, paddingTop: 16 }}>
+              <Space>
+                {selectedTask.status === 'pending' && (
+                  <Button type="primary" icon={<PlayCircleOutlined />} onClick={() => void handleRun(selectedTask.id)}>
+                    运行
+                  </Button>
+                )}
+                {selectedTask.report_id && (
+                  <Button icon={<FileSearchOutlined />} onClick={() => navigate(`/reports?task_id=${selectedTask.id}`)}>
+                    查看报告
+                  </Button>
+                )}
+                <Button
+                  icon={<BranchesOutlined />}
+                  onClick={() => {
+                    setDrawerOpen(false);
+                    navigate(`/kg?q=${selectedQuery}&task_id=${selectedTask.id}`);
+                  }}
+                >
+                  知识图谱
+                </Button>
+              </Space>
+            </div>
+          </Space>
+        ) : (
+          <Empty description="请选择一个审计任务查看详情" />
+        )}
+      </Drawer>
+
+      {/* Create Task Modal */}
       <Modal
         title="创建审计任务"
         open={showModal}

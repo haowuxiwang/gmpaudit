@@ -5,7 +5,6 @@ export interface Document {
   file_size?: number;
   process_status: 'uploaded' | 'processing' | 'processed' | 'failed';
   created_at?: string;
-  upload_time?: string;
 }
 
 export interface PaginatedResponse<T> {
@@ -32,7 +31,6 @@ export interface TaskDocumentStatus {
 }
 
 export interface AuditTask {
-  task_id?: number;
   id: number;
   task_name: string;
   task_type: string;
@@ -40,7 +38,6 @@ export interface AuditTask {
   progress: number;
   stage?: string;
   document_ids?: number[];
-  error?: string | null;
   error_message?: string | null;
   created_at?: string;
   started_at?: string | null;
@@ -118,8 +115,6 @@ export interface AgentAuditResponse {
   status: string;
   message: string;
 }
-
-export interface AgentAuditStatus extends AuditTask {}
 
 export interface Finding {
   id: number;

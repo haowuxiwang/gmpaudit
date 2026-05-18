@@ -35,6 +35,12 @@ parse_doc → supervisor → regulation_expert → risk_assessor → report_writ
 - Test suite: Backend 153 + Agent 73 = 226 tests, all green
 - Auth system removed (local desktop app, no login needed)
 - Document processing: .pdf, .docx, .doc, .txt, .jpg/.png/.tiff (OCR)
+- Config API: API keys masked in GET responses
+- Report export: HTML with print-friendly CSS (browser print-to-PDF)
+- Risk alerts enriched with Finding details (title, description, severity)
+- Frontend theme colors centralized in `constants/theme.ts`
+- All `any` types eliminated from frontend pages
+- Accessibility: clickable task items have `role="button"` + keyboard support
 
 ### Recently Fixed
 - LightRAG fallback chain was dead code — now properly triggers on failure
@@ -46,6 +52,10 @@ parse_doc → supervisor → regulation_expert → risk_assessor → report_writ
 - Frontend API types aligned with backend (ConfigMap, Finding, RiskAlert)
 - Deprecated `bodyStyle` replaced with `styles.body` across all pages
 - Shared constants extracted (STATUS_LABELS, STAGE_LABELS, TASK_TYPE_LABELS)
+- 60+ hardcoded colors replaced with THEME token references
+- `toLocaleString()` calls now include `'zh-CN'` locale
+- `Modal.confirm` onOk handlers wrapped with try/catch
+- API error interceptor extracts backend `detail` field into `error.message`
 
 ### Known Limitations
 - Regulation fallback DB has only 10 entries
@@ -59,7 +69,7 @@ parse_doc → supervisor → regulation_expert → risk_assessor → report_writ
 |-------|-------|--------|
 | P0 | Auth removal, docs, pipeline robustness | Done |
 | P1 | Quality-driven loop, verification agent, expand regulation DB | Not started |
-| P2 | Docker, MCP packaging, Electron build, CI/CD | Not started |
+| P2 | UI polish, config security, report export, Docker/Electron | In progress (UI polish done, Docker/Electron pending) |
 | P3 | Human-in-the-loop, A2A protocol, multi-site, audit history | Not started |
 
 ## Quick Start

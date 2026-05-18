@@ -15,6 +15,9 @@ AuditBee is an AI-powered GMP compliance audit assistant for pharmaceutical qual
 - **Notifications**: Feishu webhook with HMAC-SHA256 signed cards
 - **Document processing**: .pdf, .docx, .doc, .txt, .jpg/.png/.tiff (OCR via RapidOCR)
 - **Testing**: Backend 153 + Agent 73 = 226 tests, all green. TypeScript 0 errors.
+- **Config security**: API keys masked in GET responses (`_mask_value()`)
+- **Report export**: HTML export with print-friendly CSS (`GET /api/reports/{id}/export/html`)
+- **Alerts enrichment**: Risk alerts include finding title, description, severity via SQLAlchemy relationship
 
 ### Known Limitations
 - Agent executes linearly — no self-correcting loop when findings are empty
@@ -33,8 +36,11 @@ AuditBee is an AI-powered GMP compliance audit assistant for pharmaceutical qual
 
 ### Frontend Patterns
 - Shared constants in `frontend/src/constants/audit.ts` (STATUS_LABELS, STAGE_LABELS, TASK_TYPE_LABELS, etc.)
+- Theme colors centralized in `frontend/src/constants/theme.ts` — use `THEME.xxx` instead of hardcoded hex values
 - Ant Design `zhCN` locale via `ConfigProvider` in `App.tsx`
 - API types in `frontend/src/types/api.ts` — must match backend response shapes
+- API error interceptor extracts `error.response.data.detail` into `error.message` automatically
+- Date formatting: always use `.toLocaleString('zh-CN')` for consistency
 
 ## Development Environment
 

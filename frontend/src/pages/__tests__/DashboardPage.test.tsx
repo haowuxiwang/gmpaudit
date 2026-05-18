@@ -98,7 +98,7 @@ describe('DashboardPage', () => {
     renderWithRouter(<DashboardPage />);
 
     await waitFor(() => {
-      expect(screen.getByText('任务文档')).toBeInTheDocument();
+      expect(screen.getByText('文档总数')).toBeInTheDocument();
     });
 
     expect(screen.getByText('最近任务')).toBeInTheDocument();

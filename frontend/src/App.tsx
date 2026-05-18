@@ -65,11 +65,9 @@ const App: React.FC = () => {
       }}
     >
       <Router>
-        <Suspense fallback={<Loading />}>
-          <Routes>
-            <Route path="/*" element={<AppLayout />} />
-          </Routes>
-        </Suspense>
+        <Routes>
+          <Route path="/*" element={<AppLayout />} />
+        </Routes>
       </Router>
     </ConfigProvider>
   );

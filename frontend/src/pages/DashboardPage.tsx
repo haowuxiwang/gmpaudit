@@ -27,6 +27,7 @@ import { useNavigate } from 'react-router-dom';
 import { auditApi, documentApi } from '../services/api';
 import type { AuditTask, DashboardData } from '../types/api';
 import { STATUS_COLORS, STAGE_LABELS, TASK_TYPE_LABELS } from '../constants/audit';
+import { THEME } from '../constants/theme';
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -135,8 +136,8 @@ const DashboardPage: React.FC = () => {
         style={{
           marginBottom: 24,
           borderRadius: 12,
-          background: '#FFFFFF',
-          borderLeft: '4px solid #D97757',
+          background: THEME.bgContainer,
+          borderLeft: `4px solid ${THEME.primary}`,
         }}
         styles={{ body: { padding: 28 } }}
       >
@@ -146,10 +147,10 @@ const DashboardPage: React.FC = () => {
               <Tag color="#D97757" style={{ alignSelf: 'flex-start', borderRadius: 999 }}>
                 审计工作台
               </Tag>
-              <Title level={2} style={{ color: '#1A1A1A', margin: 0 }}>
+              <Title level={2} style={{ color: THEME.text, margin: 0 }}>
                 AuditBee
               </Title>
-              <Paragraph style={{ color: '#6B7280', fontSize: 16, marginBottom: 0 }}>
+              <Paragraph style={{ color: THEME.textSecondary, fontSize: 16, marginBottom: 0 }}>
                 多智能体协作完成 GMP 合规审计，自动生成结构化报告。
               </Paragraph>
               <Space wrap>
@@ -168,20 +169,20 @@ const DashboardPage: React.FC = () => {
           <Col xs={24} lg={8}>
             <Card
               bordered={false}
-              style={{ borderRadius: 12, background: '#FAFAF8' }}
+              style={{ borderRadius: 12, background: THEME.bgLayout }}
               styles={{ body: { padding: 20 } }}
             >
               <Space direction="vertical" style={{ width: '100%' }} size={12}>
-                <Text style={{ color: '#6B7280' }}>当前焦点</Text>
+                <Text style={{ color: THEME.textSecondary }}>当前焦点</Text>
                 {activeTask ? (
                   <>
-                    <Title level={4} style={{ color: '#1A1A1A', margin: 0 }}>
+                    <Title level={4} style={{ color: THEME.text, margin: 0 }}>
                       {activeTask.task_name}
                     </Title>
-                    <Text style={{ color: '#6B7280' }}>
+                    <Text style={{ color: THEME.textSecondary }}>
                       {STAGE_LABELS[activeTask.stage || 'pending'] || activeTask.stage || '待处理'}
                     </Text>
-                    <Progress percent={activeTask.progress || 0} strokeColor="#D97757" trailColor="#E8E5E0" />
+                    <Progress percent={activeTask.progress || 0} strokeColor={THEME.primary} trailColor={THEME.border} />
                     <Button
                       block
                       icon={<RightCircleOutlined />}
@@ -192,7 +193,7 @@ const DashboardPage: React.FC = () => {
                   </>
                 ) : (
                   <Empty
-                    description={<span style={{ color: '#6B7280' }}>暂无任务记录</span>}
+                    description={<span style={{ color: THEME.textSecondary }}>暂无任务记录</span>}
                     image={Empty.PRESENTED_IMAGE_SIMPLE}
                   />
                 )}
@@ -224,7 +225,7 @@ const DashboardPage: React.FC = () => {
               title="高风险发现"
               value={stats.highRiskFindings}
               prefix={<WarningOutlined />}
-              valueStyle={{ color: '#DC2626' }}
+              valueStyle={{ color: THEME.error }}
             />
           </Card>
         </Col>
@@ -261,13 +262,13 @@ const DashboardPage: React.FC = () => {
         <Col xs={24} xl={10}>
           <Card bordered={false} style={{ borderRadius: 12 }} title="系统概览">
             <Space direction="vertical" size={16} style={{ width: '100%' }}>
-              <Card size="small" style={{ borderRadius: 8, background: '#FAFAF8' }}>
+              <Card size="small" style={{ borderRadius: 8, background: THEME.bgLayout }}>
                 <Text strong>审计流程</Text>
                 <Paragraph style={{ margin: '8px 0 0' }}>
                   智能体依次完成法规检索、风险评估和报告撰写。可在工作台查看任务执行状态。
                 </Paragraph>
               </Card>
-              <Card size="small" style={{ borderRadius: 8, background: '#FFF8F5' }}>
+              <Card size="small" style={{ borderRadius: 8, background: THEME.bgWarm }}>
                 <Text strong>数据链路</Text>
                 <Paragraph style={{ margin: '8px 0 0' }}>
                   结合知识图谱验证引用的法规依据，确保报告准确性。
