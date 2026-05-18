@@ -115,7 +115,7 @@ async def get_status():
 
     input_files = []
     if os.path.isdir(INPUT_DIR):
-        input_files = [f for f in os.listdir(INPUT_DIR) if f.endswith(".txt")]
+        input_files = [f for f in os.listdir(INPUT_DIR) if f.endswith((".txt", ".md"))]
 
     return {
         **index_info,
@@ -149,7 +149,7 @@ async def build_index(
     if _build_status["building"]:
         raise HTTPException(status_code=409, detail="索引正在构建中")
 
-    if not os.path.isdir(INPUT_DIR) or not any(f.endswith(".txt") for f in os.listdir(INPUT_DIR)):
+    if not os.path.isdir(INPUT_DIR) or not any(f.endswith((".txt", ".md")) for f in os.listdir(INPUT_DIR)):
         raise HTTPException(status_code=400, detail="没有输入文件，请先将法规文本放入 graphrag_index/input/ 目录")
 
     async def _build():
@@ -236,10 +236,11 @@ async def upload_document(
         raise HTTPException(status_code=400, detail="文件名不能为空")
 
     # Validate file extension
-    allowed_extensions = {".txt", ".md"}
+    allowed_extensions = {".txt", ".md", ".pdf", ".docx"}
+    convertible_extensions = {".pdf", ".docx"}
     ext = os.path.splitext(file.filename)[1].lower()
     if ext not in allowed_extensions:
-        raise HTTPException(status_code=400, detail=f"不支持的文件格式: {ext}，仅支持 .txt 和 .md")
+        raise HTTPException(status_code=400, detail=f"不支持的文件格式: {ext}，仅支持 .txt、.md、.pdf、.docx")
 
     # Validate file size (10MB limit)
     content = await file.read()
@@ -249,12 +250,26 @@ async def upload_document(
     # Ensure input directory exists
     os.makedirs(INPUT_DIR, exist_ok=True)
 
-    # Save file
+    # Convert PDF/DOCX to Markdown
+    if ext in convertible_extensions:
+        from app.services.converter import convert_to_markdown
+        try:
+            md_text = await convert_to_markdown(content, file.filename)
+        except RuntimeError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+        save_name = os.path.splitext(file.filename)[0] + ".md"
+        filepath = os.path.join(INPUT_DIR, save_name)
+        with open(filepath, "w", encoding="utf-8") as f:
+            f.write(md_text)
+        logger.info("Uploaded and converted %s -> %s (%d chars)", file.filename, save_name, len(md_text))
+        return {"message": "文件上传并转换成功", "filename": save_name, "converted_from": file.filename}
+
+    # Save text/markdown files as-is
     filepath = os.path.join(INPUT_DIR, file.filename)
     with open(filepath, "wb") as f:
         f.write(content)
 
-    logger.info(f"Uploaded document: {file.filename} ({len(content)} bytes)")
+    logger.info("Uploaded document: %s (%d bytes)", file.filename, len(content))
     return {"message": "文件上传成功", "filename": file.filename}
 
 

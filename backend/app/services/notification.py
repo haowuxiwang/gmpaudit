@@ -1,3 +1,4 @@
+import asyncio
 import httpx
 import logging
 import time
@@ -20,8 +21,18 @@ def _build_sign(timestamp: str, secret: str) -> str:
     ).digest().hex()
 
 
-async def send_feishu_notification(title: str, content: str, risk_level: str = "info") -> bool:
-    """Send a card message to Feishu group via webhook."""
+async def send_feishu_notification(title: str, content: str, risk_level: str = "info", retries: int = 1) -> bool:
+    """Send a card message to Feishu group via webhook.
+
+    Args:
+        title: Card header title.
+        content: Card body content (lark_md format).
+        risk_level: Color theme (high/medium/low/info).
+        retries: Number of retries on failure (default 1).
+
+    Returns:
+        True if notification was delivered successfully.
+    """
     webhook_url = settings.FEISHU_WEBHOOK_URL
     if not webhook_url:
         logger.warning("FEISHU_WEBHOOK_URL not configured, skipping notification")
@@ -36,6 +47,10 @@ async def send_feishu_notification(title: str, content: str, risk_level: str = "
             },
             "elements": [
                 {"tag": "div", "text": {"tag": "lark_md", "content": content}},
+                {"tag": "hr"},
+                {"tag": "note", "elements": [
+                    {"tag": "plain_text", "content": "AuditBee 自动审计系统"},
+                ]},
             ],
         },
     }
@@ -48,18 +63,22 @@ async def send_feishu_notification(title: str, content: str, risk_level: str = "
         card["timestamp"] = timestamp
         card["sign"] = sign
 
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(webhook_url, json=card, timeout=10)
-            result = response.json()
-            if result.get("code") == 0 or result.get("StatusCode") == 0:
-                logger.info("Feishu notification sent: %s", title)
-                return True
-            logger.error("Feishu notification failed: %s", result)
-            return False
-    except Exception as e:
-        logger.error("Feishu notification error: %s", e)
-        return False
+    for attempt in range(1 + retries):
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(webhook_url, json=card, timeout=10)
+                result = response.json()
+                if result.get("code") == 0 or result.get("StatusCode") == 0:
+                    logger.info("Feishu notification sent: %s", title)
+                    return True
+                logger.error("Feishu notification failed (attempt %d/%d): %s", attempt + 1, 1 + retries, result)
+        except Exception as e:
+            logger.error("Feishu notification error (attempt %d/%d): %s", attempt + 1, 1 + retries, e)
+
+        if attempt < retries:
+            await asyncio.sleep(2)
+
+    return False
 
 
 async def notify_audit_complete(
@@ -97,7 +116,7 @@ async def notify_audit_complete(
             severity_icon = {"high": "🔴", "medium": "🟡", "low": "🟢"}.get(f.get("severity", ""), "⚪")
             content += f"{i}. {severity_icon} {f.get('title', '')}\n"
 
-    await send_feishu_notification(title, content, risk_level)
+    return await send_feishu_notification(title, content, risk_level)
 
 
 async def notify_high_risk_finding(task_name: str, finding_title: str, severity: str, description: str):

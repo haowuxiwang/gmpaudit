@@ -372,12 +372,12 @@ const KnowledgeGraphPage: React.FC = () => {
               <Button onClick={() => void handleBuild(true)} disabled={building || !documents.length} block>
                 强制重建
               </Button>
-              <Upload customRequest={handleUpload} showUploadList={false} accept=".txt,.md" disabled={uploading}>
+              <Upload customRequest={handleUpload} showUploadList={false} accept=".txt,.md,.pdf,.docx" disabled={uploading}>
                 <Button icon={<UploadOutlined />} loading={uploading} block>
                   上传法规文档
                 </Button>
               </Upload>
-              <Text type="secondary">仅支持文本和 Markdown 文件</Text>
+              <Text type="secondary">支持 .txt、.md、.pdf、.docx 格式，PDF/DOCX 将自动转换为 Markdown</Text>
             </Space>
           </Card>
         </Col>

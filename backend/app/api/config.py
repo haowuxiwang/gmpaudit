@@ -186,3 +186,66 @@ async def test_webhook():
     from app.services.notification import send_feishu_notification
     success = await send_feishu_notification("测试通知", "这是一条来自 AuditBee 的测试消息", "info")
     return {"success": success, "error": None if success else "发送失败，请检查 Webhook URL 和网络"}
+
+
+class TestLLMRequest(BaseModel):
+    provider: str
+    api_key: str
+    base_url: str | None = None
+    model: str | None = None
+
+
+@router.post("/test-llm")
+async def test_llm_connection(request: TestLLMRequest):
+    """Test LLM provider connectivity with a lightweight request."""
+    import time as _time
+    from app.services.llm_engine import OpenAICompatibleAdapter, AnthropicAdapter
+
+    provider = request.provider.lower()
+    api_key = request.api_key
+    base_url = request.base_url or ""
+    model = request.model or ""
+
+    # Provider-specific defaults
+    defaults = {
+        "deepseek": ("https://api.deepseek.com/v1", "deepseek-chat"),
+        "qwen": ("https://dashscope.aliyuncs.com/compatible-mode/v1", "qwen-plus"),
+        "glm": ("https://open.bigmodel.cn/api/paas/v4", "glm-4-flash"),
+        "openai": ("https://api.openai.com/v1", "gpt-4o"),
+        "anthropic": ("https://api.anthropic.com", "claude-sonnet-4-20250514"),
+        "siliconflow": ("https://api.siliconflow.cn/v1", "deepseek-ai/DeepSeek-V3.2"),
+        "openrouter": ("https://openrouter.ai/api/v1", "deepseek/deepseek-chat"),
+        "mimo": ("https://api.xiaomimimo.com/v1", "mimo-v2.5-pro"),
+    }
+
+    if provider not in defaults:
+        return {"success": False, "error": f"不支持的 provider: {provider}", "latency_ms": 0}
+
+    default_url, default_model = defaults[provider]
+    base_url = base_url or default_url
+    model = model or default_model
+
+    if not api_key:
+        return {"success": False, "error": "API Key 不能为空", "latency_ms": 0}
+
+    adapter = None
+    try:
+        if provider == "anthropic":
+            adapter = AnthropicAdapter(api_key=api_key, base_url=base_url, model=model)
+        else:
+            adapter = OpenAICompatibleAdapter(api_key=api_key, base_url=base_url, model=model, name=provider)
+
+        start = _time.monotonic()
+        response = await adapter.chat(
+            [{"role": "user", "content": "hi"}],
+            max_tokens=5,
+            timeout=15,
+        )
+        latency_ms = int((_time.monotonic() - start) * 1000)
+
+        return {"success": True, "model_used": response.model, "latency_ms": latency_ms, "error": None}
+    except Exception as exc:
+        return {"success": False, "error": str(exc)[:200], "latency_ms": 0}
+    finally:
+        if adapter:
+            await adapter.close()

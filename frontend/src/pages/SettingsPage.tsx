@@ -1,8 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
+  Alert,
   Badge,
   Button,
   Card,
+  Collapse,
   Form,
   Input,
   InputNumber,
@@ -10,10 +12,11 @@ import {
   Space,
   Spin,
   Tabs,
+  Tag,
   Typography,
   message,
 } from 'antd';
-import { SaveOutlined, SendOutlined } from '@ant-design/icons';
+import { ApiOutlined, SaveOutlined, SendOutlined } from '@ant-design/icons';
 
 import { configApi } from '../services/api';
 import type { ConfigMap } from '../types/api';
@@ -40,12 +43,22 @@ const PROVIDERS: ProviderConfig[] = [
   { id: 'openrouter', name: 'OpenRouter', defaultModel: 'deepseek/deepseek-chat', defaultUrl: 'https://openrouter.ai/api/v1', keyPlaceholder: 'sk-or-...' },
 ];
 
+interface TestResult {
+  provider: string;
+  success: boolean;
+  model_used?: string;
+  latency_ms?: number;
+  error?: string | null;
+}
+
 const SettingsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [config, setConfig] = useState<Record<string, string>>({});
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [testWebhookResult, setTestWebhookResult] = useState('');
+  const [testingProvider, setTestingProvider] = useState<string | null>(null);
+  const [providerTestResult, setProviderTestResult] = useState<TestResult | null>(null);
 
   useEffect(() => {
     void loadConfig();
@@ -128,8 +141,48 @@ const SettingsPage: React.FC = () => {
     }
   };
 
+  const handleTestProvider = async (provider: ProviderConfig) => {
+    const apiKey = getVal(`${provider.id}_api_key`);
+    if (!apiKey) {
+      message.warning('请先输入 API Key');
+      return;
+    }
+
+    setTestingProvider(provider.id);
+    setProviderTestResult(null);
+    try {
+      const raw = await configApi.testLLM({
+        provider: provider.id,
+        api_key: apiKey,
+        base_url: getVal(`${provider.id}_base_url`, provider.defaultUrl),
+        model: getVal(`${provider.id}_model`, provider.defaultModel),
+      });
+      const result: TestResult = { ...raw, provider: provider.id };
+      setProviderTestResult(result);
+      if (result.success) {
+        message.success(`${provider.name} 连接成功 (${result.latency_ms}ms)`);
+      }
+    } catch (error: unknown) {
+      setProviderTestResult({
+        provider: provider.id,
+        success: false,
+        error: error instanceof Error ? error.message : '连接失败',
+      });
+    } finally {
+      setTestingProvider(null);
+    }
+  };
+
   const isConfigured = (provider: ProviderConfig) => Boolean(getVal(`${provider.id}_api_key`));
   const defaultProvider = getVal('agent_llm_provider', 'mimo');
+
+  // Default active keys: configured providers + default provider
+  const activeKeys = useMemo(() => {
+    const keys = new Set<string>();
+    if (defaultProvider) keys.add(defaultProvider);
+    PROVIDERS.forEach((p) => { if (isConfigured(p)) keys.add(p.id); });
+    return Array.from(keys);
+  }, [draft]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) {
     return <Spin size="large" style={{ display: 'block', margin: '100px auto' }} />;
@@ -169,11 +222,8 @@ const SettingsPage: React.FC = () => {
             label: '大模型配置',
             children: (
               <>
-                <Paragraph type="secondary">
-                  选择审计任务的默认大模型，配置各模型的密钥和参数
-                </Paragraph>
-                <Form layout="vertical">
-                  <Form.Item label="默认审计模型">
+                <Form layout="vertical" style={{ marginBottom: 16 }}>
+                  <Form.Item label="默认审计模型" style={{ maxWidth: 360 }}>
                     <Select
                       value={defaultProvider}
                       onChange={(value) => setVal('agent_llm_provider', value)}
@@ -181,52 +231,70 @@ const SettingsPage: React.FC = () => {
                         value: provider.id,
                         label: `${provider.name}${isConfigured(provider) ? ' ✓' : ''}`,
                       }))}
-                      style={{ maxWidth: 320 }}
                     />
                   </Form.Item>
                 </Form>
 
-                {PROVIDERS.map((provider) => (
-                  <Card
-                    key={provider.id}
-                    size="small"
-                    style={{ marginBottom: 12, borderRadius: 8 }}
-                    title={(
+                <Collapse
+                  activeKey={activeKeys}
+                  onChange={() => {}} // controlled
+                  items={PROVIDERS.map((provider) => ({
+                    key: provider.id,
+                    label: (
                       <Space>
                         <Badge status={isConfigured(provider) ? 'success' : 'default'} />
                         <span>{provider.name}</span>
-                        {defaultProvider === provider.id && <Text type="secondary">（默认）</Text>}
+                        {defaultProvider === provider.id && <Tag color="orange">默认</Tag>}
                       </Space>
-                    )}
-                  >
-                    <Form layout="inline" style={{ flexWrap: 'wrap', gap: 8 }}>
-                      <Form.Item label="模型名称">
-                        <Input
-                          value={getVal(`${provider.id}_model`, provider.defaultModel)}
-                          onChange={(event) => setVal(`${provider.id}_model`, event.target.value)}
-                          placeholder={provider.defaultModel}
-                          style={{ width: 220 }}
-                        />
-                      </Form.Item>
-                      <Form.Item label="接口地址">
-                        <Input
-                          value={getVal(`${provider.id}_base_url`, provider.defaultUrl)}
-                          onChange={(event) => setVal(`${provider.id}_base_url`, event.target.value)}
-                          placeholder={provider.defaultUrl}
-                          style={{ width: 360 }}
-                        />
-                      </Form.Item>
-                      <Form.Item label="API 密钥">
-                        <Input.Password
-                          value={getVal(`${provider.id}_api_key`)}
-                          onChange={(event) => setVal(`${provider.id}_api_key`, event.target.value)}
-                          placeholder={provider.keyPlaceholder}
-                          style={{ width: 300 }}
-                        />
-                      </Form.Item>
-                    </Form>
-                  </Card>
-                ))}
+                    ),
+                    children: (
+                      <Form layout="vertical">
+                        <Form.Item label="模型名称">
+                          <Input
+                            value={getVal(`${provider.id}_model`, provider.defaultModel)}
+                            onChange={(event) => setVal(`${provider.id}_model`, event.target.value)}
+                            placeholder={provider.defaultModel}
+                          />
+                        </Form.Item>
+                        <Form.Item label="接口地址">
+                          <Input
+                            value={getVal(`${provider.id}_base_url`, provider.defaultUrl)}
+                            onChange={(event) => setVal(`${provider.id}_base_url`, event.target.value)}
+                            placeholder={provider.defaultUrl}
+                          />
+                        </Form.Item>
+                        <Form.Item label="API 密钥">
+                          <Input.Password
+                            value={getVal(`${provider.id}_api_key`)}
+                            onChange={(event) => setVal(`${provider.id}_api_key`, event.target.value)}
+                            placeholder={provider.keyPlaceholder}
+                          />
+                        </Form.Item>
+                        <Form.Item>
+                          <Button
+                            icon={<ApiOutlined />}
+                            loading={testingProvider === provider.id}
+                            onClick={() => void handleTestProvider(provider)}
+                          >
+                            测试连接
+                          </Button>
+                        </Form.Item>
+                        {providerTestResult && providerTestResult.provider === provider.id && (
+                          <Alert
+                            type={providerTestResult.success ? 'success' : 'error'}
+                            showIcon
+                            message={
+                              providerTestResult.success
+                                ? `连接成功 — 模型: ${providerTestResult.model_used}, 延迟: ${providerTestResult.latency_ms}ms`
+                                : `连接失败: ${providerTestResult.error}`
+                            }
+                            style={{ marginTop: 8 }}
+                          />
+                        )}
+                      </Form>
+                    ),
+                  }))}
+                />
               </>
             ),
           },
@@ -251,7 +319,7 @@ const SettingsPage: React.FC = () => {
                       placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/..."
                     />
                   </Form.Item>
-                  <Form.Item label="签名密钥">
+                  <Form.Item label="签名密钥" extra="留空则不更新已有密钥">
                     <Input.Password
                       value={getVal('feishu_webhook_secret')}
                       onChange={(event) => setVal('feishu_webhook_secret', event.target.value)}
@@ -259,14 +327,21 @@ const SettingsPage: React.FC = () => {
                     />
                   </Form.Item>
                   <Form.Item>
-                    <Space>
-                      <Button icon={<SendOutlined />} onClick={handleTestWebhook}>
-                        保存并测试
-                      </Button>
-                      {testWebhookResult && (
-                        <Text type={testWebhookResult.includes('成功') ? 'success' : 'danger'}>
-                          {testWebhookResult}
+                    <Space direction="vertical" size={8}>
+                      <Space>
+                        <Button icon={<SendOutlined />} onClick={handleTestWebhook}>
+                          保存并测试
+                        </Button>
+                        <Text type="secondary" style={{ fontSize: 12 }}>
+                          将先保存配置再发送测试消息
                         </Text>
+                      </Space>
+                      {testWebhookResult && (
+                        <Alert
+                          type={testWebhookResult.includes('成功') ? 'success' : 'error'}
+                          showIcon
+                          message={testWebhookResult}
+                        />
                       )}
                     </Space>
                   </Form.Item>

@@ -73,6 +73,8 @@ export const configApi = {
   batchUpdate: (configs: Record<string, string>) =>
     api.post('/config/batch', { configs }) as Promise<{ status: string; updated: number }>,
   testWebhook: () => api.post('/config/test-webhook') as Promise<{ success: boolean; error: string | null }>,
+  testLLM: (data: { provider: string; api_key: string; base_url?: string; model?: string }) =>
+    api.post('/config/test-llm', data) as Promise<{ success: boolean; model_used?: string; latency_ms?: number; error?: string | null }>,
 };
 
 export const alertsApi = {
