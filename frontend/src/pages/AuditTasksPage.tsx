@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Button,
   Card,
+  Divider,
   Drawer,
   Empty,
   Form,
@@ -16,6 +17,7 @@ import {
   Tag,
   Timeline,
   Typography,
+  Upload,
   message,
 } from 'antd';
 import {
@@ -23,6 +25,7 @@ import {
   FileSearchOutlined,
   PlayCircleOutlined,
   PlusOutlined,
+  UploadOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
@@ -583,6 +586,32 @@ const AuditTasksPage: React.FC = () => {
               optionFilterProp="label"
               options={documents.map((doc) => ({ value: doc.id, label: doc.filename }))}
               placeholder="请选择已处理的文档"
+              dropdownRender={(menu) => (
+                <>
+                  {menu}
+                  <Divider style={{ margin: '8px 0' }} />
+                  <Upload
+                    customRequest={async (options) => {
+                      const { file, onSuccess, onError } = options;
+                      try {
+                        await documentApi.uploadBatch([file as File]);
+                        onSuccess?.({});
+                        message.success('上传成功，正在处理中');
+                        void loadDocuments();
+                      } catch (error) {
+                        onError?.(error as Error);
+                        message.error('上传失败');
+                      }
+                    }}
+                    showUploadList={false}
+                    accept=".pdf,.docx,.doc,.txt,.jpg,.jpeg,.png"
+                  >
+                    <Button type="link" icon={<UploadOutlined />} block>
+                      上传新文档
+                    </Button>
+                  </Upload>
+                </>
+              )}
             />
           </Form.Item>
         </Form>

@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Alert,
   Button,
   Card,
   Modal,
-  Radio,
   Space,
   Steps,
   Table,
@@ -12,11 +12,10 @@ import {
   Upload,
   message,
 } from 'antd';
-import { DeleteOutlined, InboxOutlined, RobotOutlined } from '@ant-design/icons';
+import { DeleteOutlined, InboxOutlined } from '@ant-design/icons';
 import type { UploadProps } from 'antd';
-import { useNavigate } from 'react-router-dom';
 
-import { agentAuditApi, documentApi } from '../services/api';
+import { documentApi } from '../services/api';
 import type { Document } from '../types/api';
 import { THEME } from '../constants/theme';
 
@@ -36,23 +35,13 @@ const STATUS_LABELS: Record<string, string> = {
   failed: '处理失败',
 };
 
-const AUDIT_TYPE_OPTIONS = [
-  { label: '偏差分析', value: 'deviation' },
-  { label: 'SOP 合规', value: 'sop' },
-  { label: '变更控制', value: 'change_control' },
-];
-
 const DocumentsPage: React.FC = () => {
-  const navigate = useNavigate();
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [documents, setDocuments] = useState<Document[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [auditModalOpen, setAuditModalOpen] = useState(false);
-  const [selectedDocId, setSelectedDocId] = useState<number | null>(null);
-  const [auditType, setAuditType] = useState<'deviation' | 'sop' | 'change_control'>('deviation');
 
   const loadDocuments = useCallback(async (nextPage = page) => {
     try {
@@ -104,27 +93,6 @@ const DocumentsPage: React.FC = () => {
     }
   };
 
-  const openAuditModal = (id: number) => {
-    setSelectedDocId(id);
-    setAuditType('deviation');
-    setAuditModalOpen(true);
-  };
-
-  const handleAgentAuditConfirm = async () => {
-    if (!selectedDocId) return;
-    try {
-      const result = await agentAuditApi.run({
-        document_id: selectedDocId,
-        audit_type: auditType,
-      });
-      message.success(`审计任务已创建：#${result.task_id}`);
-      setAuditModalOpen(false);
-      navigate(`/audit?task_id=${result.task_id}`);
-    } catch {
-      message.error('创建审计任务失败');
-    }
-  };
-
   const handleDelete = (id: number) => {
     Modal.confirm({
       title: '删除文档',
@@ -168,18 +136,11 @@ const DocumentsPage: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      width: 220,
+      width: 100,
       render: (_: unknown, record: Document) => (
-        <Space>
-          {record.process_status === 'processed' && (
-            <Button type="primary" size="small" icon={<RobotOutlined />} onClick={() => openAuditModal(record.id)}>
-              开始审计
-            </Button>
-          )}
-          <Button type="link" danger size="small" icon={<DeleteOutlined />} onClick={() => handleDelete(record.id)}>
-            删除
-          </Button>
-        </Space>
+        <Button type="link" danger size="small" icon={<DeleteOutlined />} onClick={() => handleDelete(record.id)}>
+          删除
+        </Button>
       ),
     },
   ];
@@ -204,7 +165,7 @@ const DocumentsPage: React.FC = () => {
             上传文档，系统自动解析后用于审计分析
           </Title>
           <Paragraph style={{ color: THEME.textSecondary, fontSize: 16, marginBottom: 0 }}>
-            上传原始文档，等待解析完成后即可提交审计
+            上传原始文档，等待解析完成后前往审计任务页面创建审计任务
           </Paragraph>
         </Space>
       </Card>
@@ -216,7 +177,7 @@ const DocumentsPage: React.FC = () => {
             items={[
               { title: '上传文档' },
               { title: '处理中' },
-              { title: '待审计' },
+              { title: '就绪 — 前往审计任务创建任务' },
             ]}
           />
         </Card>
@@ -244,7 +205,15 @@ const DocumentsPage: React.FC = () => {
       )}
 
       <Card bordered={false} style={{ borderRadius: 12 }}>
-        <Title level={4}>文档列表</Title>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <Title level={4} style={{ margin: 0 }}>文档列表</Title>
+          <Alert
+            message="文档就绪后，前往审计任务页面创建审计任务"
+            type="info"
+            showIcon
+            style={{ borderRadius: 8 }}
+          />
+        </div>
         <Table
           columns={columns}
           dataSource={documents}
@@ -261,31 +230,6 @@ const DocumentsPage: React.FC = () => {
           }}
         />
       </Card>
-
-      <Modal
-        title="启动审计"
-        open={auditModalOpen}
-        onCancel={() => setAuditModalOpen(false)}
-        onOk={() => void handleAgentAuditConfirm()}
-        okText="提交"
-      >
-        <Space direction="vertical" size={16} style={{ width: '100%' }}>
-          <Paragraph style={{ marginBottom: 0 }}>
-            选择审计类型，系统将根据类型匹配相应的法规和风险评估流程
-          </Paragraph>
-          <Radio.Group
-            value={auditType}
-            onChange={(event) => setAuditType(event.target.value)}
-            style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
-          >
-            {AUDIT_TYPE_OPTIONS.map((option) => (
-              <Radio key={option.value} value={option.value}>
-                {option.label}
-              </Radio>
-            ))}
-          </Radio.Group>
-        </Space>
-      </Modal>
     </div>
   );
 };

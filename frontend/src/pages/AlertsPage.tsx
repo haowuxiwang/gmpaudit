@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Card, Empty, Modal, Select, Space, Table, Tag, Typography, message } from 'antd';
-import { CheckCircleOutlined, IssuesCloseOutlined } from '@ant-design/icons';
+import { Alert, Button, Card, Empty, Modal, Select, Space, Table, Tag, Typography, message } from 'antd';
+import { CheckCircleOutlined, EyeOutlined, IssuesCloseOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 
 import { alertsApi } from '../services/api';
 import type { RiskAlert } from '../types/api';
 import { THEME } from '../constants/theme';
 
-const { Title, Paragraph } = Typography;
+const { Title, Paragraph, Text } = Typography;
 
 const ALERT_LEVEL_COLORS: Record<string, string> = {
   critical: 'red',
@@ -32,7 +33,20 @@ const ALERT_STATUS_LABELS: Record<string, string> = {
   resolved: '已解决',
 };
 
+const SEVERITY_COLORS: Record<string, string> = {
+  high: 'red',
+  medium: 'orange',
+  low: 'green',
+};
+
+const SEVERITY_LABELS: Record<string, string> = {
+  high: '高',
+  medium: '中',
+  low: '低',
+};
+
 const AlertsPage: React.FC = () => {
+  const navigate = useNavigate();
   const [alerts, setAlerts] = useState<RiskAlert[]>([]);
   const [loading, setLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
@@ -88,47 +102,61 @@ const AlertsPage: React.FC = () => {
   };
 
   const columns = [
-    { title: 'ID', dataIndex: 'id', key: 'id', width: 80 },
+    { title: 'ID', dataIndex: 'id', key: 'id', width: 60 },
     {
       title: '级别',
       dataIndex: 'alert_level',
       key: 'alert_level',
-      width: 120,
+      width: 90,
       render: (level: string) => <Tag color={ALERT_LEVEL_COLORS[level] || 'default'}>{ALERT_LEVEL_LABELS[level] || level}</Tag>,
     },
     {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
-      width: 140,
+      width: 100,
       render: (status: string) => <Tag color={STATUS_COLORS[status] || 'default'}>{ALERT_STATUS_LABELS[status] || status}</Tag>,
     },
     {
       title: '发现',
-      dataIndex: 'finding_id',
-      key: 'finding_id',
-      width: 120,
+      key: 'finding',
+      render: (_: unknown, record: RiskAlert) => (
+        <Space direction="vertical" size={0}>
+          <Text strong>{record.finding_title || `发现 #${record.finding_id}`}</Text>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {(record.finding_description || '').slice(0, 80)}{(record.finding_description || '').length > 80 ? '...' : ''}
+          </Text>
+        </Space>
+      ),
+    },
+    {
+      title: '严重程度',
+      key: 'finding_severity',
+      width: 100,
+      render: (_: unknown, record: RiskAlert) => (
+        <Tag color={SEVERITY_COLORS[record.finding_severity || ''] || 'default'}>
+          {SEVERITY_LABELS[record.finding_severity || ''] || record.finding_severity || '-'}
+        </Tag>
+      ),
     },
     {
       title: '创建时间',
       dataIndex: 'created_at',
       key: 'created_at',
-      width: 220,
-      render: (value: string) => (value ? new Date(value).toLocaleString('zh-CN') : '-'),
-    },
-    {
-      title: '解决时间',
-      dataIndex: 'resolved_at',
-      key: 'resolved_at',
-      width: 220,
+      width: 180,
       render: (value: string) => (value ? new Date(value).toLocaleString('zh-CN') : '-'),
     },
     {
       title: '操作',
       key: 'action',
-      width: 180,
+      width: 200,
       render: (_: unknown, record: RiskAlert) => (
         <Space>
+          {record.task_id && (
+            <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => navigate(`/audit?task_id=${record.task_id}`)}>
+              任务
+            </Button>
+          )}
           {record.status === 'active' && (
             <Button type="link" icon={<CheckCircleOutlined />} onClick={() => void handleAcknowledge(record.id)}>
               确认
@@ -162,6 +190,13 @@ const AlertsPage: React.FC = () => {
           审查并关闭审计流程中发现的高风险问题
         </Paragraph>
       </Card>
+
+      <Alert
+        message="告警由审计任务完成后自动生成：高风险发现 → 严重告警，中风险发现 → 警告告警"
+        type="info"
+        showIcon
+        style={{ marginBottom: 16, borderRadius: 8 }}
+      />
 
       <Card bordered={false} style={{ borderRadius: 12 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>

@@ -30,6 +30,7 @@ async def list_alerts(status: str = None, page: int = 1, page_size: int = 20, db
             "finding_title": a.finding.title if a.finding else None,
             "finding_description": a.finding.description if a.finding else None,
             "finding_severity": a.finding.severity.value if a.finding else None,
+            "task_id": a.finding.task_id if a.finding else None,
         } for a in alerts],
         "total": total,
         "page": page,

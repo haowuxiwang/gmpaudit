@@ -71,6 +71,10 @@ export interface RiskAlert {
   created_at: string;
   resolved_at?: string;
   resolved_by?: string;
+  finding_title?: string;
+  finding_description?: string;
+  finding_severity?: string;
+  task_id?: number;
 }
 
 export interface KGStatus {
