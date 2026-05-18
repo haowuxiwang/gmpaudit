@@ -1,30 +1,61 @@
 import React from 'react';
-import { Layout, Menu } from 'antd';
-import { DashboardOutlined, FileTextOutlined, AuditOutlined, BarChartOutlined, AlertOutlined, SettingOutlined } from '@ant-design/icons';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { Layout, Menu, Typography } from 'antd';
+import {
+  AlertOutlined,
+  AppstoreOutlined,
+  BranchesOutlined,
+  FileTextOutlined,
+  RobotOutlined,
+  SettingOutlined,
+} from '@ant-design/icons';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 const { Sider } = Layout;
+const { Text } = Typography;
 
 const Sidebar: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const menuItems = [
-    { key: '/', icon: <DashboardOutlined />, label: '仪表盘' },
-    { key: '/documents', icon: <FileTextOutlined />, label: '文档管理' },
-    { key: '/audit', icon: <AuditOutlined />, label: '审计任务' },
-    { key: '/reports', icon: <BarChartOutlined />, label: '审计报告' },
-    { key: '/alerts', icon: <AlertOutlined />, label: '风险警报' },
-    { key: '/settings', icon: <SettingOutlined />, label: '系统设置' },
+  const items = [
+    { key: '/', icon: <AppstoreOutlined />, label: 'Control Room' },
+    { key: '/documents', icon: <FileTextOutlined />, label: 'Evidence Intake' },
+    { key: '/audit', icon: <RobotOutlined />, label: 'Agent Workspace' },
+    { key: '/reports', icon: <FileTextOutlined />, label: 'Reports' },
+    { key: '/kg', icon: <BranchesOutlined />, label: 'Knowledge Graph' },
+    { key: '/alerts', icon: <AlertOutlined />, label: 'Alerts' },
+    { key: '/settings', icon: <SettingOutlined />, label: 'Settings' },
   ];
 
   return (
-    <Sider width={200} style={{ background: '#fff' }}>
-      <div style={{ height: 64, display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid #f0f0f0' }}>
-        <AuditOutlined style={{ fontSize: 24, color: '#1890ff' }} />
-        <span style={{ marginLeft: 8, fontWeight: 'bold' }}>GMP审计</span>
+    <Sider width={248} style={{ background: '#0f172a', padding: 16 }}>
+      <div
+        style={{
+          minHeight: 92,
+          padding: 16,
+          marginBottom: 16,
+          borderRadius: 20,
+          background: 'linear-gradient(135deg, #1d4ed8 0%, #0f766e 100%)',
+          color: '#fff',
+        }}
+      >
+        <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>AuditBee</div>
+        <Text style={{ color: 'rgba(255,255,255,0.78)' }}>
+          Multi-agent GMP audit cockpit
+        </Text>
       </div>
-      <Menu mode="inline" selectedKeys={[location.pathname]} items={menuItems} onClick={({ key }) => navigate(key)} style={{ height: '100%', borderRight: 0 }} />
+      <Menu
+        mode="inline"
+        selectedKeys={[location.pathname]}
+        items={items}
+        onClick={({ key }) => navigate(key)}
+        style={{
+          background: 'transparent',
+          color: '#e2e8f0',
+          borderInlineEnd: 'none',
+        }}
+        theme="dark"
+      />
     </Sider>
   );
 };

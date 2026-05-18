@@ -4,7 +4,6 @@ from .finding import Finding, SeverityLevel, FindingType
 from .report import Report, ReportType
 from .configuration import Configuration
 from .risk_alert import RiskAlert, AlertLevel, AlertStatus
-from .user import User
 
 __all__ = [
     "Document", "DocumentStatus",
@@ -13,5 +12,4 @@ __all__ = [
     "Report", "ReportType",
     "Configuration",
     "RiskAlert", "AlertLevel", "AlertStatus",
-    "User"
 ]

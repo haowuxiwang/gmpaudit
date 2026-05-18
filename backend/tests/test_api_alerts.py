@@ -10,7 +10,10 @@ from app.models.risk_alert import RiskAlert, AlertLevel, AlertStatus
 async def test_list_alerts_empty(client: AsyncClient):
     response = await client.get("/api/alerts/")
     assert response.status_code == 200
-    assert isinstance(response.json(), list)
+    data = response.json()
+    assert "items" in data
+    assert isinstance(data["items"], list)
+    assert data["total"] == 0
 
 
 @pytest.mark.asyncio
@@ -38,7 +41,7 @@ async def test_list_alerts_with_data(client: AsyncClient, db_session: AsyncSessi
 
     response = await client.get("/api/alerts/")
     assert response.status_code == 200
-    alerts = response.json()
+    alerts = response.json()["items"]
     assert len(alerts) >= 1
 
 
@@ -130,5 +133,5 @@ async def test_list_alerts_filter_by_status(client: AsyncClient, db_session: Asy
 
     response = await client.get("/api/alerts/?status=resolved")
     assert response.status_code == 200
-    alerts = response.json()
+    alerts = response.json()["items"]
     assert all(a["status"] == "resolved" for a in alerts)

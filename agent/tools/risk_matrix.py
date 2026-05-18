@@ -11,7 +11,7 @@ def calculate_risk_score(findings: list[dict]) -> tuple[int, str]:
         Tuple of (risk_score, risk_level)
     """
     if not findings:
-        return 100, "low"
+        return 0, "not_assessed"
 
     high = sum(1 for f in findings if f.get("severity") == "high")
     medium = sum(1 for f in findings if f.get("severity") == "medium")

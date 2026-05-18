@@ -27,6 +27,8 @@ yarn-error.log*
 .env
 .env.local
 .env.*.local
+config/.env
+graphrag_index/.env
 
 # Data
 data/documents/*
@@ -51,6 +53,7 @@ model/
 
 # GraphRAG build artifacts
 graphrag_index/output/
+graphrag_index/lightrag_output/
 graphrag_index/logs/
 
 # Test artifacts
@@ -61,3 +64,9 @@ data/test_documents/
 
 # Pip install artifacts (malformed command output)
 backend/=*
+
+# Claude Code
+.claude/
+
+# Logs
+data/logs/

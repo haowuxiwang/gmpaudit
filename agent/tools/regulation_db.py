@@ -1,6 +1,6 @@
 """Fallback regulation database using hardcoded GMP knowledge.
 
-This is the Phase 2 fallback before GraphRAG integration.
+Fallback when LightRAG knowledge graph is unavailable.
 Contains key Chinese GMP (2010) regulation excerpts.
 """
 

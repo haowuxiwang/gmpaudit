@@ -1,9 +1,10 @@
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
 from httpx import AsyncClient
-from unittest.mock import AsyncMock, patch, MagicMock
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.audit_task import AuditTask, TaskType, TaskStatus
+from app.models.audit_task import AuditTask, TaskStatus, TaskType
 from app.models.finding import Finding, FindingType, SeverityLevel
 from app.models.report import Report, ReportType
 
@@ -12,34 +13,40 @@ from app.models.report import Report, ReportType
 async def test_list_reports_empty(client: AsyncClient):
     response = await client.get("/api/reports/")
     assert response.status_code == 200
-    assert isinstance(response.json(), list)
+    data = response.json()
+    assert data["items"] == []
+    assert data["total"] == 0
 
 
 @pytest.mark.asyncio
 async def test_get_report_not_found(client: AsyncClient):
     response = await client.get("/api/reports/999")
     assert response.status_code == 404
+    assert response.json()["detail"] == "Report not found"
 
 
 @pytest.mark.asyncio
 async def test_generate_report_no_task(client: AsyncClient):
     response = await client.post("/api/reports/generate/999")
     assert response.status_code == 404
+    assert response.json()["detail"] == "Task not found"
 
 
 @pytest.mark.asyncio
 async def test_generate_report_no_findings(client: AsyncClient):
-    task_data = {
-        "task_name": "测试任务",
-        "task_type": "deviation_analysis",
-        "document_ids": [],
-    }
-    task_resp = await client.post("/api/audit/tasks", json=task_data)
+    task_resp = await client.post(
+        "/api/audit/tasks",
+        json={
+            "task_name": "Test task",
+            "task_type": "deviation_analysis",
+            "document_ids": [],
+        },
+    )
     task_id = task_resp.json()["id"]
 
     response = await client.post(f"/api/reports/generate/{task_id}")
     assert response.status_code == 400
-    assert "没有审计发现" in response.json()["detail"]
+    assert "No findings available" in response.json()["detail"]
 
 
 @pytest.mark.asyncio
@@ -68,10 +75,12 @@ async def test_generate_report_success(client: AsyncClient, db_session: AsyncSes
 
     with patch("app.api.reports.get_llm_engine", return_value=mock_engine):
         response = await client.post(f"/api/reports/generate/{task.id}")
-        assert response.status_code == 200
-        data = response.json()
-        assert "id" in data
-        assert "content" in data
+
+    assert response.status_code == 200
+    data = response.json()
+    assert "id" in data
+    assert "content" in data
+    assert data["report_metadata"]["report_source"] == "backend_llm_generate"
 
 
 @pytest.mark.asyncio
@@ -90,23 +99,26 @@ async def test_list_reports_with_filter(client: AsyncClient, db_session: AsyncSe
         report_type=ReportType.FULL_REPORT,
         title="Test Report",
         content="Report content",
+        report_metadata={"report_source": "agent_report_writer"},
     )
     db_session.add(report)
     await db_session.commit()
 
     response = await client.get(f"/api/reports/?task_id={task.id}")
     assert response.status_code == 200
-    reports = response.json()
-    assert len(reports) >= 1
+    reports = response.json()["items"]
+    assert len(reports) == 1
+    assert reports[0]["report_metadata"]["report_source"] == "agent_report_writer"
 
 
 @pytest.mark.asyncio
 async def test_get_report_detail(client: AsyncClient, db_session: AsyncSession):
     report = Report(
-        task_id=0,
+        task_id=1,
         report_type=ReportType.FULL_REPORT,
         title="Detail Report",
         content="Detailed content here",
+        report_metadata={"report_mode": "single_document"},
     )
     db_session.add(report)
     await db_session.commit()
@@ -117,3 +129,4 @@ async def test_get_report_detail(client: AsyncClient, db_session: AsyncSession):
     data = response.json()
     assert data["title"] == "Detail Report"
     assert data["content"] == "Detailed content here"
+    assert data["report_metadata"]["report_mode"] == "single_document"

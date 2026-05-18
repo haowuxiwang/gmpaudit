@@ -1,28 +1,54 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Button, Card, Col, Input, List, Modal, Row, Space, Table, Tag, Typography, Upload, message } from 'antd';
-import { BranchesOutlined, BuildOutlined, DeleteOutlined, InboxOutlined, SearchOutlined, UploadOutlined } from '@ant-design/icons';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Button,
+  Card,
+  Col,
+  Empty,
+  Input,
+  List,
+  Modal,
+  Row,
+  Space,
+  Statistic,
+  Table,
+  Tag,
+  Typography,
+  Upload,
+  message,
+} from 'antd';
+import {
+  BranchesOutlined,
+  BuildOutlined,
+  DeleteOutlined,
+  SearchOutlined,
+  UploadOutlined,
+} from '@ant-design/icons';
 import type { UploadProps } from 'antd';
 import ReactECharts from 'echarts-for-react';
+import { useSearchParams } from 'react-router-dom';
 
 import { kgApi } from '../services/api';
-import type { KGDocument, KGStatus, GraphData, GraphNode, KGQueryResult } from '../types/api';
+import type { GraphData, GraphNode, KGDocument, KGQueryResult, KGStatus } from '../types/api';
 
-const { Title, Text, Paragraph } = Typography;
+const { Title, Paragraph, Text } = Typography;
 
 const CATEGORY_COLORS: Record<string, string> = {
-  concept: '#1890ff',
-  organization: '#52c41a',
-  person: '#faad14',
-  method: '#722ed1',
-  unknown: '#d9d9d9',
+  concept: '#2563eb',
+  organization: '#10b981',
+  person: '#f59e0b',
+  method: '#7c3aed',
+  regulation: '#0f766e',
+  unknown: '#94a3b8',
 };
 
 const KnowledgeGraphPage: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialQuery = searchParams.get('q') || '';
   const [status, setStatus] = useState<KGStatus | null>(null);
   const [documents, setDocuments] = useState<KGDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [building, setBuilding] = useState(false);
-  const [queryText, setQueryText] = useState('');
+  const [queryText, setQueryText] = useState(initialQuery);
   const [queryResults, setQueryResults] = useState<KGQueryResult['results']>([]);
   const [queryLoading, setQueryLoading] = useState(false);
   const [buildLogs, setBuildLogs] = useState('');
@@ -31,18 +57,16 @@ const KnowledgeGraphPage: React.FC = () => {
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
   const [uploading, setUploading] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const logRef = useRef<HTMLPreElement>(null);
 
   const loadData = useCallback(async () => {
     try {
-      const [statusRes, docsRes] = await Promise.allSettled([
+      const [statusResult, docsResult] = await Promise.allSettled([
         kgApi.getStatus(),
         kgApi.getDocuments(),
       ]);
-      if (statusRes.status === 'fulfilled') setStatus(statusRes.value);
-      if (docsRes.status === 'fulfilled') setDocuments((docsRes.value as any)?.documents || []);
-    } catch {
-      // silent
+
+      if (statusResult.status === 'fulfilled') setStatus(statusResult.value);
+      if (docsResult.status === 'fulfilled') setDocuments(docsResult.value.documents || []);
     } finally {
       setLoading(false);
     }
@@ -54,7 +78,7 @@ const KnowledgeGraphPage: React.FC = () => {
       const data = await kgApi.getGraphData();
       setGraphData(data);
     } catch {
-      // Graph data not available
+      setGraphData(null);
     } finally {
       setGraphLoading(false);
     }
@@ -68,70 +92,74 @@ const KnowledgeGraphPage: React.FC = () => {
     if (status?.built) {
       void loadGraphData();
     }
-  }, [status?.built, loadGraphData]);
+  }, [loadGraphData, status?.built]);
 
-  // Poll build status
   useEffect(() => {
     if (!building) return;
+
     pollRef.current = setInterval(async () => {
       try {
         const buildStatus = await kgApi.getBuildStatus();
-        setBuildLogs((buildStatus as any).recent_logs || '');
+        setBuildLogs((buildStatus.recent_logs || []).join('\n'));
         if (!buildStatus.building) {
           setBuilding(false);
-          message.success('知识图谱索引构建完成');
+          message.success('Knowledge graph build completed');
           void loadData();
+          void loadGraphData();
           if (pollRef.current) {
             clearInterval(pollRef.current);
             pollRef.current = null;
           }
         }
       } catch {
-        // silent
+        setBuilding(false);
       }
-    }, 5000);
+    }, 4000);
+
     return () => {
       if (pollRef.current) {
         clearInterval(pollRef.current);
         pollRef.current = null;
       }
     };
-  }, [building, loadData]);
-
-  // Auto-scroll build logs
-  useEffect(() => {
-    if (logRef.current) {
-      logRef.current.scrollTop = logRef.current.scrollHeight;
-    }
-  }, [buildLogs]);
+  }, [building, loadData, loadGraphData]);
 
   const handleBuild = async (force = false) => {
     try {
       setBuilding(true);
       await kgApi.build(force);
-      message.info('索引构建已启动，这可能需要几分钟...');
-    } catch (err: any) {
+      message.info('Graph build started in the background');
+    } catch (error: any) {
       setBuilding(false);
-      message.error(err?.response?.data?.detail || '启动构建失败');
+      message.error(error?.response?.data?.detail || 'Failed to start graph build');
     }
   };
 
-  const handleQuery = async () => {
-    if (!queryText.trim()) {
-      message.warning('请输入查询内容');
+  const handleQuery = useCallback(async (value?: string) => {
+    const nextQuery = (value ?? queryText).trim();
+    if (!nextQuery) {
+      message.warning('Enter a regulation or finding query');
       return;
     }
+
     setQueryLoading(true);
-    setQueryResults([]);
+    setSearchParams({ q: nextQuery }, { replace: true });
     try {
-      const result = await kgApi.query(queryText);
+      const result = await kgApi.query(nextQuery);
       setQueryResults(result?.results || []);
-    } catch (err: any) {
-      message.error(err?.response?.data?.detail || '查询失败');
+    } catch (error: any) {
+      message.error(error?.response?.data?.detail || 'Query failed');
+      setQueryResults([]);
     } finally {
       setQueryLoading(false);
     }
-  };
+  }, [queryText, setSearchParams]);
+
+  useEffect(() => {
+    if (initialQuery && status?.built) {
+      void handleQuery(initialQuery);
+    }
+  }, [handleQuery, initialQuery, status?.built]);
 
   const handleUpload: UploadProps['customRequest'] = async (options) => {
     const { file, onSuccess, onError } = options;
@@ -139,11 +167,11 @@ const KnowledgeGraphPage: React.FC = () => {
     try {
       const result = await kgApi.uploadDocument(file as File);
       onSuccess?.(result);
-      message.success(`文件 ${result.filename} 上传成功`);
+      message.success(`Uploaded ${result.filename}`);
       void loadData();
-    } catch (err) {
-      onError?.(err as Error);
-      message.error('上传失败');
+    } catch (error) {
+      onError?.(error as Error);
+      message.error('Upload failed');
     } finally {
       setUploading(false);
     }
@@ -151,328 +179,291 @@ const KnowledgeGraphPage: React.FC = () => {
 
   const handleDelete = (filename: string) => {
     Modal.confirm({
-      title: '确认删除',
-      content: `确定要删除文件 ${filename} 吗？`,
-      okText: '删除',
+      title: 'Delete source document',
+      content: `Remove ${filename} from the graph input set?`,
+      okText: 'Delete',
       okType: 'danger',
-      cancelText: '取消',
       onOk: async () => {
         try {
           await kgApi.deleteDocument(filename);
-          message.success('删除成功');
+          message.success('Document removed');
           void loadData();
         } catch {
-          message.error('删除失败');
+          message.error('Delete failed');
         }
       },
     });
   };
 
-  // ECharts graph option
-  const getChartOption = () => {
+  const focusedGraph = useMemo(() => {
     if (!graphData) return null;
 
-    // Limit to top 200 nodes for performance
-    const nodes = graphData.nodes.slice(0, 200);
-    const nodeIds = new Set(nodes.map((n) => n.id));
-    const edges = graphData.edges.filter((e) => nodeIds.has(e.source) && nodeIds.has(e.target));
+    const searchTerms = new Set(
+      queryResults
+        .flatMap((item) => [item.regulation, item.title, item.chapter])
+        .filter(Boolean)
+        .map((item) => item.toLowerCase()),
+    );
 
-    // Get unique categories
-    const categories = Array.from(new Set(nodes.map((n) => n.category)));
+    const sourceNodes =
+      searchTerms.size === 0
+        ? graphData.nodes.slice(0, 120)
+        : graphData.nodes.filter((node) => {
+            const haystack = `${node.name} ${node.description || ''} ${node.category}`.toLowerCase();
+            return Array.from(searchTerms).some((term) => haystack.includes(term));
+          }).slice(0, 80);
+
+    const selectedIds = new Set(sourceNodes.map((node) => node.id));
+    const links = graphData.edges.filter((edge) => selectedIds.has(edge.source) || selectedIds.has(edge.target)).slice(0, 160);
+    links.forEach((edge) => {
+      selectedIds.add(edge.source);
+      selectedIds.add(edge.target);
+    });
+
+    return {
+      nodes: graphData.nodes.filter((node) => selectedIds.has(node.id)).slice(0, 140),
+      edges: links,
+    };
+  }, [graphData, queryResults]);
+
+  const chartOption = useMemo(() => {
+    if (!focusedGraph) return null;
+    const categories = Array.from(new Set(focusedGraph.nodes.map((node) => node.category)));
 
     return {
       tooltip: {
         trigger: 'item',
         formatter: (params: any) => {
           if (params.dataType === 'node') {
-            return `<strong>${params.data.name}</strong><br/>类型: ${params.data.category}<br/>${params.data.description || ''}`;
+            const description = params.data.description ? `<br/>${params.data.description}` : '';
+            return `<strong>${params.data.name}</strong><br/>${params.data.category}${description}`;
           }
-          return params.data.label || '';
+          return params.data.label || 'relation';
         },
       },
-      legend: {
-        data: categories,
-        bottom: 0,
-      },
+      legend: { data: categories, bottom: 0 },
       series: [
         {
           type: 'graph',
           layout: 'force',
-          data: nodes.map((node) => ({
+          roam: true,
+          data: focusedGraph.nodes.map((node) => ({
             id: node.id,
             name: node.name,
             category: categories.indexOf(node.category),
             description: node.description,
-            symbolSize: 20,
+            symbolSize: 18,
             itemStyle: {
               color: CATEGORY_COLORS[node.category] || CATEGORY_COLORS.unknown,
             },
           })),
-          links: edges.map((edge) => ({
+          links: focusedGraph.edges.map((edge) => ({
             source: edge.source,
             target: edge.target,
             label: { show: false },
           })),
           categories: categories.map((name) => ({ name })),
-          roam: true,
-          label: {
-            show: true,
-            position: 'right',
-            fontSize: 10,
-          },
+          label: { show: true, fontSize: 11 },
           force: {
-            repulsion: 100,
-            edgeLength: [50, 200],
+            repulsion: 150,
+            edgeLength: [40, 140],
+          },
+          lineStyle: {
+            color: '#94a3b8',
+            opacity: 0.55,
           },
           emphasis: {
             focus: 'adjacency',
-            lineStyle: { width: 3 },
-          },
-          lineStyle: {
-            color: '#aaa',
-            curveness: 0.1,
           },
         },
       ],
     };
-  };
+  }, [focusedGraph]);
 
   const docColumns = [
-    { title: '文件名', dataIndex: 'filename', key: 'filename' },
+    { title: 'Source document', dataIndex: 'filename', key: 'filename' },
     {
-      title: '大小',
+      title: 'Size',
       dataIndex: 'size',
       key: 'size',
-      width: 100,
+      width: 120,
       render: (size: number) => `${(size / 1024).toFixed(1)} KB`,
     },
     {
-      title: '修改时间',
+      title: 'Modified',
       dataIndex: 'modified',
       key: 'modified',
-      width: 200,
-      render: (time: string) => (time ? new Date(time).toLocaleString() : '-'),
+      width: 220,
+      render: (value: string) => (value ? new Date(value).toLocaleString() : '-'),
     },
     {
-      title: '操作',
+      title: 'Action',
       key: 'action',
-      width: 80,
+      width: 90,
       render: (_: unknown, record: KGDocument) => (
-        <Button
-          type="link"
-          danger
-          size="small"
-          icon={<DeleteOutlined />}
-          onClick={() => handleDelete(record.filename)}
-        >
-          删除
+        <Button type="link" danger size="small" icon={<DeleteOutlined />} onClick={() => handleDelete(record.filename)}>
+          Delete
         </Button>
       ),
     },
   ];
 
-  const isBuilt = status?.built;
-
   return (
     <div>
-      <Title level={4}>知识图谱</Title>
+      <Card
+        bordered={false}
+        style={{
+          marginBottom: 24,
+          borderRadius: 24,
+          background: 'linear-gradient(135deg, #082f49 0%, #0f766e 100%)',
+          color: '#fff',
+        }}
+        bodyStyle={{ padding: 28 }}
+      >
+        <Space direction="vertical" size={12} style={{ width: '100%' }}>
+          <Tag color="rgba(255,255,255,0.18)" style={{ borderRadius: 999, alignSelf: 'flex-start' }}>
+            evidence graph
+          </Tag>
+          <Title level={2} style={{ color: '#fff', margin: 0 }}>
+            Trace findings back to regulation evidence instead of trusting the report blindly.
+          </Title>
+          <Paragraph style={{ color: 'rgba(255,255,255,0.82)', fontSize: 16, marginBottom: 0 }}>
+            Build the regulation graph, search it with the same terms your audit agent used, and inspect the connected concepts before approving a report.
+          </Paragraph>
+          <Input.Search
+            placeholder="Try: deviation handling, CAPA, documentation control"
+            enterButton="Query graph"
+            size="large"
+            value={queryText}
+            onChange={(event) => setQueryText(event.target.value)}
+            onSearch={() => void handleQuery()}
+            loading={queryLoading}
+            disabled={!status?.built}
+          />
+        </Space>
+      </Card>
 
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        {/* Status card */}
-        <Col span={6}>
-          <Card loading={loading}>
-            <Space direction="vertical" style={{ width: '100%' }}>
-              <Text type="secondary">索引状态</Text>
-              <div style={{ fontSize: 24, fontWeight: 'bold' }}>
-                {isBuilt ? <Tag color="success">已构建</Tag> : <Tag color="warning">未构建</Tag>}
-              </div>
-              {isBuilt && (
-                <Text type="secondary">{status.file_count} 个索引文件</Text>
-              )}
-            </Space>
+        <Col xs={24} md={8}>
+          <Card bordered={false} loading={loading} style={{ borderRadius: 20 }}>
+            <Statistic title="Source documents" value={documents.length} />
           </Card>
         </Col>
-
-        {/* Input files card */}
-        <Col span={6}>
-          <Card loading={loading}>
-            <Space direction="vertical" style={{ width: '100%' }}>
-              <Text type="secondary">法规文件</Text>
-              <div style={{ fontSize: 24, fontWeight: 'bold' }}>{documents.length}</div>
-              <Text type="secondary">GMP/ICH 法规文本</Text>
-            </Space>
+        <Col xs={24} md={8}>
+          <Card bordered={false} loading={loading} style={{ borderRadius: 20 }}>
+            <Statistic title="Graph files" value={status?.file_count || 0} prefix={<BranchesOutlined />} />
           </Card>
         </Col>
-
-        {/* Build card */}
-        <Col span={6}>
-          <Card>
-            <Space direction="vertical" style={{ width: '100%' }}>
-              <Text type="secondary">构建索引</Text>
-              <Button
-                type="primary"
-                icon={<BuildOutlined />}
-                loading={building}
-                onClick={() => void handleBuild(false)}
-                block
-              >
-                {building ? '构建中...' : isBuilt ? '重新构建' : '构建索引'}
-              </Button>
-              {isBuilt && (
-                <Button size="small" onClick={() => void handleBuild(true)}>
-                  强制重建
-                </Button>
-              )}
-            </Space>
-          </Card>
-        </Col>
-
-        {/* Upload card */}
-        <Col span={6}>
-          <Card>
-            <Space direction="vertical" style={{ width: '100%' }}>
-              <Text type="secondary">上传法规文件</Text>
-              <Upload
-                customRequest={handleUpload}
-                showUploadList={false}
-                accept=".txt,.md"
-                disabled={uploading}
-              >
-                <Button icon={<UploadOutlined />} loading={uploading} block>
-                  {uploading ? '上传中...' : '选择文件'}
-                </Button>
-              </Upload>
-              <Text type="secondary" style={{ fontSize: 11 }}>支持 .txt 和 .md 格式</Text>
-            </Space>
+        <Col xs={24} md={8}>
+          <Card bordered={false} loading={loading} style={{ borderRadius: 20 }}>
+            <Statistic title="Graph status" value={status?.built ? 'Ready' : 'Not built'} />
           </Card>
         </Col>
       </Row>
 
-      {/* Build logs */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col xs={24} lg={8}>
+          <Card bordered={false} style={{ borderRadius: 20 }} title="Graph operations">
+            <Space direction="vertical" style={{ width: '100%' }} size={12}>
+              <Button type="primary" icon={<BuildOutlined />} loading={building} onClick={() => void handleBuild(false)} block>
+                {status?.built ? 'Rebuild graph' : 'Build graph'}
+              </Button>
+              <Button onClick={() => void handleBuild(true)} disabled={building || !documents.length} block>
+                Force rebuild
+              </Button>
+              <Upload customRequest={handleUpload} showUploadList={false} accept=".txt,.md" disabled={uploading}>
+                <Button icon={<UploadOutlined />} loading={uploading} block>
+                  Upload regulation source
+                </Button>
+              </Upload>
+              <Text type="secondary">Text and Markdown files only.</Text>
+            </Space>
+          </Card>
+        </Col>
+        <Col xs={24} lg={16}>
+          <Card bordered={false} style={{ borderRadius: 20 }} title="Evidence signal">
+            {queryResults.length > 0 ? (
+              <List
+                dataSource={queryResults}
+                renderItem={(item) => (
+                  <List.Item>
+                    <Space direction="vertical" size={4} style={{ width: '100%' }}>
+                      <Space wrap>
+                        <Tag color="blue">{item.regulation}</Tag>
+                        {item.chapter && <Tag>{item.chapter}</Tag>}
+                        {item.title && <Text strong>{item.title}</Text>}
+                      </Space>
+                      <Paragraph style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>{item.content}</Paragraph>
+                    </Space>
+                  </List.Item>
+                )}
+              />
+            ) : (
+              <Empty description={status?.built ? 'Run a graph query to inspect evidence' : 'Build the graph first'} />
+            )}
+          </Card>
+        </Col>
+      </Row>
+
       {building && (
-        <Card title="构建日志" size="small" style={{ marginBottom: 16 }}>
-          <pre
-            ref={logRef}
-            style={{ maxHeight: 200, overflow: 'auto', fontSize: 12, background: '#f5f5f5', padding: 8, borderRadius: 4 }}
-          >
-            {buildLogs || '等待日志...'}
+        <Card bordered={false} style={{ marginBottom: 24, borderRadius: 20 }} title="Build log">
+          <pre style={{ margin: 0, whiteSpace: 'pre-wrap', maxHeight: 220, overflow: 'auto' }}>
+            {buildLogs || 'Waiting for build output...'}
           </pre>
         </Card>
       )}
 
-      {/* Graph visualization */}
-      {isBuilt && (
-        <Card
-          title={<><BranchesOutlined /> 知识图谱可视化</>}
-          size="small"
-          style={{ marginBottom: 24 }}
-          extra={<Button size="small" onClick={() => void loadGraphData()}>刷新图谱</Button>}
-        >
-          {graphLoading ? (
-            <div style={{ height: 500, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-              加载图谱数据中...
-            </div>
-          ) : graphData ? (
-            <div style={{ height: 500 }}>
-              <ReactECharts
-                option={getChartOption() || {}}
-                style={{ height: '100%' }}
-                onEvents={{
-                  click: (params: any) => {
-                    if (params.dataType === 'node') {
-                      setSelectedNode(params.data);
-                    }
-                  },
-                }}
-              />
-            </div>
-          ) : (
-            <div style={{ height: 500, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-              暂无图谱数据
-            </div>
-          )}
-          <div style={{ marginTop: 8 }}>
-            <Text type="secondary">
-              节点数: {graphData?.nodes.length || 0} | 边数: {graphData?.edges.length || 0}
-              {graphData && graphData.nodes.length > 200 && ' (显示前 200 个节点)'}
-            </Text>
+      <Card
+        bordered={false}
+        style={{ marginBottom: 24, borderRadius: 20 }}
+        title="Focused graph view"
+        extra={<Button type="link" icon={<SearchOutlined />} onClick={() => void loadGraphData()}>Refresh graph</Button>}
+      >
+        {graphLoading ? (
+          <div style={{ height: 520, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading graph...</div>
+        ) : chartOption ? (
+          <div style={{ height: 520 }}>
+            <ReactECharts
+              option={chartOption}
+              style={{ height: '100%' }}
+              onEvents={{
+                click: (params: any) => {
+                  if (params.dataType === 'node') {
+                    setSelectedNode(params.data);
+                  }
+                },
+              }}
+            />
           </div>
-        </Card>
-      )}
+        ) : (
+          <Empty description="No graph data available" />
+        )}
+      </Card>
 
-      {/* Regulation documents table */}
-      <Card title="法规文档列表" size="small" style={{ marginBottom: 24 }}>
+      <Card bordered={false} style={{ borderRadius: 20 }} title="Graph source library">
         <Table
           columns={docColumns}
           dataSource={documents}
           rowKey="filename"
           pagination={false}
-          size="small"
           loading={loading}
+          locale={{ emptyText: <Empty description="No graph source files uploaded" /> }}
         />
       </Card>
 
-      {/* Query test area */}
-      <Card title={<><SearchOutlined /> 知识图谱查询测试</>}>
-        <Space direction="vertical" style={{ width: '100%' }}>
-          <Input.Search
-            placeholder="输入 GMP 相关问题，例如：偏差处理的流程是什么？"
-            enterButton="查询"
-            size="large"
-            value={queryText}
-            onChange={(e) => setQueryText(e.target.value)}
-            onSearch={() => void handleQuery()}
-            loading={queryLoading}
-            disabled={!isBuilt}
-          />
-          {!isBuilt && (
-            <Text type="secondary">请先构建索引后再进行查询</Text>
-          )}
-          {queryResults.length > 0 && (
-            <List
-              header={<Text strong>查询结果 ({queryResults.length} 条)</Text>}
-              bordered
-              dataSource={queryResults}
-              renderItem={(item, index) => (
-                <List.Item>
-                  <div style={{ width: '100%' }}>
-                    <div style={{ marginBottom: 8 }}>
-                      <Tag color="blue">{item.regulation}</Tag>
-                      {item.chapter && <Tag>{item.chapter}</Tag>}
-                      {item.title && <Text strong>{item.title}</Text>}
-                    </div>
-                    <Paragraph style={{ whiteSpace: 'pre-wrap', margin: 0 }}>
-                      {item.content}
-                    </Paragraph>
-                  </div>
-                </List.Item>
-              )}
-            />
-          )}
-          {queryResults.length === 0 && queryText && !queryLoading && (
-            <Card size="small" style={{ background: '#fffbe6' }}>
-              <Text type="secondary">未找到相关结果</Text>
-            </Card>
-          )}
-        </Space>
-      </Card>
-
-      {/* Node detail modal */}
       <Modal
-        title="节点详情"
+        title={selectedNode?.name || 'Node details'}
         open={!!selectedNode}
         onCancel={() => setSelectedNode(null)}
         footer={null}
-        width={600}
       >
         {selectedNode && (
-          <div>
-            <p><strong>名称:</strong> {selectedNode.name}</p>
-            <p><strong>类型:</strong> <Tag color={CATEGORY_COLORS[selectedNode.category]}>{selectedNode.category}</Tag></p>
-            {selectedNode.description && (
-              <p><strong>描述:</strong> {selectedNode.description}</p>
-            )}
-          </div>
+          <Space direction="vertical" size={12} style={{ width: '100%' }}>
+            <Tag color={CATEGORY_COLORS[selectedNode.category] || CATEGORY_COLORS.unknown}>{selectedNode.category}</Tag>
+            <Paragraph style={{ marginBottom: 0 }}>
+              {selectedNode.description || 'No node description available.'}
+            </Paragraph>
+          </Space>
         )}
       </Modal>
     </div>

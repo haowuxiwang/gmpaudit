@@ -29,4 +29,5 @@ class Finding(Base):
     evidence = Column(Text, nullable=True)
     suggestion = Column(Text, nullable=True)
     location = Column(String(500), nullable=True)
+    regulation_ref = Column(String(500), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

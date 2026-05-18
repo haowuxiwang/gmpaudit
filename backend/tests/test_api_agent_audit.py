@@ -32,7 +32,7 @@ async def test_agent_audit_document_not_processed(client: AsyncClient, db_sessio
         json={"document_id": doc.id, "audit_type": "deviation"},
     )
     assert response.status_code == 400
-    assert "尚未处理完成" in response.json()["detail"]
+    assert "not processed" in response.json()["detail"].lower()
 
 
 @pytest.mark.asyncio

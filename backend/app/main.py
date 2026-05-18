@@ -7,8 +7,11 @@ from logging.handlers import RotatingFileHandler
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import agent_audit, alerts, audit, auth, config, documents, kg, reports
+from app.api import agent_audit, alerts, audit, config, documents, kg, reports
 from app.core.database import Base, engine
+from app.core.config import settings
+from app.core.database import async_session
+from app.services.task_runner import get_task_runner_factory
 
 
 def _configure_logging() -> None:
@@ -50,16 +53,12 @@ def _configure_logging() -> None:
 
 
 async def startup():
-    from app.core.config import settings, PROJECT_ROOT
+    from app.core.config import PROJECT_ROOT
 
     _configure_logging()
 
     logger = logging.getLogger(__name__)
     logger.info("AuditBee starting")
-
-    if settings.JWT_SECRET_KEY == "gmp-audit-secret-key-change-in-production":
-        logger.error("JWT_SECRET_KEY is using the default value — set a custom key in config/.env")
-        raise RuntimeError("JWT_SECRET_KEY must be changed from the default value before starting")
 
     for d in [settings.UPLOAD_DIR, settings.PROCESSED_DIR, settings.REPORTS_DIR,
               os.path.join(PROJECT_ROOT, "data", "database")]:
@@ -104,7 +103,13 @@ async def startup():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    if not hasattr(app.state, "task_runner_factory"):
+        app.state.task_runner_factory = get_task_runner_factory(
+            session_factory=async_session,
+            max_concurrency=settings.MAX_CONCURRENT_TASKS,
+        )
     await startup()
+    await app.state.task_runner_factory().startup_recover()
     yield
     from app.services.llm_engine import get_llm_engine
     await get_llm_engine().close()
@@ -127,7 +132,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(documents.router, prefix="/api/documents", tags=["documents"])
 app.include_router(audit.router, prefix="/api/audit", tags=["audit"])
 app.include_router(reports.router, prefix="/api/reports", tags=["reports"])

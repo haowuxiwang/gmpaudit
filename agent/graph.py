@@ -21,8 +21,29 @@ from agent.agents.report_writer import report_writer_node
 
 def parse_document_node(state: AuditState) -> dict:
     """Parse the uploaded document and populate state."""
-    file_path = state.get("document_name", "")
-    content = parse_file(file_path)
+    file_path = state.get("document_path") or state.get("document_name", "")
+    content = state.get("document_content", "")
+    if not content.strip():
+        try:
+            content = parse_file(file_path)
+        except FileNotFoundError:
+            return {
+                "document_content": "",
+                "status": "error",
+                "messages": [f"Error: File not found: {file_path}"],
+            }
+        except ValueError as e:
+            return {
+                "document_content": "",
+                "status": "error",
+                "messages": [f"Error: {e}"],
+            }
+        except Exception as e:
+            return {
+                "document_content": "",
+                "status": "error",
+                "messages": [f"Error parsing document: {e}"],
+            }
 
     # Detect document type from filename/content heuristics
     doc_type = state.get("document_type", "unknown")
@@ -38,8 +59,11 @@ def parse_document_node(state: AuditState) -> dict:
     return {
         "document_content": content,
         "document_type": doc_type,
+        "regulation_checked": False,
+        "risk_assessed": False,
+        "report_generated": False,
         "status": "running",
-        "messages": [f"Document parsed: {file_path} ({len(content)} chars, type={doc_type})"],
+        "messages": [f"Document parsed: {state.get('document_name', file_path)} ({len(content)} chars, type={doc_type})"],
     }
 
 

@@ -52,16 +52,12 @@ def test_split_text_overlap():
 @pytest.mark.asyncio
 async def test_process_word():
     dp = DocumentProcessor()
-    mock_doc = MagicMock()
-    mock_para1 = MagicMock()
-    mock_para1.text = "段落一"
-    mock_para2 = MagicMock()
-    mock_para2.text = "段落二"
-    mock_para3 = MagicMock()
-    mock_para3.text = ""
-    mock_doc.paragraphs = [mock_para1, mock_para2, mock_para3]
+    mock_result = MagicMock()
+    mock_result.value = "段落一\n\n段落二"
 
-    with patch("app.services.document_processor.DocxDocument", return_value=mock_doc):
+    with patch("builtins.open", MagicMock()), \
+         patch("app.services.document_processor.mammoth") as mock_mammoth:
+        mock_mammoth.extract_raw_text.return_value = mock_result
         result = await dp._process_word("test.docx")
         assert "段落一" in result
         assert "段落二" in result
@@ -77,18 +73,53 @@ async def test_process_document_unsupported_type():
 @pytest.mark.asyncio
 async def test_process_document_word():
     dp = DocumentProcessor()
-    mock_doc = MagicMock()
-    mock_para = MagicMock()
-    mock_para.text = "测试内容"
-    mock_doc.paragraphs = [mock_para]
+    mock_result = MagicMock()
+    mock_result.value = "测试内容"
 
-    with patch("app.services.document_processor.DocxDocument", return_value=mock_doc):
+    with patch("builtins.open", MagicMock()), \
+         patch("app.services.document_processor.mammoth") as mock_mammoth:
+        mock_mammoth.extract_raw_text.return_value = mock_result
         result = await dp.process_document("test.docx", "word")
         assert "content" in result
         assert "chunks" in result
         assert "chunk_count" in result
         assert "char_count" in result
         assert "测试内容" in result["content"]
+
+
+@pytest.mark.asyncio
+async def test_process_word_legacy():
+    dp = DocumentProcessor()
+    mock_completed = MagicMock()
+    mock_completed.returncode = 0
+    mock_completed.stdout = "偏差调查报告内容"
+    mock_completed.stderr = ""
+
+    with patch("app.services.document_processor.subprocess.run", return_value=mock_completed):
+        result = await dp._process_word_legacy("test.doc")
+        assert "偏差调查报告内容" in result
+
+
+@pytest.mark.asyncio
+async def test_process_word_legacy_antword_missing():
+    dp = DocumentProcessor()
+
+    with patch("app.services.document_processor.subprocess.run", side_effect=FileNotFoundError):
+        with pytest.raises(RuntimeError, match="antiword not installed"):
+            await dp._process_word_legacy("test.doc")
+
+
+@pytest.mark.asyncio
+async def test_process_word_legacy_antword_failure():
+    dp = DocumentProcessor()
+    mock_completed = MagicMock()
+    mock_completed.returncode = 1
+    mock_completed.stdout = ""
+    mock_completed.stderr = "Cannot read file"
+
+    with patch("app.services.document_processor.subprocess.run", return_value=mock_completed):
+        with pytest.raises(RuntimeError, match="antiword failed"):
+            await dp._process_word_legacy("test.doc")
 
 
 def test_process_image_no_result():
@@ -123,7 +154,53 @@ async def test_process_pdf_text_page():
     mock_doc = MagicMock()
     mock_doc.__len__ = MagicMock(return_value=1)
     mock_doc.load_page.return_value = mock_page
+    mock_doc.__enter__ = MagicMock(return_value=mock_doc)
+    mock_doc.__exit__ = MagicMock(return_value=False)
 
     with patch("app.services.document_processor.fitz.open", return_value=mock_doc):
         result = await dp._process_pdf("test.pdf")
         assert "这是一段足够长的PDF文本内容" in result
+
+
+@pytest.mark.asyncio
+async def test_process_document_word_legacy_e2e():
+    dp = DocumentProcessor()
+    mock_completed = MagicMock()
+    mock_completed.returncode = 0
+    mock_completed.stdout = "偏差调查报告"
+    mock_completed.stderr = ""
+
+    with patch("app.services.document_processor.subprocess.run", return_value=mock_completed):
+        result = await dp.process_document("test.doc", "word_legacy")
+        assert "content" in result
+        assert "chunks" in result
+        assert "chunk_count" in result
+        assert "char_count" in result
+        assert "偏差调查报告" in result["content"]
+
+
+@pytest.mark.asyncio
+async def test_process_document_text_e2e():
+    dp = DocumentProcessor()
+    mock_file = MagicMock()
+    mock_file.__enter__ = MagicMock(return_value=mock_file)
+    mock_file.__exit__ = MagicMock(return_value=False)
+    mock_file.read.return_value = "GMP合规审查文本内容"
+
+    with patch("builtins.open", return_value=mock_file):
+        result = await dp.process_document("test.txt", "text")
+        assert "content" in result
+        assert "chunks" in result
+        assert "GMP合规审查文本内容" in result["content"]
+
+
+@pytest.mark.asyncio
+async def test_process_document_image_e2e():
+    dp = DocumentProcessor()
+    mock_ocr = MagicMock(return_value=([([], "图片中的文字", 0.95)], 0.1))
+    dp.ocr = mock_ocr
+
+    result = await dp.process_document("test.png", "image")
+    assert "content" in result
+    assert "chunks" in result
+    assert "图片中的文字" in result["content"]

@@ -2,8 +2,10 @@ export interface Document {
   id: number;
   filename: string;
   file_type: string;
+  file_size?: number;
   process_status: 'uploaded' | 'processing' | 'processed' | 'failed';
-  created_at: string;
+  created_at?: string;
+  upload_time?: string;
 }
 
 export interface PaginatedResponse<T> {
@@ -13,16 +15,40 @@ export interface PaginatedResponse<T> {
   page_size: number;
 }
 
+export interface TaskEvent {
+  time: string;
+  stage: string;
+  level: 'info' | 'warning' | 'error';
+  message: string;
+}
+
+export interface TaskDocumentStatus {
+  document_id: number;
+  filename: string;
+  status: string;
+  findings_count: number;
+  risk_level: string;
+  report_path?: string;
+}
+
 export interface AuditTask {
+  task_id?: number;
   id: number;
   task_name: string;
   task_type: string;
   status: 'pending' | 'running' | 'completed' | 'failed';
   progress: number;
-  document_ids: number[];
-  error_message?: string;
-  created_at: string;
-  completed_at?: string;
+  stage?: string;
+  document_ids?: number[];
+  error?: string | null;
+  error_message?: string | null;
+  created_at?: string;
+  started_at?: string | null;
+  completed_at?: string | null;
+  findings_count?: number;
+  report_id?: number | null;
+  events?: TaskEvent[];
+  documents?: TaskDocumentStatus[];
 }
 
 export interface Report {
@@ -30,15 +56,21 @@ export interface Report {
   task_id: number;
   report_type: string;
   title: string;
-  content: string;
+  content?: string;
   created_at: string;
+  report_metadata?: {
+    report_source?: string;
+    report_mode?: string;
+    findings_count?: number;
+    task_type?: string;
+  };
 }
 
 export interface RiskAlert {
   id: number;
   finding_id: number;
-  alert_level: 'low' | 'medium' | 'high' | 'critical';
-  status: 'active' | 'resolved';
+  alert_level: 'critical' | 'warning' | 'info';
+  status: 'active' | 'acknowledged' | 'resolved';
   created_at: string;
   resolved_at?: string;
 }
@@ -57,13 +89,20 @@ export interface KGDocument {
   modified: string;
 }
 
+export interface KGBuildStatus {
+  building: boolean;
+  started_at?: string | null;
+  error?: string | null;
+  recent_logs?: string[];
+}
+
 export interface KGQueryResult {
   results: Array<{
     regulation: string;
     chapter: string;
     title: string;
     content: string;
-    relevance: number;
+    relevance: string | number;
   }>;
 }
 
@@ -79,20 +118,13 @@ export interface AgentAuditResponse {
   message: string;
 }
 
-export interface AgentAuditStatus {
-  task_id: number;
-  status: string;
-  progress: number;
-  findings: Finding[];
-  report: Report | null;
-  error?: string;
-}
+export interface AgentAuditStatus extends AuditTask {}
 
 export interface Finding {
   id: number;
   task_id: number;
   finding_type: string;
-  severity: 'low' | 'medium' | 'high' | 'critical';
+  severity: 'low' | 'medium' | 'high' | 'critical' | 'info';
   title: string;
   description: string;
   regulation_ref?: string;

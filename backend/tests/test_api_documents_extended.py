@@ -1,5 +1,6 @@
 import os
 import sys
+import tempfile
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -63,8 +64,9 @@ async def test_list_documents_with_pagination(client: AsyncClient, db_session: A
 
     response = await client.get("/api/documents/?page=1&page_size=2")
     assert response.status_code == 200
-    docs = response.json()
-    assert len(docs) <= 2
+    data = response.json()
+    assert len(data["items"]) <= 2
+    assert data["total"] == 5
 
 
 @pytest.mark.asyncio
@@ -133,14 +135,17 @@ async def test_process_document_failure(client: AsyncClient, db_session: AsyncSe
 
 
 @pytest.mark.asyncio
-async def test_delete_document_removes_file(client: AsyncClient, db_session: AsyncSession, tmp_path):
-    # Create a real temp file
-    test_file = tmp_path / "test_delete.pdf"
-    test_file.write_bytes(b"test content")
+async def test_delete_document_removes_file(client: AsyncClient, db_session: AsyncSession):
+    from app.core.config import settings
+    upload_dir = settings.UPLOAD_DIR
+    os.makedirs(upload_dir, exist_ok=True)
+    test_file = os.path.join(upload_dir, "test_delete_file.pdf")
+    with open(test_file, "wb") as f:
+        f.write(b"test content")
 
     doc = Document(
         filename="delete.pdf",
-        file_path=str(test_file),
+        file_path=test_file,
         file_type="pdf",
         file_size=12,
         process_status=DocumentStatus.UPLOADED,
@@ -151,4 +156,4 @@ async def test_delete_document_removes_file(client: AsyncClient, db_session: Asy
 
     response = await client.delete(f"/api/documents/{doc.id}")
     assert response.status_code == 200
-    assert not os.path.exists(str(test_file))
+    assert not os.path.exists(test_file)

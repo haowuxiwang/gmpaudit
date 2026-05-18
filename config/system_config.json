@@ -1,8 +1,0 @@
-{
-  "version": "1.0.0",
-  "app": { "name": "GMP合规性审计系统", "version": "1.0.0" },
-  "processing": { "max_file_size_mb": 50, "supported_formats": ["pdf", "docx", "doc", "jpg", "jpeg", "png"], "chunk_size": 2000, "chunk_overlap": 200 },
-  "llm": { "default_model": "deepseek", "max_tokens": 4096, "temperature": 0.7, "retry_count": 3 },
-  "audit": { "max_findings_per_task": 50, "risk_score_threshold": 70, "auto_generate_report": true },
-  "ui": { "theme": "light", "language": "zh-CN", "page_size": 10 }
-}

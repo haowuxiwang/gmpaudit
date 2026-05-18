@@ -5,8 +5,10 @@ import type {
   AuditTask,
   Report,
   RiskAlert,
+  Finding,
   KGStatus,
   KGDocument,
+  KGBuildStatus,
   KGQueryResult,
   AgentAuditRequest,
   AgentAuditResponse,
@@ -21,14 +23,6 @@ const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:800
 const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000,
-});
-
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('access_token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
 });
 
 api.interceptors.response.use(
@@ -52,7 +46,9 @@ export const auditApi = {
     api.post('/audit/tasks', data) as Promise<AuditTask>,
   listTasks: (status?: string) =>
     api.get('/audit/tasks', { params: { status } }) as Promise<PaginatedResponse<AuditTask>>,
-  runTask: (id: number) => api.post(`/audit/tasks/${id}/run`) as Promise<{ message: string }>,
+  getTask: (id: number) => api.get(`/audit/tasks/${id}`) as Promise<AuditTask>,
+  getFindings: (id: number) => api.get(`/audit/tasks/${id}/findings`) as Promise<Finding[]>,
+  runTask: (id: number) => api.post(`/audit/tasks/${id}/run`) as Promise<{ status: string; task_id: number }>,
   getDashboard: () => api.get('/audit/dashboard') as Promise<DashboardData>,
 };
 
@@ -88,10 +84,10 @@ export const alertsApi = {
 export const kgApi = {
   getStatus: () => api.get('/kg/status') as Promise<KGStatus>,
   build: (force = false) => api.post('/kg/build', null, { params: { force } }) as Promise<{ message: string }>,
-  getBuildStatus: () => api.get('/kg/build-status') as Promise<{ building: boolean; message: string }>,
+  getBuildStatus: () => api.get('/kg/build-status') as Promise<KGBuildStatus>,
   query: (query: string, method = 'local') =>
     api.post('/kg/query', { query, method }) as Promise<KGQueryResult>,
-  getDocuments: () => api.get('/kg/documents') as Promise<KGDocument[]>,
+  getDocuments: () => api.get('/kg/documents') as Promise<{ documents: KGDocument[] }>,
   getGraphData: () => api.get('/kg/graph') as Promise<GraphData>,
   uploadDocument: (file: File) => {
     const formData = new FormData();

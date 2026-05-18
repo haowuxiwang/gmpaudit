@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-GMP Compliance Audit System - AI-powered document analysis and compliance checking for pharmaceutical manufacturing. Uses LangGraph multi-agent workflow with GraphRAG knowledge graph.
+GMP Compliance Audit System - AI-powered document analysis and compliance checking for pharmaceutical manufacturing. Uses LangGraph multi-agent workflow with LightRAG knowledge graph. Distributed as Electron desktop application.
 
 ## Tech Stack
 
@@ -8,18 +8,17 @@ GMP Compliance Audit System - AI-powered document analysis and compliance checki
 - **Framework:** FastAPI + Uvicorn
 - **Database:** SQLAlchemy 2.0 (async) + aiosqlite (SQLite)
 - **Agent System:** LangGraph (StateGraph with Supervisor pattern)
-- **Knowledge Graph:** Microsoft GraphRAG (regulation retrieval)
-- **Embedding:** Local BAAI/bge-large-zh-v1.5 via sentence-transformers
+- **Knowledge Graph:** LightRAG (regulation retrieval, local embedding)
+- **Embedding:** Local BAAI/bge-large-zh-v1.5 via sentence-transformers (agent only)
 - **Document Processing:** PyMuPDF (PDF), python-docx (DOCX), RapidOCR (OCR)
 - **HTTP Client:** httpx (async)
-- **Config:** pydantic-settings, loads from `config/.env`
+- **Notifications:** Feishu Webhook Bot (HMAC-SHA256 signed cards)
+- **Config:** pydantic-settings, loads from `config/.env` (mutable at runtime, extra="ignore")
 - **Testing:** pytest + pytest-asyncio + pytest-cov (asyncio_mode = auto)
-- **Security:** JWT auth with Feishu OAuth (CSRF state validation), itsdangerous
 
 ### Frontend (TypeScript)
 - **Framework:** React 18 + React Router 6
 - **UI Library:** Ant Design 5
-- **State Management:** Zustand
 - **Charts:** ECharts (echarts-for-react)
 - **HTTP Client:** Axios
 - **Desktop:** Electron 28
@@ -30,36 +29,37 @@ GMP Compliance Audit System - AI-powered document analysis and compliance checki
 ```
 gmpaudit/
   config/           # .env, .env.example
-  data/             # Runtime data (documents, database, reports)
+  data/             # Runtime data (documents, database, reports, logs)
   scripts/          # start.bat, start.sh
   agent/            # LangGraph multi-agent system (PRIMARY audit engine)
     agents/         # Agent nodes: supervisor, regulation_expert, risk_assessor, report_writer
     parsers/        # Document parsers: pdf, docx, text
-    tools/          # Utilities: embedding, graphrag_tool, regulation_db, risk_matrix
-    config.py       # LLM provider config (SiliconFlow, DeepSeek, Qwen, GLM)
+    tools/          # Utilities: lightrag_tool, regulation_db, risk_matrix, json_parser
+    prompts/        # LLM prompt templates (Chinese)
+    config.py       # LLM provider config (8 providers via langchain)
     graph.py        # LangGraph StateGraph definition
     state.py        # AuditState TypedDict (shared state)
     main.py         # CLI entry point
-  graphrag_index/   # Microsoft GraphRAG knowledge graph
+  graphrag_index/   # Knowledge graph index
     input/          # Regulation text files for indexing
-    settings.yaml   # GraphRAG config (SiliconFlow embedding/completion)
-    output/         # Built index artifacts
+    lightrag_output/# LightRAG built index artifacts
+    settings.yaml   # GraphRAG config (legacy)
   backend/
     app/
-      main.py       # FastAPI app entry, auth middleware, router registration
-      api/          # Route handlers: documents, audit, reports, config, auth, alerts, agent_audit
-      core/         # config.py (Settings), database.py (engine, session), auth.py (JWT)
+      main.py       # FastAPI app entry, CORS, lifespan (startup/shutdown)
+      api/          # Route handlers: documents, audit, reports, config, alerts, agent_audit, kg
+      core/         # config.py (Settings), database.py (engine, session)
       models/       # SQLAlchemy models: document, audit_task, finding, report, risk_alert, configuration
-      services/     # Business logic: llm_engine, document_processor
-      utils/        # Helpers
+      services/     # Business logic: llm_engine, document_processor, audit_engine, notification, task_runner
+      utils/        # Helpers: agent_helpers, file_utils
     tests/          # pytest tests with conftest.py
   frontend/
     src/
-      App.tsx       # Router setup, layout
-      pages/        # Dashboard, Documents, AuditTasks, Reports, Settings, Alerts, Login, AuthCallback
-      components/   # common/Header, Sidebar, Loading
+      App.tsx       # Router setup, layout with lazy loading + ErrorBoundary
+      pages/        # Dashboard, Documents, AuditTasks, Reports, Settings, Alerts, KnowledgeGraph, NotFound
+      components/   # common/Header, Sidebar, ErrorBoundary
       services/     # api.ts (axios instance + API functions)
-      stores/       # Zustand stores
+      types/        # TypeScript type definitions (api.ts)
 ```
 
 ## Key Patterns
@@ -69,33 +69,33 @@ gmpaudit/
 - Flow: `parse_doc → supervisor → regulation_expert → risk_assessor → report_writer → END`
 - `AuditState` TypedDict shared between all agents with `Annotated[list, merge_lists]` reducer
 - Supervisor uses deterministic routing (not LLM-based) for reliability
-- Regulation Expert tries GraphRAG first, falls back to hardcoded regulation DB
+- Regulation Expert tries LightRAG first, falls back to hardcoded regulation DB (10 entries)
+- **Graceful degradation**: LLM failures do NOT cascade-terminate — each agent has fallback behavior
+- **LLM retry**: All LLM calls go through `call_llm_with_retry()` (1 retry, 2s delay)
+- **Supervisor guard**: Only terminates on errors before regulation check completes
 - Backend exposes agent via `POST /api/agent-audit/run` (background task)
 
 ### Backend API Pattern
 - Routes use `APIRouter()` with dependency injection via `Depends(get_db)` for async DB sessions
-- **Auth middleware**: Global middleware checks Bearer token; whitelist paths: `/`, `/docs`, `/openapi.json`, `/api/auth/*`
-- All routes except auth require `get_current_user` dependency
-- Config accessed via `from app.core.config import settings` (singleton)
+- No authentication — all endpoints are open (local desktop application)
+- Config accessed via `from app.core.config import settings` (mutable singleton)
+- Config hot-reload: `PUT /config/{key}` updates settings singleton + reloads LLM adapters
 - Models use SQLAlchemy declarative base with Enum columns for status/type fields
 - All DB operations are async (`await db.execute`, `await db.commit`)
-- Pagination: `page` + `page_size` query params with `.offset().limit()`
 
 ### LLM Adapter Pattern
-- Abstract base class `BaseLLMAdapter` with `chat()` and `chat_stream()` methods
-- Concrete adapters: DeepSeek, Qwen, OpenAI, Anthropic, GLM
-- `LLMEngine` initializes available adapters based on API keys in config
-- Agent system uses SiliconFlow API directly via `agent/config.py`
-- All LLM calls are async via httpx
+- `LLMEngine` singleton with 8 providers (DeepSeek, Qwen, GLM, OpenAI, Anthropic, SiliconFlow, OpenRouter, Mimo)
+- 7 use `OpenAICompatibleAdapter`, Anthropic uses `AnthropicAdapter`
+- `reload_provider()` for hot-swapping at runtime
+- Agent system uses `langchain_openai.ChatOpenAI` / `langchain_anthropic.ChatAnthropic`
 
 ### Frontend API Pattern
 - Single axios instance in `services/api.ts` with base URL `http://localhost:8000/api`
 - Response interceptor unwraps `response.data` automatically
-- API functions grouped by domain: `documentApi`, `auditApi`, `reportApi`, `configApi`
+- API functions grouped by domain: `documentApi`, `auditApi`, `reportApi`, `configApi`, `alertsApi`, `agentAuditApi`, `kgApi`
 
 ### Config Pattern
-- `backend/app/core/config.py`: `Settings` class (pydantic-settings BaseSettings)
-- `PROJECT_ROOT` = 3 levels up from config.py (project root)
+- `backend/app/core/config.py`: `Settings` class (pydantic-settings, `frozen=False` for runtime updates, `extra="ignore"`)
 - `.env` file loaded from `config/.env` (absolute path)
 - All config fields have defaults; secrets are `Optional[str] = None`
 
@@ -105,8 +105,8 @@ gmpaudit/
 |-------|-------|------------|
 | Document | documents | filename, file_path, file_type, process_status (Enum) |
 | AuditTask | audit_tasks | task_name, task_type (Enum), status (Enum), progress, document_ids (JSON) |
-| Finding | findings | task_id (FK), finding_type (Enum), severity (Enum), title, description |
-| Report | reports | task_id, report_type (Enum), title, content, file_path |
+| Finding | findings | task_id (FK), finding_type (Enum), severity (Enum), title, description, regulation_ref |
+| Report | reports | task_id (FK), report_type (Enum), title, content |
 | RiskAlert | risk_alerts | finding_id (FK), alert_level (Enum), status (Enum) |
 | Configuration | configurations | config_key (unique), config_value, config_type |
 
@@ -139,11 +139,8 @@ No explicit linter or formatter config found. Follow existing code style:
 ## Environment Variables
 
 All defined in `config/.env` (see `config/.env.example`):
-- Database: `DATABASE_URL`
-- LLM Keys: `DEEPSEEK_API_KEY`, `QWEN_API_KEY`, `GLM_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`
-- LLM URLs: `DEEPSEEK_BASE_URL`, `OPENAI_BASE_URL`
-- **SiliconFlow:** `SILICONFLOW_API_KEY` (used by agent system for LLM + embedding)
-- Feishu: `FEISHU_APP_ID`, `FEISHU_APP_SECRET`, `FEISHU_REDIRECT_URI`, `FEISHU_WEBHOOK_URL`
-- JWT: `JWT_SECRET_KEY` (must change from default for production)
-- Paths: `UPLOAD_DIR`, `PROCESSED_DIR`, `REPORTS_DIR`
+- LLM Keys: `DEEPSEEK_API_KEY`, `QWEN_API_KEY`, `GLM_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `SILICONFLOW_API_KEY`, `OPENROUTER_API_KEY`, `MIMO_API_KEY`
+- LLM URLs: `DEEPSEEK_BASE_URL`, `OPENAI_BASE_URL`, `MIMO_BASE_URL` (all include `/v1`)
+- **Agent:** `AGENT_LLM_PROVIDER` (default provider for agent pipeline, e.g. `mimo`)
+- Feishu: `FEISHU_WEBHOOK_URL`, `FEISHU_WEBHOOK_SECRET` (optional HMAC-SHA256 signing)
 - App: `LOG_LEVEL`, `MAX_CONCURRENT_TASKS`, `DOCUMENT_PROCESS_TIMEOUT`, `LLM_REQUEST_TIMEOUT`

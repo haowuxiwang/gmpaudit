@@ -14,6 +14,16 @@ if not exist data\processed mkdir data\processed
 if not exist data\reports mkdir data\reports
 if not exist data\database mkdir data\database
 
+if not exist model\pytorch_model.bin (
+    echo 嵌入模型未下载，正在下载...
+    python scripts\download_model.py
+    if errorlevel 1 (
+        echo 模型下载失败，请手动运行: python scripts\download_model.py
+        pause
+        exit /b 1
+    )
+)
+
 echo 启动后端服务...
 cd backend
 start "GMP Backend" python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000

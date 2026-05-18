@@ -16,7 +16,10 @@ async def test_upload_document(client: AsyncClient):
 async def test_list_documents(client: AsyncClient):
     response = await client.get("/api/documents/")
     assert response.status_code == 200
-    assert isinstance(response.json(), list)
+    data = response.json()
+    assert "items" in data
+    assert "total" in data
+    assert isinstance(data["items"], list)
 
 @pytest.mark.asyncio
 async def test_get_document(client: AsyncClient):

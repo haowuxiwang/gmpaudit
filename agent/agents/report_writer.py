@@ -7,11 +7,10 @@ import logging
 from datetime import date
 from pathlib import Path
 
-from agent.config import get_llm
+from agent.config import get_llm, call_llm_with_retry
 
 logger = logging.getLogger(__name__)
 from agent.state import AuditState
-from agent.tools.risk_matrix import format_risk_summary
 
 
 def _load_prompt() -> str:
@@ -71,7 +70,7 @@ async def report_writer_node(state: AuditState) -> dict:
             findings_text=findings_text,
         )
 
-        response = await llm.ainvoke(prompt)
+        response = await call_llm_with_retry(llm, prompt)
         report_md = response.content
     except Exception as e:
         logger.warning(f"Report Writer LLM call failed, using fallback: {e}")
@@ -83,17 +82,30 @@ async def report_writer_node(state: AuditState) -> dict:
 
     # Save report to file
     safe_name = Path(doc_name).stem
-    report_filename = f"{safe_name}_{date.today().isoformat()}.md"
+    from datetime import datetime
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    report_filename = f"{safe_name}_{timestamp}.md"
     report_dir = Path(__file__).parent.parent.parent / "data" / "reports"
     report_dir.mkdir(parents=True, exist_ok=True)
     report_path = report_dir / report_filename
 
-    report_path.write_text(report_md, encoding="utf-8")
-    logger.info(f"Report Writer: report saved to {report_path}")
+    try:
+        report_path.write_text(report_md, encoding="utf-8")
+        logger.info(f"Report Writer: report saved to {report_path}")
+    except Exception as e:
+        logger.error(f"Report Writer: failed to save report: {e}")
+        return {
+            "report_markdown": report_md,
+            "report_path": "",
+            "report_generated": True,
+            "status": "completed",
+            "messages": [f"Report Writer: generated report but failed to save to disk — {e}"],
+        }
 
     return {
         "report_markdown": report_md,
         "report_path": str(report_path),
+        "report_generated": True,
         "status": "completed",
         "messages": [f"Report Writer: report saved to {report_path}"],
     }

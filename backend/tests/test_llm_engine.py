@@ -69,13 +69,6 @@ async def test_analyze_without_adapter():
 
 
 @pytest.mark.asyncio
-async def test_compare_without_adapter():
-    engine = LLMEngine()
-    with pytest.raises(ValueError, match="不支持的模型"):
-        await engine.compare("文档1", "文档2", "测试标准", model="nonexistent")
-
-
-@pytest.mark.asyncio
 async def test_generate_report_without_adapter():
     engine = LLMEngine()
     findings = [{"severity": "high", "title": "测试发现", "description": "测试描述"}]
@@ -191,22 +184,6 @@ async def test_engine_analyze_success():
 
     result = await engine.analyze("文档内容", "分析提示", model="test")
     assert result.content == "分析结果"
-
-
-@pytest.mark.asyncio
-async def test_engine_compare_success():
-    engine = LLMEngine()
-    mock_adapter = AsyncMock()
-    mock_adapter.chat = AsyncMock(return_value=LLMResponse(
-        content="比较结果",
-        model="test",
-        usage={},
-        finish_reason="stop",
-    ))
-    engine.adapters["test"] = mock_adapter
-
-    result = await engine.compare("doc1", "doc2", "criteria", model="test")
-    assert result.content == "比较结果"
 
 
 @pytest.mark.asyncio

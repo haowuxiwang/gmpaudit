@@ -19,7 +19,9 @@ async def test_create_audit_task(client: AsyncClient):
 async def test_list_audit_tasks(client: AsyncClient):
     response = await client.get("/api/audit/tasks")
     assert response.status_code == 200
-    assert isinstance(response.json(), list)
+    data = response.json()
+    assert "items" in data
+    assert isinstance(data["items"], list)
 
 @pytest.mark.asyncio
 async def test_get_audit_task(client: AsyncClient):

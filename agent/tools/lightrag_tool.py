@@ -206,7 +206,7 @@ async def lightrag_search(query: str, method: str = "local") -> list[dict]:
         return results
     except Exception as e:
         logger.warning("LightRAG search failed: %s", e)
-        return []
+        raise
 
 
 async def preload_embedding_model():

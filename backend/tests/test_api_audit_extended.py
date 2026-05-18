@@ -26,7 +26,7 @@ async def test_run_audit_task_already_running(client: AsyncClient, db_session: A
 
     response = await client.post(f"/api/audit/tasks/{task.id}/run")
     assert response.status_code == 400
-    assert "正在运行" in response.json()["detail"]
+    assert "already running" in response.json()["detail"].lower()
 
 
 @pytest.mark.asyncio
@@ -135,7 +135,7 @@ async def test_list_audit_tasks_filter_by_status(client: AsyncClient, db_session
 
     response = await client.get("/api/audit/tasks?status=completed")
     assert response.status_code == 200
-    tasks = response.json()
+    tasks = response.json()["items"]
     assert all(t["status"] == "completed" for t in tasks)
 
 
@@ -168,7 +168,6 @@ async def test_run_audit_task_agent_unavailable(client: AsyncClient, db_session:
     audit_module.AGENT_AVAILABLE = False
     try:
         response = await client.post(f"/api/audit/tasks/{task.id}/run")
-        # The endpoint catches HTTPException(503) in generic except and re-raises as 500
-        assert response.status_code in (500, 503)
+        assert response.status_code == 503
     finally:
         audit_module.AGENT_AVAILABLE = original

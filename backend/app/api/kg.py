@@ -6,11 +6,8 @@ import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, File, HTTPException, UploadFile
 from pydantic import BaseModel
-
-from app.core.auth import get_current_user
-from app.models.user import User
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +18,11 @@ INPUT_DIR = os.path.join(INDEX_ROOT, "input")
 OUTPUT_DIR = os.path.join(INDEX_ROOT, "lightrag_output")
 
 # Track build status in-memory
-_build_status = {"building": False, "started_at": None, "error": None}
+_build_status = {"building": False, "started_at": None, "error": None, "recent_logs": []}
+
+
+def _append_build_log(message: str) -> None:
+    _build_status["recent_logs"] = (_build_status.get("recent_logs", []) + [message])[-50:]
 
 
 def _get_index_info() -> dict:
@@ -108,7 +109,7 @@ def _parse_graphml(filepath: str) -> dict:
 
 
 @router.get("/status")
-async def get_status(current_user: User = Depends(get_current_user)):
+async def get_status():
     """Get knowledge graph index status."""
     index_info = _get_index_info()
 
@@ -124,7 +125,7 @@ async def get_status(current_user: User = Depends(get_current_user)):
 
 
 @router.get("/graph")
-async def get_graph_data(current_user: User = Depends(get_current_user)):
+async def get_graph_data():
     """Get knowledge graph nodes and edges for visualization."""
     graphml_path = os.path.join(OUTPUT_DIR, "graph_chunk_entity_relation.graphml")
 
@@ -143,7 +144,6 @@ async def get_graph_data(current_user: User = Depends(get_current_user)):
 async def build_index(
     background_tasks: BackgroundTasks,
     force: bool = False,
-    current_user: User = Depends(get_current_user),
 ):
     """Trigger LightRAG index build."""
     if _build_status["building"]:
@@ -154,13 +154,21 @@ async def build_index(
 
     async def _build():
         global _build_status
-        _build_status = {"building": True, "started_at": datetime.now(timezone.utc).isoformat(), "error": None}
+        _build_status = {
+            "building": True,
+            "started_at": datetime.now(timezone.utc).isoformat(),
+            "error": None,
+            "recent_logs": ["Build started"],
+        }
         try:
             from agent.tools.lightrag_tool import build_index as lr_build
+            _append_build_log("Initializing LightRAG build")
             await lr_build(force_rebuild=force)
+            _append_build_log("Build completed")
             logger.info("LightRAG index build completed")
         except Exception as exc:
             _build_status["error"] = str(exc)
+            _append_build_log(f"Build failed: {exc}")
             logger.exception("LightRAG build failed")
         finally:
             _build_status["building"] = False
@@ -170,12 +178,13 @@ async def build_index(
 
 
 @router.get("/build-status")
-async def get_build_status(current_user: User = Depends(get_current_user)):
+async def get_build_status():
     """Get current build status."""
     return {
         "building": _build_status["building"],
         "started_at": _build_status["started_at"],
         "error": _build_status["error"],
+        "recent_logs": _build_status.get("recent_logs", []),
     }
 
 
@@ -185,7 +194,7 @@ class QueryRequest(BaseModel):
 
 
 @router.post("/query")
-async def query_kg(request: QueryRequest, current_user: User = Depends(get_current_user)):
+async def query_kg(request: QueryRequest):
     """Query the knowledge graph."""
     index_info = _get_index_info()
     if not index_info["built"]:
@@ -200,7 +209,7 @@ async def query_kg(request: QueryRequest, current_user: User = Depends(get_curre
 
 
 @router.get("/documents")
-async def list_documents(current_user: User = Depends(get_current_user)):
+async def list_documents():
     """List regulation documents in the input directory."""
     if not os.path.isdir(INPUT_DIR):
         return {"documents": []}
@@ -221,7 +230,6 @@ async def list_documents(current_user: User = Depends(get_current_user)):
 @router.post("/documents/upload")
 async def upload_document(
     file: UploadFile = File(...),
-    current_user: User = Depends(get_current_user),
 ):
     """Upload a regulation document to the input directory."""
     if not file.filename:
@@ -251,7 +259,7 @@ async def upload_document(
 
 
 @router.delete("/documents/{filename}")
-async def delete_document(filename: str, current_user: User = Depends(get_current_user)):
+async def delete_document(filename: str):
     """Delete a regulation document from the input directory."""
     filepath = os.path.join(INPUT_DIR, filename)
 

@@ -5,9 +5,13 @@ Supports: DeepSeek, Qwen, GLM, SiliconFlow, OpenRouter, Mimo, OpenAI.
 Anthropic uses langchain_anthropic.ChatAnthropic.
 """
 
+import asyncio
 import os
+import logging
 from pathlib import Path
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 from dotenv import load_dotenv
 
@@ -42,18 +46,33 @@ MODEL_ENDPOINTS = {
         "default_model": "deepseek/deepseek-chat",
     },
     "mimo": {
-        "base_url": "https://api.minimax.chat/v1",
-        "default_model": "MiniMax-Text-01",
+        "base_url": "https://api.xiaomimimo.com/v1",
+        "default_model": "mimo-v2.5-pro",
     },
 }
 
 # Default provider - can be overridden via env var AGENT_LLM_PROVIDER
-DEFAULT_PROVIDER = os.getenv("AGENT_LLM_PROVIDER", "siliconflow")
+DEFAULT_PROVIDER = os.getenv("AGENT_LLM_PROVIDER", "mimo")
 
 
 def get_default_provider() -> str:
     """Get the default LLM provider name."""
     return DEFAULT_PROVIDER
+
+
+def get_llm_config(provider: Optional[str] = None) -> dict:
+    """Get raw LLM config dict (base_url, api_key, model) for direct HTTP calls."""
+    if provider is None:
+        provider = DEFAULT_PROVIDER
+    endpoint = MODEL_ENDPOINTS.get(provider, {})
+    api_key_env = f"{provider.upper()}_API_KEY"
+    base_url_env = f"{provider.upper()}_BASE_URL"
+    model_env = f"{provider.upper()}_MODEL"
+    return {
+        "base_url": os.getenv(base_url_env, endpoint.get("base_url", "")),
+        "api_key": os.getenv(api_key_env, ""),
+        "model": os.getenv(model_env, endpoint.get("default_model", "")),
+    }
 
 
 def get_llm(
@@ -121,3 +140,31 @@ def _get_anthropic_llm(model: Optional[str], temperature: float, max_tokens: int
         temperature=temperature,
         max_tokens=max_tokens,
     )
+
+
+async def call_llm_with_retry(llm, prompt: str, max_retries: int = 1, retry_delay: float = 2.0):
+    """Call LLM with simple retry for transient failures (network, rate limit).
+
+    Args:
+        llm: LangChain LLM instance with .ainvoke()
+        prompt: The prompt string
+        max_retries: Number of retries on failure (default 1)
+        retry_delay: Seconds to wait between retries (default 2.0)
+
+    Returns:
+        LLM response object
+
+    Raises:
+        Exception: The last exception if all retries fail
+    """
+    for attempt in range(max_retries + 1):
+        try:
+            return await llm.ainvoke(prompt)
+        except Exception as e:
+            if attempt < max_retries:
+                logger.warning("LLM call failed (attempt %d/%d): %s, retrying in %.1fs",
+                               attempt + 1, max_retries + 1, e, retry_delay)
+                await asyncio.sleep(retry_delay)
+            else:
+                logger.error("LLM call failed after %d attempts: %s", max_retries + 1, e)
+                raise

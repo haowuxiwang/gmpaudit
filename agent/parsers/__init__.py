@@ -14,7 +14,7 @@ from .text_parser import parse_text
 def parse_file(file_path: str) -> str:
     """Parse a document file and return its text content.
 
-    Supported formats: .pdf, .docx, .doc, .txt, .md
+    Supported formats: .pdf, .docx, .txt, .md
 
     Args:
         file_path: Path to the document file
@@ -34,7 +34,7 @@ def parse_file(file_path: str) -> str:
 
     if suffix == ".pdf":
         return parse_pdf(path)
-    elif suffix in (".docx", ".doc"):
+    elif suffix == ".docx":
         return parse_docx(path)
     elif suffix in (".txt", ".md", ".text"):
         return parse_text(path)

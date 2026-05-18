@@ -10,6 +10,15 @@ fi
 
 mkdir -p data/{documents,processed,reports,database}
 
+if [ ! -f model/pytorch_model.bin ]; then
+    echo "嵌入模型未下载，正在下载..."
+    python scripts/download_model.py
+    if [ $? -ne 0 ]; then
+        echo "模型下载失败，请手动运行: python scripts/download_model.py"
+        exit 1
+    fi
+fi
+
 echo "启动后端服务..."
 cd backend
 python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 &

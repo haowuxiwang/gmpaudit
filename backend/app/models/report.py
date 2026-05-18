@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Text, Enum, JSON
+from sqlalchemy import Column, Integer, String, DateTime, Text, Enum, JSON, ForeignKey
 from sqlalchemy.sql import func
 from app.core.database import Base
 import enum
@@ -12,7 +12,7 @@ class Report(Base):
     __tablename__ = "reports"
 
     id = Column(Integer, primary_key=True, index=True)
-    task_id = Column(Integer, nullable=False)
+    task_id = Column(Integer, ForeignKey("audit_tasks.id"), nullable=False)
     report_type = Column(Enum(ReportType), nullable=False)
     title = Column(String(255), nullable=False)
     file_path = Column(String(500), nullable=True)

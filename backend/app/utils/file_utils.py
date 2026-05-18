@@ -6,7 +6,8 @@ def get_file_type(filename: str) -> str:
     type_map = {
         '.pdf': 'pdf',
         '.docx': 'word',
-        '.doc': 'word',
+        '.doc': 'word_legacy',
+        '.txt': 'text',
         '.jpg': 'image',
         '.jpeg': 'image',
         '.png': 'image',

@@ -1,13 +1,12 @@
+import asyncio
 import os
 import logging
+import subprocess
 import tempfile
-from typing import Optional, Dict, Any
-from pathlib import Path
+from typing import Dict, Any
 
 import fitz  # PyMuPDF
-from docx import Document as DocxDocument
-
-from app.core.config import settings
+import mammoth
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +26,10 @@ class DocumentProcessor:
                 content = await self._process_pdf(file_path)
             elif file_type == "word":
                 content = await self._process_word(file_path)
+            elif file_type == "word_legacy":
+                content = await self._process_word_legacy(file_path)
+            elif file_type == "text":
+                content = await self._process_text(file_path)
             elif file_type == "image":
                 content = self._process_image(file_path)
             else:
@@ -45,34 +48,70 @@ class DocumentProcessor:
             logger.error(f"文档处理失败: {e}")
             raise
 
+    def _process_pdf_sync(self, file_path: str) -> str:
+        with fitz.open(file_path) as doc:
+            texts = []
+            for page_num in range(len(doc)):
+                page = doc.load_page(page_num)
+                text = page.get_text()
+
+                if len(text.strip()) < 50:
+                    pix = page.get_pixmap()
+                    with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
+                        img_path = tmp.name
+                    pix.save(img_path)
+                    try:
+                        ocr_text = self._process_image(img_path)
+                        texts.append(ocr_text)
+                    finally:
+                        if os.path.exists(img_path):
+                            os.remove(img_path)
+                else:
+                    texts.append(text)
+            return "\n\n".join(texts)
+
     async def _process_pdf(self, file_path: str) -> str:
-        doc = fitz.open(file_path)
-        texts = []
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, self._process_pdf_sync, file_path)
 
-        for page_num in range(len(doc)):
-            page = doc.load_page(page_num)
-            text = page.get_text()
-
-            if len(text.strip()) < 50:
-                pix = page.get_pixmap()
-                with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
-                    img_path = tmp.name
-                pix.save(img_path)
-                try:
-                    ocr_text = self._process_image(img_path)
-                    texts.append(ocr_text)
-                finally:
-                    os.remove(img_path)
-            else:
-                texts.append(text)
-
-        doc.close()
-        return "\n\n".join(texts)
+    def _process_word_sync(self, file_path: str) -> str:
+        with open(file_path, "rb") as doc_file:
+            result = mammoth.extract_raw_text(doc_file)
+            return result.value
 
     async def _process_word(self, file_path: str) -> str:
-        doc = DocxDocument(file_path)
-        paragraphs = [para.text for para in doc.paragraphs if para.text.strip()]
-        return "\n\n".join(paragraphs)
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, self._process_word_sync, file_path)
+
+    def _process_word_legacy_sync(self, file_path: str) -> str:
+        try:
+            result = subprocess.run(
+                ["antiword", file_path],
+                capture_output=True, text=True, timeout=30
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                return result.stdout
+            raise RuntimeError(f"antiword failed: {result.stderr}")
+        except FileNotFoundError:
+            raise RuntimeError("antiword not installed, cannot process .doc files")
+
+    async def _process_word_legacy(self, file_path: str) -> str:
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, self._process_word_legacy_sync, file_path)
+
+    def _process_text_sync(self, file_path: str) -> str:
+        for encoding in ("utf-8", "gb18030", "gbk"):
+            try:
+                with open(file_path, "r", encoding=encoding) as f:
+                    return f.read()
+            except (UnicodeDecodeError, UnicodeError):
+                continue
+        with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+            return f.read()
+
+    async def _process_text(self, file_path: str) -> str:
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, self._process_text_sync, file_path)
 
     def _process_image(self, file_path: str) -> str:
         ocr = self._get_ocr()
@@ -91,7 +130,8 @@ class DocumentProcessor:
         import re
         if not text:
             return ""
-        text = re.sub(r'\s+', ' ', text)
+        text = re.sub(r'[^\S\n]+', ' ', text)
+        text = re.sub(r'\n{3,}', '\n\n', text)
         return text.strip()
 
     def _split_text(self, text: str, chunk_size: int = 2000, overlap: int = 200):

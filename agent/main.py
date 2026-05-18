@@ -34,6 +34,7 @@ async def run_audit(file_path: str, doc_type: str = "unknown", focus: str = "") 
 
     initial_state = {
         "document_name": file_path,
+        "document_path": file_path,
         "document_type": doc_type,
         "audit_focus": focus,
         "document_content": "",
@@ -49,6 +50,9 @@ async def run_audit(file_path: str, doc_type: str = "unknown", focus: str = "") 
         "messages": [],
         "iteration": 0,
         "status": "running",
+        "regulation_checked": False,
+        "risk_assessed": False,
+        "report_generated": False,
     }
 
     print(f"\n{'='*60}")
