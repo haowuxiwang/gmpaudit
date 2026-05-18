@@ -15,7 +15,7 @@ import type {
   AgentAuditStatus,
   DashboardData,
   GraphData,
-  ConfigItem,
+  ConfigMap,
 } from '../types/api';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000/api';
@@ -63,22 +63,20 @@ export const reportApi = {
   list: (taskId?: number) =>
     api.get('/reports/', { params: { task_id: taskId } }) as Promise<PaginatedResponse<Report>>,
   get: (id: number) => api.get(`/reports/${id}`) as Promise<Report>,
-  exportMarkdown: (id: number) =>
-    api.get(`/reports/${id}`, { responseType: 'blob' }) as Promise<Blob>,
 };
 
 export const configApi = {
-  getAll: () => api.get('/config/') as Promise<ConfigItem[]>,
+  getAll: () => api.get('/config/') as Promise<ConfigMap>,
   batchUpdate: (configs: Record<string, string>) =>
-    api.post('/config/batch', { configs }) as Promise<{ message: string }>,
-  testWebhook: () => api.post('/config/test-webhook') as Promise<{ message: string }>,
+    api.post('/config/batch', { configs }) as Promise<{ status: string; updated: number }>,
+  testWebhook: () => api.post('/config/test-webhook') as Promise<{ success: boolean; error: string | null }>,
 };
 
 export const alertsApi = {
   list: (status?: string) =>
     api.get('/alerts/', { params: { status } }) as Promise<PaginatedResponse<RiskAlert>>,
-  acknowledge: (id: number) => api.put(`/alerts/${id}/acknowledge`) as Promise<RiskAlert>,
-  resolve: (id: number) => api.put(`/alerts/${id}/resolve`) as Promise<RiskAlert>,
+  acknowledge: (id: number) => api.put(`/alerts/${id}/acknowledge`) as Promise<{ status: string }>,
+  resolve: (id: number) => api.put(`/alerts/${id}/resolve`) as Promise<{ status: string }>,
 };
 
 export const kgApi = {

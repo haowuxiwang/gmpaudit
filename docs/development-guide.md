@@ -10,10 +10,11 @@ AuditBee is an AI-powered GMP compliance audit assistant for pharmaceutical qual
 - **Core pipeline**: End-to-end audit from document upload to structured report
 - **Agent system**: 4-agent Supervisor pattern with deterministic routing
 - **Knowledge graph**: LightRAG index with 5 regulation documents (GMP + ICH Q9/Q10)
-- **Frontend**: 8 pages including agent workspace, knowledge graph visualization, real-time monitoring
+- **Frontend**: 8 pages, fully Chinese UI, Ant Design zhCN locale, knowledge graph visualization
 - **Multi-LLM**: 8 providers supported via adapter pattern with hot-swap
 - **Notifications**: Feishu webhook with HMAC-SHA256 signed cards
-- **Testing**: 153 backend tests + 73 agent tests + frontend tests
+- **Document processing**: .pdf, .docx, .doc, .txt, .jpg/.png/.tiff (OCR via RapidOCR)
+- **Testing**: Backend 153 + Agent 73 = 226 tests, all green. TypeScript 0 errors.
 
 ### Known Limitations
 - Agent executes linearly — no self-correcting loop when findings are empty
@@ -29,6 +30,11 @@ AuditBee is an AI-powered GMP compliance audit assistant for pharmaceutical qual
 - Supervisor only terminates on early errors (before regulation check completes)
 - Report writer always produces output (LLM report or template fallback)
 - See ARCHITECTURE.md "Failure Handling Strategy" for full degradation matrix
+
+### Frontend Patterns
+- Shared constants in `frontend/src/constants/audit.ts` (STATUS_LABELS, STAGE_LABELS, TASK_TYPE_LABELS, etc.)
+- Ant Design `zhCN` locale via `ConfigProvider` in `App.tsx`
+- API types in `frontend/src/types/api.ts` — must match backend response shapes
 
 ## Development Environment
 
@@ -89,11 +95,14 @@ Every component has a fallback:
 
 ## Technical Roadmap
 
-### P0: Foundation (Current)
+### P0: Foundation (Done)
 - [x] Remove authentication system (local desktop app)
 - [x] Documentation cleanup
 - [x] Pipeline robustness — fix fallback chain, add retry, prevent cascade termination
-- [ ] Clean working tree, organize commits
+- [x] Frontend fully localized to Chinese
+- [x] API type alignment between frontend and backend
+- [x] Document processing fixes (antiword encoding, pymupdf version)
+- [x] Baseline commit and push
 - [ ] Fix frontend production build (`spawn EPERM` issue)
 
 ### P1: Agent Intelligence

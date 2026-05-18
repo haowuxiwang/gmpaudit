@@ -31,40 +31,18 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { auditApi, documentApi } from '../services/api';
 import type { AuditTask, Document, Finding } from '../types/api';
+import {
+  STATUS_COLORS,
+  STATUS_LABELS,
+  STAGE_LABELS,
+  TASK_TYPE_LABELS,
+  SEVERITY_COLORS,
+  DOC_STATUS_LABELS,
+} from '../constants/audit';
 
 const { Title, Paragraph, Text } = Typography;
 
-const TASK_TYPE_OPTIONS = [
-  { value: 'deviation_analysis', label: 'Deviation analysis' },
-  { value: 'sop_compliance', label: 'SOP compliance' },
-  { value: 'consistency_check', label: 'Change control consistency' },
-  { value: 'risk_assessment', label: 'Risk assessment' },
-];
-
-const STATUS_COLORS: Record<string, string> = {
-  pending: 'default',
-  running: 'processing',
-  completed: 'success',
-  failed: 'error',
-};
-
-const STAGE_LABELS: Record<string, string> = {
-  pending: 'Waiting for dispatch',
-  queued: 'Queued for agent execution',
-  running: 'Agent is running',
-  parsing: 'Parsing evidence',
-  risk: 'Assessing risk',
-  completed: 'Report finalized',
-  failed: 'Execution failed',
-};
-
-const SEVERITY_COLORS: Record<string, string> = {
-  high: 'red',
-  critical: 'red',
-  medium: 'orange',
-  low: 'green',
-  info: 'blue',
-};
+const TASK_TYPE_OPTIONS = Object.entries(TASK_TYPE_LABELS).map(([value, label]) => ({ value, label }));
 
 const AuditTasksPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -104,7 +82,7 @@ const AuditTasksPage: React.FC = () => {
       syncSelectedTask(items, preferredId);
     } catch {
       if (showSpinner) {
-        message.error('Failed to load audit sessions');
+        message.error('加载审计任务失败');
       }
     } finally {
       if (showSpinner) setLoading(false);
@@ -116,7 +94,7 @@ const AuditTasksPage: React.FC = () => {
       const result = await documentApi.list(1, 100);
       setDocuments((result?.items || []).filter((doc) => doc.process_status === 'processed'));
     } catch {
-      message.error('Failed to load processed documents');
+      message.error('加载已处理文档失败');
     }
   }, []);
 
@@ -131,7 +109,7 @@ const AuditTasksPage: React.FC = () => {
       setSelectedTaskId(task.id);
       setFindings(taskFindings);
     } catch {
-      message.error('Failed to load task details');
+      message.error('加载任务详情失败');
     }
   }, []);
 
@@ -182,10 +160,10 @@ const AuditTasksPage: React.FC = () => {
       const result = await auditApi.createTask(values);
       setShowModal(false);
       form.resetFields();
-      message.success('Audit session created');
+      message.success('审计任务已创建');
       await loadTasks(true, result.id);
     } catch {
-      message.error('Failed to create audit session');
+      message.error('创建审计任务失败');
     } finally {
       setCreating(false);
     }
@@ -194,11 +172,11 @@ const AuditTasksPage: React.FC = () => {
   const handleRun = async (taskId: number) => {
     try {
       await auditApi.runTask(taskId);
-      message.success('Agent session queued');
+      message.success('审计任务已提交');
       await loadTasks(true, taskId);
       await loadTaskDetails(taskId);
     } catch {
-      message.error('Failed to queue agent session');
+      message.error('提交审计任务失败');
     }
   };
 
@@ -206,7 +184,7 @@ const AuditTasksPage: React.FC = () => {
   const completedCount = tasks.filter((task) => task.status === 'completed').length;
   const failedCount = tasks.filter((task) => task.status === 'failed').length;
   const selectedQuery = encodeURIComponent(
-    findings[0]?.title || selectedTask?.task_name || 'GMP deviation handling',
+    findings[0]?.title || selectedTask?.task_name || 'GMP 偏差处理',
   );
 
   const evidenceDocuments = useMemo(
@@ -216,54 +194,62 @@ const AuditTasksPage: React.FC = () => {
 
   const columns = [
     {
-      title: 'Session',
+      title: '任务',
       dataIndex: 'task_name',
       key: 'task_name',
       render: (value: string, record: AuditTask) => (
         <Space direction="vertical" size={0}>
           <Text strong>{value}</Text>
-          <Text type="secondary">{record.task_type}</Text>
+          <Text type="secondary">{TASK_TYPE_LABELS[record.task_type] || record.task_type}</Text>
         </Space>
       ),
     },
     {
-      title: 'Status',
+      title: '状态',
       dataIndex: 'status',
       key: 'status',
       width: 140,
-      render: (status: string) => <Tag color={STATUS_COLORS[status] || 'default'}>{status}</Tag>,
+      render: (status: string) => <Tag color={STATUS_COLORS[status] || 'default'}>{STATUS_LABELS[status] || status}</Tag>,
     },
     {
-      title: 'Stage',
+      title: '阶段',
       dataIndex: 'stage',
       key: 'stage',
       width: 200,
-      render: (stage?: string) => STAGE_LABELS[stage || 'pending'] || stage || 'Waiting for dispatch',
+      render: (stage?: string) => (
+        <Tag>{STAGE_LABELS[stage || 'pending'] || stage || '等待执行'}</Tag>
+      ),
     },
     {
-      title: 'Progress',
+      title: '进度',
       dataIndex: 'progress',
       key: 'progress',
       width: 180,
-      render: (value: number) => <Progress percent={value || 0} size="small" status="active" />,
+      render: (value: number, record: AuditTask) => (
+        <Progress
+          percent={value || 0}
+          size="small"
+          status={record.status === 'completed' ? 'success' : record.status === 'failed' ? 'exception' : 'active'}
+        />
+      ),
     },
     {
-      title: 'Action',
+      title: '操作',
       key: 'action',
       width: 220,
       render: (_: unknown, record: AuditTask) => (
         <Space>
           {record.status === 'pending' && (
             <Button type="link" icon={<PlayCircleOutlined />} onClick={() => void handleRun(record.id)}>
-              Run
+              运行
             </Button>
           )}
           <Button type="link" onClick={() => void loadTaskDetails(record.id)}>
-            Inspect
+            查看
           </Button>
           {record.report_id && (
             <Button type="link" icon={<FileSearchOutlined />} onClick={() => navigate(`/reports?task_id=${record.id}`)}>
-              Report
+              报告
             </Button>
           )}
         </Space>
@@ -281,32 +267,31 @@ const AuditTasksPage: React.FC = () => {
           background: 'linear-gradient(135deg, #111827 0%, #1d4ed8 100%)',
           color: '#fff',
         }}
-        bodyStyle={{ padding: 28 }}
+        styles={{ body: { padding: 28 } }}
       >
         <Row gutter={[24, 24]} align="middle">
           <Col xs={24} xl={16}>
             <Space direction="vertical" size={12}>
               <Tag color="rgba(255,255,255,0.18)" style={{ borderRadius: 999, alignSelf: 'flex-start' }}>
-                multi-agent workspace
+                审计任务
               </Tag>
               <Title level={2} style={{ color: '#fff', margin: 0 }}>
-                Watch the audit agent close the loop from evidence to report.
+                创建审计任务，多智能体协作完成合规分析
               </Title>
               <Paragraph style={{ color: 'rgba(255,255,255,0.82)', fontSize: 16, marginBottom: 0 }}>
-                This workspace surfaces stage transitions, document-level progress, findings, and the graph evidence
-                you need before sharing the report.
+                实时查看任务进度、文档解析状态、审计发现和知识图谱溯源
               </Paragraph>
               <Space wrap>
                 <Button type="primary" icon={<PlusOutlined />} onClick={() => setShowModal(true)}>
-                  New audit session
+                  新建任务
                 </Button>
-                <Button onClick={() => navigate('/documents')}>Upload more evidence</Button>
+                <Button onClick={() => navigate('/documents')}>上传文档</Button>
                 {selectedTask && (
                   <Button
                     icon={<BranchesOutlined />}
                     onClick={() => navigate(`/kg?q=${selectedQuery}&task_id=${selectedTask.id}`)}
                   >
-                    Open graph evidence
+                    知识图谱
                   </Button>
                 )}
               </Space>
@@ -315,12 +300,12 @@ const AuditTasksPage: React.FC = () => {
           <Col xs={24} xl={8}>
             <Card bordered={false} style={{ borderRadius: 20, background: 'rgba(255,255,255,0.08)' }}>
               <Space direction="vertical" size={12} style={{ width: '100%' }}>
-                <Text style={{ color: 'rgba(255,255,255,0.75)' }}>Current focus</Text>
+                <Text style={{ color: 'rgba(255,255,255,0.75)' }}>当前任务</Text>
                 <Title level={4} style={{ color: '#fff', margin: 0 }}>
-                  {selectedTask?.task_name || 'No session selected'}
+                  {selectedTask?.task_name || '未选择任务'}
                 </Title>
                 <Text style={{ color: 'rgba(255,255,255,0.82)' }}>
-                  {selectedTask ? STAGE_LABELS[selectedTask.stage || 'pending'] || selectedTask.stage : 'Select a session'}
+                  {selectedTask ? STAGE_LABELS[selectedTask.stage || 'pending'] || selectedTask.stage : '请选择任务'}
                 </Text>
                 <Progress
                   percent={selectedTask?.progress || 0}
@@ -336,17 +321,17 @@ const AuditTasksPage: React.FC = () => {
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} md={8}>
           <Card bordered={false} style={{ borderRadius: 20 }}>
-            <Statistic title="Running sessions" value={runningCount} prefix={<ThunderboltOutlined />} />
+            <Statistic title="进行中" value={runningCount} prefix={<ThunderboltOutlined />} />
           </Card>
         </Col>
         <Col xs={24} md={8}>
           <Card bordered={false} style={{ borderRadius: 20 }}>
-            <Statistic title="Completed sessions" value={completedCount} prefix={<FileSearchOutlined />} />
+            <Statistic title="已完成" value={completedCount} prefix={<FileSearchOutlined />} />
           </Card>
         </Col>
         <Col xs={24} md={8}>
           <Card bordered={false} style={{ borderRadius: 20 }}>
-            <Statistic title="Failed sessions" value={failedCount} prefix={<RobotOutlined />} />
+            <Statistic title="失败" value={failedCount} prefix={<RobotOutlined />} />
           </Card>
         </Col>
       </Row>
@@ -356,8 +341,8 @@ const AuditTasksPage: React.FC = () => {
           <Card
             bordered={false}
             style={{ borderRadius: 20 }}
-            title="Audit sessions"
-            extra={<Button type="link" onClick={() => void loadTasks(true, selectedTaskId)}>Refresh</Button>}
+            title="任务列表"
+            extra={<Button type="link" onClick={() => void loadTasks(true, selectedTaskId)}>刷新</Button>}
           >
             <Table
               columns={columns}
@@ -372,7 +357,7 @@ const AuditTasksPage: React.FC = () => {
                 },
               })}
               rowClassName={(record) => (record.id === selectedTaskId ? 'ant-table-row-selected' : '')}
-              locale={{ emptyText: <Empty description="No audit sessions yet" /> }}
+              locale={{ emptyText: <Empty description="暂无审计任务" /> }}
             />
           </Card>
         </Col>
@@ -382,11 +367,11 @@ const AuditTasksPage: React.FC = () => {
             <Card
               bordered={false}
               style={{ borderRadius: 20 }}
-              title="Agent timeline"
+              title="执行时间线"
               extra={
                 selectedTask?.report_id ? (
                   <Button type="link" onClick={() => navigate(`/reports?task_id=${selectedTask.id}`)}>
-                    Open report
+                    查看报告
                   </Button>
                 ) : null
               }
@@ -394,9 +379,9 @@ const AuditTasksPage: React.FC = () => {
               {selectedTask ? (
                 <Space direction="vertical" size={16} style={{ width: '100%' }}>
                   <Space wrap>
-                    <Tag color={STATUS_COLORS[selectedTask.status] || 'default'}>{selectedTask.status}</Tag>
-                    <Tag>{selectedTask.task_type}</Tag>
-                    {selectedTask.stage && <Tag color="blue">{selectedTask.stage}</Tag>}
+                    <Tag color={STATUS_COLORS[selectedTask.status] || 'default'}>{STATUS_LABELS[selectedTask.status] || selectedTask.status}</Tag>
+                    <Tag>{TASK_TYPE_LABELS[selectedTask.task_type] || selectedTask.task_type}</Tag>
+                    {selectedTask.stage && <Tag>{STAGE_LABELS[selectedTask.stage] || selectedTask.stage}</Tag>}
                   </Space>
                   <Progress percent={selectedTask.progress || 0} status={selectedTask.status === 'failed' ? 'exception' : 'active'} />
                   <Timeline
@@ -414,33 +399,33 @@ const AuditTasksPage: React.FC = () => {
                   />
                   {selectedTask.error_message && (
                     <Card size="small" style={{ borderRadius: 16, background: '#fff1f0' }}>
-                      <Text strong>Error</Text>
+                      <Text strong>错误</Text>
                       <Paragraph style={{ margin: '8px 0 0' }}>{selectedTask.error_message}</Paragraph>
                     </Card>
                   )}
                 </Space>
               ) : (
-                <Empty description="Select an audit session to inspect its loop" />
+                <Empty description="请选择一个审计任务查看详情" />
               )}
             </Card>
 
-            <Card bordered={false} style={{ borderRadius: 20 }} title="Evidence and findings">
+            <Card bordered={false} style={{ borderRadius: 20 }} title="审计发现">
               {selectedTask ? (
                 <Space direction="vertical" size={16} style={{ width: '100%' }}>
                   <div>
-                    <Text strong>Documents in session</Text>
+                    <Text strong>任务文档</Text>
                     <List
                       style={{ marginTop: 8 }}
                       dataSource={evidenceDocuments}
-                      locale={{ emptyText: 'No document progress recorded yet' }}
+                      locale={{ emptyText: '暂无文档记录' }}
                       renderItem={(item) => (
                         <List.Item>
                           <Space direction="vertical" size={0} style={{ width: '100%' }}>
                             <Text strong>{item.filename}</Text>
                             <Space wrap>
-                              <Tag>{item.status}</Tag>
-                              <Tag color="blue">{item.risk_level || 'unknown risk'}</Tag>
-                              <Text type="secondary">{item.findings_count} finding(s)</Text>
+                              <Tag>{DOC_STATUS_LABELS[item.status] || item.status}</Tag>
+                              <Tag color="blue">{item.risk_level || '未知风险'}</Tag>
+                              <Text type="secondary">{item.findings_count} 项发现</Text>
                             </Space>
                           </Space>
                         </List.Item>
@@ -448,11 +433,11 @@ const AuditTasksPage: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <Text strong>Findings</Text>
+                    <Text strong>审计发现</Text>
                     <List
                       style={{ marginTop: 8 }}
                       dataSource={findings}
-                      locale={{ emptyText: 'No findings saved yet' }}
+                      locale={{ emptyText: '暂无审计发现' }}
                       renderItem={(item) => (
                         <List.Item
                           actions={[
@@ -463,7 +448,7 @@ const AuditTasksPage: React.FC = () => {
                                 navigate(`/kg?q=${encodeURIComponent(item.title)}&task_id=${selectedTask.id}`)
                               }
                             >
-                              Trace in graph
+                              图谱溯源
                             </Button>,
                           ]}
                         >
@@ -474,7 +459,7 @@ const AuditTasksPage: React.FC = () => {
                                 <span>{item.title}</span>
                               </Space>
                             }
-                            description={item.description || 'No description'}
+                            description={item.description || '暂无描述'}
                           />
                         </List.Item>
                       )}
@@ -482,7 +467,7 @@ const AuditTasksPage: React.FC = () => {
                   </div>
                 </Space>
               ) : (
-                <Empty description="Select a task to view evidence and findings" />
+                <Empty description="请选择任务查看审计发现" />
               )}
             </Card>
           </Space>
@@ -490,7 +475,7 @@ const AuditTasksPage: React.FC = () => {
       </Row>
 
       <Modal
-        title="Create audit session"
+        title="创建审计任务"
         open={showModal}
         confirmLoading={creating}
         onCancel={() => setShowModal(false)}
@@ -499,29 +484,29 @@ const AuditTasksPage: React.FC = () => {
         <Form form={form} layout="vertical" onFinish={(values) => void handleCreate(values)}>
           <Form.Item
             name="task_name"
-            label="Session name"
-            rules={[{ required: true, message: 'Enter a session name' }]}
+            label="任务名称"
+            rules={[{ required: true, message: '请输入任务名称' }]}
           >
-            <Input placeholder="Deviation investigation for batch A-17" />
+            <Input placeholder="例如：批号 A-17 偏差调查" />
           </Form.Item>
           <Form.Item
             name="task_type"
-            label="Audit type"
-            rules={[{ required: true, message: 'Select an audit type' }]}
+            label="审计类型"
+            rules={[{ required: true, message: '请选择审计类型' }]}
             initialValue="deviation_analysis"
           >
             <Select options={TASK_TYPE_OPTIONS} />
           </Form.Item>
           <Form.Item
             name="document_ids"
-            label="Documents"
-            rules={[{ required: true, message: 'Select at least one processed document' }]}
+            label="选择文档"
+            rules={[{ required: true, message: '请选择至少一个已处理的文档' }]}
           >
             <Select
               mode="multiple"
               optionFilterProp="label"
               options={documents.map((doc) => ({ value: doc.id, label: doc.filename }))}
-              placeholder="Attach processed evidence documents"
+              placeholder="请选择已处理的文档"
             />
           </Form.Item>
         </Form>

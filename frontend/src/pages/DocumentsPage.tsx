@@ -29,16 +29,16 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const STATUS_LABELS: Record<string, string> = {
-  uploaded: 'Uploaded',
-  processing: 'Processing',
-  processed: 'Ready',
-  failed: 'Failed',
+  uploaded: '已上传',
+  processing: '处理中',
+  processed: '已处理',
+  failed: '处理失败',
 };
 
 const AUDIT_TYPE_OPTIONS = [
-  { label: 'Deviation analysis', value: 'deviation' },
-  { label: 'SOP compliance', value: 'sop' },
-  { label: 'Change control', value: 'change_control' },
+  { label: '偏差分析', value: 'deviation' },
+  { label: 'SOP 合规', value: 'sop' },
+  { label: '变更控制', value: 'change_control' },
 ];
 
 const DocumentsPage: React.FC = () => {
@@ -59,7 +59,7 @@ const DocumentsPage: React.FC = () => {
       setDocuments(result?.items || []);
       setTotal(result?.total || 0);
     } catch {
-      message.error('Failed to load documents');
+      message.error('加载文档失败');
     }
   }, [page]);
 
@@ -93,11 +93,11 @@ const DocumentsPage: React.FC = () => {
     try {
       const result = await documentApi.uploadBatch([file as File]);
       onSuccess?.(result);
-      message.success('Upload accepted. Processing has started.');
+      message.success('上传成功，正在处理中');
       void loadDocuments();
     } catch (error) {
       onError?.(error as Error);
-      message.error('Upload failed');
+      message.error('上传失败');
     } finally {
       setUploading(false);
     }
@@ -116,27 +116,27 @@ const DocumentsPage: React.FC = () => {
         document_id: selectedDocId,
         audit_type: auditType,
       });
-      message.success(`Agent session queued: #${result.task_id}`);
+      message.success(`审计任务已创建：#${result.task_id}`);
       setAuditModalOpen(false);
       navigate(`/audit?task_id=${result.task_id}`);
     } catch {
-      message.error('Failed to queue agent session');
+      message.error('创建审计任务失败');
     }
   };
 
   const handleDelete = (id: number) => {
     Modal.confirm({
-      title: 'Delete document',
-      content: 'This removes the uploaded evidence from the workspace.',
-      okText: 'Delete',
+      title: '删除文档',
+      content: '删除后将从工作区移除该文档。',
+      okText: '删除',
       okType: 'danger',
       onOk: async () => {
         try {
           await documentApi.delete(id);
-          message.success('Document deleted');
+          message.success('文档已删除');
           void loadDocuments();
         } catch {
-          message.error('Delete failed');
+          message.error('删除失败');
         }
       },
     });
@@ -147,7 +147,7 @@ const DocumentsPage: React.FC = () => {
 
   const columns = [
     {
-      title: 'Document',
+      title: '文档',
       dataIndex: 'filename',
       key: 'filename',
       render: (value: string, record: Document) => (
@@ -158,25 +158,25 @@ const DocumentsPage: React.FC = () => {
       ),
     },
     {
-      title: 'Status',
+      title: '状态',
       dataIndex: 'process_status',
       key: 'process_status',
       width: 140,
       render: (status: string) => <Tag color={STATUS_COLORS[status] || 'default'}>{STATUS_LABELS[status] || status}</Tag>,
     },
     {
-      title: 'Action',
+      title: '操作',
       key: 'action',
       width: 220,
       render: (_: unknown, record: Document) => (
         <Space>
           {record.process_status === 'processed' && (
             <Button type="primary" size="small" icon={<RobotOutlined />} onClick={() => openAuditModal(record.id)}>
-              Run agent
+              开始审计
             </Button>
           )}
           <Button type="link" danger size="small" icon={<DeleteOutlined />} onClick={() => handleDelete(record.id)}>
-            Delete
+            删除
           </Button>
         </Space>
       ),
@@ -193,17 +193,17 @@ const DocumentsPage: React.FC = () => {
           background: 'linear-gradient(135deg, #0f172a 0%, #0f766e 100%)',
           color: '#fff',
         }}
-        bodyStyle={{ padding: 28 }}
+        styles={{ body: { padding: 28 } }}
       >
         <Space direction="vertical" size={12} style={{ width: '100%' }}>
           <Tag color="rgba(255,255,255,0.18)" style={{ borderRadius: 999, alignSelf: 'flex-start' }}>
-            evidence intake
+            文档管理
           </Tag>
           <Title level={2} style={{ color: '#fff', margin: 0 }}>
-            Feed the audit agent with processed evidence, then launch a session.
+            上传文档，系统自动解析后用于审计分析
           </Title>
           <Paragraph style={{ color: 'rgba(255,255,255,0.82)', fontSize: 16, marginBottom: 0 }}>
-            Upload source material, wait for extraction to complete, and hand the processed document directly to the agent workspace.
+            上传原始文档，等待解析完成后即可提交审计
           </Paragraph>
         </Space>
       </Card>
@@ -213,9 +213,9 @@ const DocumentsPage: React.FC = () => {
           <Steps
             current={processedCount > 0 ? 2 : pendingCount > 0 ? 1 : 0}
             items={[
-              { title: 'Upload evidence' },
-              { title: 'Processing' },
-              { title: 'Ready for agent audit' },
+              { title: '上传文档' },
+              { title: '处理中' },
+              { title: '待审计' },
             ]}
           />
         </Card>
@@ -232,18 +232,18 @@ const DocumentsPage: React.FC = () => {
         <p className="ant-upload-drag-icon">
           <InboxOutlined />
         </p>
-        <p className="ant-upload-text">{uploading ? 'Uploading...' : 'Click or drop files here'}</p>
-        <p className="ant-upload-hint">PDF, Word, text, and image formats are accepted.</p>
+        <p className="ant-upload-text">{uploading ? '上传中...' : '点击或拖拽文件到此处'}</p>
+        <p className="ant-upload-hint">支持 PDF、Word、纯文本和图片格式</p>
       </Upload.Dragger>
 
       {pendingCount > 0 && (
         <Card size="small" style={{ marginBottom: 16, borderRadius: 16, background: '#fffbe6' }}>
-          <Text>{pendingCount} document(s) are still being processed.</Text>
+          <Text>{pendingCount} 个文档正在处理中</Text>
         </Card>
       )}
 
       <Card bordered={false} style={{ borderRadius: 20 }}>
-        <Title level={4}>Evidence library</Title>
+        <Title level={4}>文档列表</Title>
         <Table
           columns={columns}
           dataSource={documents}
@@ -262,15 +262,15 @@ const DocumentsPage: React.FC = () => {
       </Card>
 
       <Modal
-        title="Launch an agent session"
+        title="启动审计"
         open={auditModalOpen}
         onCancel={() => setAuditModalOpen(false)}
         onOk={() => void handleAgentAuditConfirm()}
-        okText="Queue session"
+        okText="提交"
       >
         <Space direction="vertical" size={16} style={{ width: '100%' }}>
           <Paragraph style={{ marginBottom: 0 }}>
-            Choose the audit intent for this document. The agent will use it to decide the regulation and risk workflow.
+            选择审计类型，系统将根据类型匹配相应的法规和风险评估流程
           </Paragraph>
           <Radio.Group
             value={auditType}

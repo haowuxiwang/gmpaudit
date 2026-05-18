@@ -5,7 +5,7 @@ import subprocess
 import tempfile
 from typing import Dict, Any
 
-import fitz  # PyMuPDF
+import pymupdf as fitz  # PyMuPDF
 import mammoth
 
 logger = logging.getLogger(__name__)
@@ -87,9 +87,9 @@ class DocumentProcessor:
         try:
             result = subprocess.run(
                 ["antiword", file_path],
-                capture_output=True, text=True, timeout=30
+                capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=30
             )
-            if result.returncode == 0 and result.stdout.strip():
+            if result.returncode == 0 and (result.stdout or "").strip():
                 return result.stdout
             raise RuntimeError(f"antiword failed: {result.stderr}")
         except FileNotFoundError:

@@ -73,6 +73,7 @@ export interface RiskAlert {
   status: 'active' | 'acknowledged' | 'resolved';
   created_at: string;
   resolved_at?: string;
+  resolved_by?: string;
 }
 
 export interface KGStatus {
@@ -128,11 +129,16 @@ export interface Finding {
   title: string;
   description: string;
   regulation_ref?: string;
+  evidence?: string;
+  suggestion?: string;
+  location?: string;
+  document_id?: number;
   created_at: string;
 }
 
 export interface DashboardData {
   total_tasks: number;
+  total_findings?: number;
   task_counts: Record<string, number>;
   severity_counts: Record<string, number>;
 }
@@ -149,6 +155,7 @@ export interface GraphEdge {
   source: string;
   target: string;
   label: string;
+  weight?: number;
 }
 
 export interface GraphData {
@@ -157,7 +164,9 @@ export interface GraphData {
 }
 
 export interface ConfigItem {
-  config_key: string;
-  config_value: string;
-  config_type: string;
+  value: string;
+  type: string;
+  description?: string;
 }
+
+export type ConfigMap = Record<string, ConfigItem>;

@@ -30,16 +30,22 @@ parse_doc → supervisor → regulation_expert → risk_assessor → report_writ
 - 4-agent Supervisor pattern with deterministic routing
 - LightRAG knowledge graph with 5 regulation documents (GMP + ICH Q9/Q10)
 - 8 LLM providers via unified adapter
-- Frontend: 8 pages, dashboard, knowledge graph visualization
+- Frontend: 8 pages, fully Chinese UI, knowledge graph visualization
 - Feishu webhook notifications (HMAC-SHA256)
 - Test suite: Backend 153 + Agent 73 = 226 tests, all green
 - Auth system removed (local desktop app, no login needed)
+- Document processing: .pdf, .docx, .doc, .txt, .jpg/.png/.tiff (OCR)
 
-### Just Fixed (Pipeline Robustness)
+### Recently Fixed
 - LightRAG fallback chain was dead code — now properly triggers on failure
 - LLM failures no longer cascade-terminate the pipeline
 - Added LLM retry (1 retry, 2s delay) for transient failures
 - Supervisor only terminates on early errors (before regulation check)
+- Antiword subprocess encoding crash on Windows (GBK → UTF-8)
+- Frontend fully localized to Chinese (Ant Design zhCN locale)
+- Frontend API types aligned with backend (ConfigMap, Finding, RiskAlert)
+- Deprecated `bodyStyle` replaced with `styles.body` across all pages
+- Shared constants extracted (STATUS_LABELS, STAGE_LABELS, TASK_TYPE_LABELS)
 
 ### Known Limitations
 - Regulation fallback DB has only 10 entries

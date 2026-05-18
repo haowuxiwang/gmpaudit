@@ -4,7 +4,7 @@ import { SettingOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 
 const { Header: AntHeader } = Layout;
-const { Text, Title } = Typography;
+const { Title } = Typography;
 
 const Header: React.FC = () => {
   const navigate = useNavigate();
@@ -22,17 +22,16 @@ const Header: React.FC = () => {
     >
       <Space direction="vertical" size={0}>
         <Title level={4} style={{ margin: 0 }}>
-          Agent audit workspace
+          审计工作台
         </Title>
-        <Text type="secondary">Trace evidence, graph context, and final reports in one flow.</Text>
       </Space>
 
       <Space size="middle">
         <Tag color="blue" style={{ borderRadius: 999 }}>
-          AI agent loop
+          智能体循环
         </Tag>
         <Button icon={<SettingOutlined />} onClick={() => navigate('/settings')}>
-          Settings
+          设置
         </Button>
       </Space>
     </AntHeader>

@@ -26,25 +26,9 @@ import { useNavigate } from 'react-router-dom';
 
 import { auditApi, documentApi } from '../services/api';
 import type { AuditTask, DashboardData } from '../types/api';
+import { STATUS_COLORS, STAGE_LABELS, TASK_TYPE_LABELS } from '../constants/audit';
 
 const { Title, Paragraph, Text } = Typography;
-
-const STAGE_LABELS: Record<string, string> = {
-  pending: 'Waiting',
-  queued: 'Queued',
-  running: 'Running',
-  parsing: 'Parsing',
-  risk: 'Assessing risk',
-  completed: 'Completed',
-  failed: 'Failed',
-};
-
-const STATUS_COLORS: Record<string, string> = {
-  pending: 'default',
-  running: 'processing',
-  completed: 'success',
-  failed: 'error',
-};
 
 const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
@@ -84,7 +68,7 @@ const DashboardPage: React.FC = () => {
       setDashboard(dashData);
       setRecentTasks(tasks.slice(0, 5));
     } catch {
-      message.error('Failed to load control room data');
+      message.error('加载工作台数据失败');
     } finally {
       setLoading(false);
     }
@@ -99,41 +83,47 @@ const DashboardPage: React.FC = () => {
 
   const columns = [
     {
-      title: 'Task',
+      title: '任务',
       dataIndex: 'task_name',
       key: 'task_name',
       render: (value: string, record: AuditTask) => (
         <Space direction="vertical" size={0}>
           <Text strong>{value}</Text>
-          <Text type="secondary">{record.task_type}</Text>
+          <Text type="secondary">{TASK_TYPE_LABELS[record.task_type] || record.task_type}</Text>
         </Space>
       ),
     },
     {
-      title: 'Stage',
+      title: '阶段',
       dataIndex: 'stage',
       key: 'stage',
       width: 150,
       render: (stage?: string, record?: AuditTask) => (
         <Tag color={STATUS_COLORS[record?.status || 'pending'] || 'default'}>
-          {STAGE_LABELS[stage || 'pending'] || stage || 'Waiting'}
+          {STAGE_LABELS[stage || 'pending'] || stage || '待处理'}
         </Tag>
       ),
     },
     {
-      title: 'Progress',
+      title: '进度',
       dataIndex: 'progress',
       key: 'progress',
       width: 180,
-      render: (value: number) => <Progress percent={value || 0} size="small" status="active" />,
+      render: (value: number, record: AuditTask) => (
+        <Progress
+          percent={value || 0}
+          size="small"
+          status={record.status === 'completed' ? 'success' : record.status === 'failed' ? 'exception' : 'active'}
+        />
+      ),
     },
     {
-      title: 'Action',
+      title: '操作',
       key: 'action',
       width: 130,
       render: (_: unknown, record: AuditTask) => (
         <Button type="link" onClick={() => navigate(`/audit?task_id=${record.id}`)}>
-          Open workspace
+          进入工作台
         </Button>
       ),
     },
@@ -151,30 +141,29 @@ const DashboardPage: React.FC = () => {
           color: '#fff',
           overflow: 'hidden',
         }}
-        bodyStyle={{ padding: 28 }}
+        styles={{ body: { padding: 28 } }}
       >
         <Row gutter={[24, 24]} align="middle">
           <Col xs={24} lg={16}>
             <Space direction="vertical" size={12} style={{ width: '100%' }}>
               <Tag color="rgba(255,255,255,0.18)" style={{ alignSelf: 'flex-start', borderRadius: 999 }}>
-                AI agent control room
+                审计工作台
               </Tag>
               <Title level={2} style={{ color: '#fff', margin: 0 }}>
-                AuditBee runs audits as a guided agent session, not a static report factory.
+                AuditBee
               </Title>
               <Paragraph style={{ color: 'rgba(255,255,255,0.82)', fontSize: 16, marginBottom: 0 }}>
-                Launch an audit, watch the agent move through regulation retrieval and risk analysis,
-                then inspect the evidence chain behind the final report.
+                多智能体协作完成 GMP 合规审计，自动生成结构化报告。
               </Paragraph>
               <Space wrap>
                 <Button type="primary" size="large" icon={<RobotOutlined />} onClick={() => navigate('/audit')}>
-                  Open agent workspace
+                  进入审计
                 </Button>
                 <Button size="large" onClick={() => navigate('/documents')}>
-                  Upload evidence
+                  上传文档
                 </Button>
                 <Button size="large" onClick={() => navigate('/kg')} icon={<BranchesOutlined />}>
-                  Explore knowledge graph
+                  知识图谱
                 </Button>
               </Space>
             </Space>
@@ -183,17 +172,17 @@ const DashboardPage: React.FC = () => {
             <Card
               bordered={false}
               style={{ borderRadius: 20, background: 'rgba(255,255,255,0.1)', color: '#fff' }}
-              bodyStyle={{ padding: 20 }}
+              styles={{ body: { padding: 20 } }}
             >
               <Space direction="vertical" style={{ width: '100%' }} size={12}>
-                <Text style={{ color: 'rgba(255,255,255,0.75)' }}>Live focus</Text>
+                <Text style={{ color: 'rgba(255,255,255,0.75)' }}>当前焦点</Text>
                 {activeTask ? (
                   <>
                     <Title level={4} style={{ color: '#fff', margin: 0 }}>
                       {activeTask.task_name}
                     </Title>
                     <Text style={{ color: 'rgba(255,255,255,0.82)' }}>
-                      {STAGE_LABELS[activeTask.stage || 'pending'] || activeTask.stage || 'Waiting'}
+                      {STAGE_LABELS[activeTask.stage || 'pending'] || activeTask.stage || '待处理'}
                     </Text>
                     <Progress percent={activeTask.progress || 0} strokeColor="#f8fafc" trailColor="rgba(255,255,255,0.15)" />
                     <Button
@@ -201,12 +190,12 @@ const DashboardPage: React.FC = () => {
                       icon={<RightCircleOutlined />}
                       onClick={() => navigate(`/audit?task_id=${activeTask.id}`)}
                     >
-                      Resume this session
+                      继续此任务
                     </Button>
                   </>
                 ) : (
                   <Empty
-                    description={<span style={{ color: 'rgba(255,255,255,0.75)' }}>No audit sessions yet</span>}
+                    description={<span style={{ color: 'rgba(255,255,255,0.75)' }}>暂无任务记录</span>}
                     image={Empty.PRESENTED_IMAGE_SIMPLE}
                   />
                 )}
@@ -219,23 +208,23 @@ const DashboardPage: React.FC = () => {
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} md={12} xl={6}>
           <Card loading={loading} bordered={false} style={{ borderRadius: 20 }}>
-            <Statistic title="Evidence documents" value={stats.totalDocuments} prefix={<FileTextOutlined />} />
+            <Statistic title="文档总数" value={stats.totalDocuments} prefix={<FileTextOutlined />} />
           </Card>
         </Col>
         <Col xs={24} md={12} xl={6}>
           <Card loading={loading} bordered={false} style={{ borderRadius: 20 }}>
-            <Statistic title="Audit sessions" value={stats.totalTasks} prefix={<RobotOutlined />} />
+            <Statistic title="审计任务" value={stats.totalTasks} prefix={<RobotOutlined />} />
           </Card>
         </Col>
         <Col xs={24} md={12} xl={6}>
           <Card loading={loading} bordered={false} style={{ borderRadius: 20 }}>
-            <Statistic title="Completed reports" value={stats.completedTasks} prefix={<FileSearchOutlined />} />
+            <Statistic title="已完成报告" value={stats.completedTasks} prefix={<FileSearchOutlined />} />
           </Card>
         </Col>
         <Col xs={24} md={12} xl={6}>
           <Card loading={loading} bordered={false} style={{ borderRadius: 20 }}>
             <Statistic
-              title="High-risk findings"
+              title="高风险发现"
               value={stats.highRiskFindings}
               prefix={<WarningOutlined />}
               valueStyle={{ color: '#cf1322' }}
@@ -249,8 +238,8 @@ const DashboardPage: React.FC = () => {
           type="warning"
           showIcon
           style={{ marginBottom: 24, borderRadius: 16 }}
-          message={`${dashboard.task_counts.running} audit session(s) are active`}
-          description="Use the workspace to monitor stage transitions, inspect findings, and jump to the report once the agent closes the loop."
+          message={`${dashboard.task_counts.running} 个审计任务正在执行`}
+          description="可在工作台监控阶段进度、查看发现项，任务完成后可直接查看报告。"
         />
       )}
 
@@ -259,8 +248,8 @@ const DashboardPage: React.FC = () => {
           <Card
             bordered={false}
             style={{ borderRadius: 20 }}
-            title="Recent agent sessions"
-            extra={<Button type="link" onClick={() => navigate('/audit')}>View all</Button>}
+            title="最近任务"
+            extra={<Button type="link" onClick={() => navigate('/audit')}>查看全部</Button>}
           >
             <Table
               columns={columns}
@@ -268,27 +257,26 @@ const DashboardPage: React.FC = () => {
               rowKey="id"
               pagination={false}
               loading={loading}
-              locale={{ emptyText: <Empty description="No sessions yet" /> }}
+              locale={{ emptyText: <Empty description="暂无任务记录" /> }}
             />
           </Card>
         </Col>
         <Col xs={24} xl={10}>
-          <Card bordered={false} style={{ borderRadius: 20 }} title="Operational posture">
+          <Card bordered={false} style={{ borderRadius: 20 }} title="系统概览">
             <Space direction="vertical" size={16} style={{ width: '100%' }}>
               <Card size="small" style={{ borderRadius: 16, background: '#f8fafc' }}>
-                <Text strong>Current loop shape</Text>
+                <Text strong>审计流程</Text>
                 <Paragraph style={{ margin: '8px 0 0' }}>
-                  The agent currently closes one pass through regulation retrieval, risk assessment, and report writing.
-                  Use the workspace to see where the session finished and whether it relied on fallback evidence.
+                  智能体依次完成法规检索、风险评估和报告撰写。可在工作台查看任务执行状态。
                 </Paragraph>
               </Card>
               <Card size="small" style={{ borderRadius: 16, background: '#fff7ed' }}>
-                <Text strong>Evidence trace</Text>
+                <Text strong>数据链路</Text>
                 <Paragraph style={{ margin: '8px 0 0' }}>
-                  Pair findings with the knowledge graph to validate cited regulations before you share the report.
+                  结合知识图谱验证引用的法规依据，确保报告准确性。
                 </Paragraph>
                 <Button type="link" icon={<BranchesOutlined />} onClick={() => navigate('/kg')}>
-                  Open graph evidence view
+                  查看知识图谱
                 </Button>
               </Card>
             </Space>

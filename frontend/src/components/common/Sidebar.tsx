@@ -18,13 +18,13 @@ const Sidebar: React.FC = () => {
   const location = useLocation();
 
   const items = [
-    { key: '/', icon: <AppstoreOutlined />, label: 'Control Room' },
-    { key: '/documents', icon: <FileTextOutlined />, label: 'Evidence Intake' },
-    { key: '/audit', icon: <RobotOutlined />, label: 'Agent Workspace' },
-    { key: '/reports', icon: <FileTextOutlined />, label: 'Reports' },
-    { key: '/kg', icon: <BranchesOutlined />, label: 'Knowledge Graph' },
-    { key: '/alerts', icon: <AlertOutlined />, label: 'Alerts' },
-    { key: '/settings', icon: <SettingOutlined />, label: 'Settings' },
+    { key: '/', icon: <AppstoreOutlined />, label: '工作台' },
+    { key: '/documents', icon: <FileTextOutlined />, label: '文档管理' },
+    { key: '/audit', icon: <RobotOutlined />, label: '审计任务' },
+    { key: '/reports', icon: <FileTextOutlined />, label: '审计报告' },
+    { key: '/kg', icon: <BranchesOutlined />, label: '知识图谱' },
+    { key: '/alerts', icon: <AlertOutlined />, label: '风险告警' },
+    { key: '/settings', icon: <SettingOutlined />, label: '系统设置' },
   ];
 
   return (
@@ -41,7 +41,7 @@ const Sidebar: React.FC = () => {
       >
         <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>AuditBee</div>
         <Text style={{ color: 'rgba(255,255,255,0.78)' }}>
-          Multi-agent GMP audit cockpit
+          多智能体 GMP 合规审计
         </Text>
       </div>
       <Menu

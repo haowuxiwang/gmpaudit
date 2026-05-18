@@ -9,9 +9,8 @@ const { Title, Paragraph } = Typography;
 
 const ALERT_LEVEL_COLORS: Record<string, string> = {
   critical: 'red',
-  high: 'red',
-  medium: 'orange',
-  low: 'blue',
+  warning: 'orange',
+  info: 'blue',
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -35,7 +34,7 @@ const AlertsPage: React.FC = () => {
       const result = await alertsApi.list(statusFilter);
       setAlerts(result?.items || []);
     } catch {
-      message.error('Failed to load alerts');
+      message.error('加载告警失败');
     } finally {
       setLoading(false);
     }
@@ -44,73 +43,85 @@ const AlertsPage: React.FC = () => {
   const handleAcknowledge = async (id: number) => {
     try {
       await alertsApi.acknowledge(id);
-      message.success('Alert acknowledged');
+      message.success('已确认告警');
       void loadAlerts();
     } catch {
-      message.error('Failed to update alert');
+      message.error('更新告警失败');
     }
   };
 
   const handleResolve = async (id: number) => {
     try {
       await alertsApi.resolve(id);
-      message.success('Alert resolved');
+      message.success('已解决告警');
       void loadAlerts();
     } catch {
-      message.error('Failed to update alert');
+      message.error('更新告警失败');
     }
+  };
+
+  const ALERT_LEVEL_LABELS: Record<string, string> = {
+    critical: '严重',
+    warning: '警告',
+    info: '信息',
+  };
+
+  const STATUS_LABELS: Record<string, string> = {
+    active: '活跃',
+    acknowledged: '已确认',
+    resolved: '已解决',
   };
 
   const columns = [
     { title: 'ID', dataIndex: 'id', key: 'id', width: 80 },
     {
-      title: 'Level',
+      title: '级别',
       dataIndex: 'alert_level',
       key: 'alert_level',
       width: 120,
-      render: (level: string) => <Tag color={ALERT_LEVEL_COLORS[level] || 'default'}>{level}</Tag>,
+      render: (level: string) => <Tag color={ALERT_LEVEL_COLORS[level] || 'default'}>{ALERT_LEVEL_LABELS[level] || level}</Tag>,
     },
     {
-      title: 'Status',
+      title: '状态',
       dataIndex: 'status',
       key: 'status',
       width: 140,
-      render: (status: string) => <Tag color={STATUS_COLORS[status] || 'default'}>{status}</Tag>,
+      render: (status: string) => <Tag color={STATUS_COLORS[status] || 'default'}>{STATUS_LABELS[status] || status}</Tag>,
     },
     {
-      title: 'Finding',
+      title: '发现',
       dataIndex: 'finding_id',
       key: 'finding_id',
       width: 120,
     },
     {
-      title: 'Created',
+      title: '创建时间',
       dataIndex: 'created_at',
       key: 'created_at',
       width: 220,
       render: (value: string) => (value ? new Date(value).toLocaleString() : '-'),
     },
     {
-      title: 'Resolved',
+      title: '解决时间',
       dataIndex: 'resolved_at',
       key: 'resolved_at',
       width: 220,
       render: (value: string) => (value ? new Date(value).toLocaleString() : '-'),
     },
     {
-      title: 'Action',
+      title: '操作',
       key: 'action',
       width: 180,
       render: (_: unknown, record: RiskAlert) => (
         <Space>
           {record.status === 'active' && (
             <Button type="link" icon={<CheckCircleOutlined />} onClick={() => void handleAcknowledge(record.id)}>
-              Acknowledge
+              确认
             </Button>
           )}
           {record.status !== 'resolved' && (
             <Button type="link" icon={<IssuesCloseOutlined />} onClick={() => void handleResolve(record.id)}>
-              Resolve
+              解决
             </Button>
           )}
         </Space>
@@ -128,29 +139,29 @@ const AlertsPage: React.FC = () => {
           background: 'linear-gradient(135deg, #7f1d1d 0%, #1f2937 100%)',
           color: '#fff',
         }}
-        bodyStyle={{ padding: 28 }}
+        styles={{ body: { padding: 28 } }}
       >
         <Title level={2} style={{ color: '#fff', marginTop: 0 }}>
-          Risk alerts
+          风险告警
         </Title>
         <Paragraph style={{ color: 'rgba(255,255,255,0.82)', fontSize: 16, marginBottom: 0 }}>
-          Review and close the highest-risk findings surfaced by the audit workflow.
+          审查并关闭审计流程中发现的高风险问题
         </Paragraph>
       </Card>
 
       <Card bordered={false} style={{ borderRadius: 20 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <Title level={4} style={{ margin: 0 }}>Alert queue</Title>
+          <Title level={4} style={{ margin: 0 }}>告警列表</Title>
           <Select
             allowClear
-            placeholder="Filter by status"
+            placeholder="按状态筛选"
             value={statusFilter}
             onChange={(value) => setStatusFilter(value)}
             style={{ width: 180 }}
             options={[
-              { value: 'active', label: 'active' },
-              { value: 'acknowledged', label: 'acknowledged' },
-              { value: 'resolved', label: 'resolved' },
+              { value: 'active', label: '活跃' },
+              { value: 'acknowledged', label: '已确认' },
+              { value: 'resolved', label: '已解决' },
             ]}
           />
         </div>
@@ -161,7 +172,7 @@ const AlertsPage: React.FC = () => {
           loading={loading}
           rowKey="id"
           pagination={{ pageSize: 10 }}
-          locale={{ emptyText: <Empty description="No alerts found" /> }}
+          locale={{ emptyText: <Empty description="暂无告警" /> }}
         />
       </Card>
     </div>

@@ -1,6 +1,7 @@
 import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { Layout, Spin } from 'antd';
+import { ConfigProvider, Layout, Spin } from 'antd';
+import zhCN from 'antd/locale/zh_CN';
 import Header from './components/common/Header';
 import Sidebar from './components/common/Sidebar';
 import ErrorBoundary from './components/common/ErrorBoundary';
@@ -49,13 +50,15 @@ const AppLayout: React.FC = () => (
 
 const App: React.FC = () => {
   return (
-    <Router>
-      <Suspense fallback={<Loading />}>
-        <Routes>
-          <Route path="/*" element={<AppLayout />} />
-        </Routes>
-      </Suspense>
-    </Router>
+    <ConfigProvider locale={zhCN}>
+      <Router>
+        <Suspense fallback={<Loading />}>
+          <Routes>
+            <Route path="/*" element={<AppLayout />} />
+          </Routes>
+        </Suspense>
+      </Router>
+    </ConfigProvider>
   );
 };
 

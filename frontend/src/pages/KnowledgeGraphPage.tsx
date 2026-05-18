@@ -103,7 +103,7 @@ const KnowledgeGraphPage: React.FC = () => {
         setBuildLogs((buildStatus.recent_logs || []).join('\n'));
         if (!buildStatus.building) {
           setBuilding(false);
-          message.success('Knowledge graph build completed');
+          message.success('知识图谱构建完成');
           void loadData();
           void loadGraphData();
           if (pollRef.current) {
@@ -128,17 +128,17 @@ const KnowledgeGraphPage: React.FC = () => {
     try {
       setBuilding(true);
       await kgApi.build(force);
-      message.info('Graph build started in the background');
+      message.info('图谱构建已在后台启动');
     } catch (error: any) {
       setBuilding(false);
-      message.error(error?.response?.data?.detail || 'Failed to start graph build');
+      message.error(error?.response?.data?.detail || '启动图谱构建失败');
     }
   };
 
   const handleQuery = useCallback(async (value?: string) => {
     const nextQuery = (value ?? queryText).trim();
     if (!nextQuery) {
-      message.warning('Enter a regulation or finding query');
+      message.warning('请输入法规或发现的查询词');
       return;
     }
 
@@ -148,7 +148,7 @@ const KnowledgeGraphPage: React.FC = () => {
       const result = await kgApi.query(nextQuery);
       setQueryResults(result?.results || []);
     } catch (error: any) {
-      message.error(error?.response?.data?.detail || 'Query failed');
+      message.error(error?.response?.data?.detail || '查询失败');
       setQueryResults([]);
     } finally {
       setQueryLoading(false);
@@ -167,11 +167,11 @@ const KnowledgeGraphPage: React.FC = () => {
     try {
       const result = await kgApi.uploadDocument(file as File);
       onSuccess?.(result);
-      message.success(`Uploaded ${result.filename}`);
+      message.success(`已上传 ${result.filename}`);
       void loadData();
     } catch (error) {
       onError?.(error as Error);
-      message.error('Upload failed');
+      message.error('上传失败');
     } finally {
       setUploading(false);
     }
@@ -179,17 +179,17 @@ const KnowledgeGraphPage: React.FC = () => {
 
   const handleDelete = (filename: string) => {
     Modal.confirm({
-      title: 'Delete source document',
-      content: `Remove ${filename} from the graph input set?`,
-      okText: 'Delete',
+      title: '删除源文档',
+      content: `确认从图谱输入集中移除 ${filename}？`,
+      okText: '删除',
       okType: 'danger',
       onOk: async () => {
         try {
           await kgApi.deleteDocument(filename);
-          message.success('Document removed');
+          message.success('文档已移除');
           void loadData();
         } catch {
-          message.error('Delete failed');
+          message.error('删除失败');
         }
       },
     });
@@ -238,7 +238,7 @@ const KnowledgeGraphPage: React.FC = () => {
             const description = params.data.description ? `<br/>${params.data.description}` : '';
             return `<strong>${params.data.name}</strong><br/>${params.data.category}${description}`;
           }
-          return params.data.label || 'relation';
+          return params.data.label || '关系';
         },
       },
       legend: { data: categories, bottom: 0 },
@@ -281,28 +281,28 @@ const KnowledgeGraphPage: React.FC = () => {
   }, [focusedGraph]);
 
   const docColumns = [
-    { title: 'Source document', dataIndex: 'filename', key: 'filename' },
+    { title: '文件名', dataIndex: 'filename', key: 'filename' },
     {
-      title: 'Size',
+      title: '大小',
       dataIndex: 'size',
       key: 'size',
       width: 120,
       render: (size: number) => `${(size / 1024).toFixed(1)} KB`,
     },
     {
-      title: 'Modified',
+      title: '修改时间',
       dataIndex: 'modified',
       key: 'modified',
       width: 220,
       render: (value: string) => (value ? new Date(value).toLocaleString() : '-'),
     },
     {
-      title: 'Action',
+      title: '操作',
       key: 'action',
       width: 90,
       render: (_: unknown, record: KGDocument) => (
         <Button type="link" danger size="small" icon={<DeleteOutlined />} onClick={() => handleDelete(record.filename)}>
-          Delete
+          删除
         </Button>
       ),
     },
@@ -318,21 +318,21 @@ const KnowledgeGraphPage: React.FC = () => {
           background: 'linear-gradient(135deg, #082f49 0%, #0f766e 100%)',
           color: '#fff',
         }}
-        bodyStyle={{ padding: 28 }}
+        styles={{ body: { padding: 28 } }}
       >
         <Space direction="vertical" size={12} style={{ width: '100%' }}>
           <Tag color="rgba(255,255,255,0.18)" style={{ borderRadius: 999, alignSelf: 'flex-start' }}>
-            evidence graph
+            知识图谱
           </Tag>
           <Title level={2} style={{ color: '#fff', margin: 0 }}>
-            Trace findings back to regulation evidence instead of trusting the report blindly.
+            基于法规文档构建知识图谱，支持语义检索
           </Title>
           <Paragraph style={{ color: 'rgba(255,255,255,0.82)', fontSize: 16, marginBottom: 0 }}>
-            Build the regulation graph, search it with the same terms your audit agent used, and inspect the connected concepts before approving a report.
+            使用与审计智能体相同的检索词查询图谱，在审批报告前审查关联的法规概念
           </Paragraph>
           <Input.Search
-            placeholder="Try: deviation handling, CAPA, documentation control"
-            enterButton="Query graph"
+            placeholder="试试：偏差处理、CAPA、文件管理"
+            enterButton="查询图谱"
             size="large"
             value={queryText}
             onChange={(event) => setQueryText(event.target.value)}
@@ -346,42 +346,42 @@ const KnowledgeGraphPage: React.FC = () => {
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} md={8}>
           <Card bordered={false} loading={loading} style={{ borderRadius: 20 }}>
-            <Statistic title="Source documents" value={documents.length} />
+            <Statistic title="法规文档" value={documents.length} />
           </Card>
         </Col>
         <Col xs={24} md={8}>
           <Card bordered={false} loading={loading} style={{ borderRadius: 20 }}>
-            <Statistic title="Graph files" value={status?.file_count || 0} prefix={<BranchesOutlined />} />
+            <Statistic title="图谱文件" value={status?.file_count || 0} prefix={<BranchesOutlined />} />
           </Card>
         </Col>
         <Col xs={24} md={8}>
           <Card bordered={false} loading={loading} style={{ borderRadius: 20 }}>
-            <Statistic title="Graph status" value={status?.built ? 'Ready' : 'Not built'} />
+            <Statistic title="图谱状态" value={status?.built ? '已构建' : '未构建'} />
           </Card>
         </Col>
       </Row>
 
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} lg={8}>
-          <Card bordered={false} style={{ borderRadius: 20 }} title="Graph operations">
+          <Card bordered={false} style={{ borderRadius: 20 }} title="图谱操作">
             <Space direction="vertical" style={{ width: '100%' }} size={12}>
               <Button type="primary" icon={<BuildOutlined />} loading={building} onClick={() => void handleBuild(false)} block>
-                {status?.built ? 'Rebuild graph' : 'Build graph'}
+                {status?.built ? '重新构建' : '构建图谱'}
               </Button>
               <Button onClick={() => void handleBuild(true)} disabled={building || !documents.length} block>
-                Force rebuild
+                强制重建
               </Button>
               <Upload customRequest={handleUpload} showUploadList={false} accept=".txt,.md" disabled={uploading}>
                 <Button icon={<UploadOutlined />} loading={uploading} block>
-                  Upload regulation source
+                  上传法规文档
                 </Button>
               </Upload>
-              <Text type="secondary">Text and Markdown files only.</Text>
+              <Text type="secondary">仅支持文本和 Markdown 文件</Text>
             </Space>
           </Card>
         </Col>
         <Col xs={24} lg={16}>
-          <Card bordered={false} style={{ borderRadius: 20 }} title="Evidence signal">
+          <Card bordered={false} style={{ borderRadius: 20 }} title="检索结果">
             {queryResults.length > 0 ? (
               <List
                 dataSource={queryResults}
@@ -399,16 +399,16 @@ const KnowledgeGraphPage: React.FC = () => {
                 )}
               />
             ) : (
-              <Empty description={status?.built ? 'Run a graph query to inspect evidence' : 'Build the graph first'} />
+              <Empty description={status?.built ? '执行图谱查询以检查证据' : '请先构建图谱'} />
             )}
           </Card>
         </Col>
       </Row>
 
       {building && (
-        <Card bordered={false} style={{ marginBottom: 24, borderRadius: 20 }} title="Build log">
+        <Card bordered={false} style={{ marginBottom: 24, borderRadius: 20 }} title="构建日志">
           <pre style={{ margin: 0, whiteSpace: 'pre-wrap', maxHeight: 220, overflow: 'auto' }}>
-            {buildLogs || 'Waiting for build output...'}
+            {buildLogs || '等待构建输出...'}
           </pre>
         </Card>
       )}
@@ -416,11 +416,11 @@ const KnowledgeGraphPage: React.FC = () => {
       <Card
         bordered={false}
         style={{ marginBottom: 24, borderRadius: 20 }}
-        title="Focused graph view"
-        extra={<Button type="link" icon={<SearchOutlined />} onClick={() => void loadGraphData()}>Refresh graph</Button>}
+        title="聚焦视图"
+        extra={<Button type="link" icon={<SearchOutlined />} onClick={() => void loadGraphData()}>刷新图谱</Button>}
       >
         {graphLoading ? (
-          <div style={{ height: 520, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading graph...</div>
+          <div style={{ height: 520, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>加载图谱中...</div>
         ) : chartOption ? (
           <div style={{ height: 520 }}>
             <ReactECharts
@@ -436,23 +436,23 @@ const KnowledgeGraphPage: React.FC = () => {
             />
           </div>
         ) : (
-          <Empty description="No graph data available" />
+          <Empty description="暂无图谱数据" />
         )}
       </Card>
 
-      <Card bordered={false} style={{ borderRadius: 20 }} title="Graph source library">
+      <Card bordered={false} style={{ borderRadius: 20 }} title="法规库">
         <Table
           columns={docColumns}
           dataSource={documents}
           rowKey="filename"
           pagination={false}
           loading={loading}
-          locale={{ emptyText: <Empty description="No graph source files uploaded" /> }}
+          locale={{ emptyText: <Empty description="暂无已上传的法规源文件" /> }}
         />
       </Card>
 
       <Modal
-        title={selectedNode?.name || 'Node details'}
+        title={selectedNode?.name || '节点详情'}
         open={!!selectedNode}
         onCancel={() => setSelectedNode(null)}
         footer={null}
@@ -461,7 +461,7 @@ const KnowledgeGraphPage: React.FC = () => {
           <Space direction="vertical" size={12} style={{ width: '100%' }}>
             <Tag color={CATEGORY_COLORS[selectedNode.category] || CATEGORY_COLORS.unknown}>{selectedNode.category}</Tag>
             <Paragraph style={{ marginBottom: 0 }}>
-              {selectedNode.description || 'No node description available.'}
+              {selectedNode.description || '暂无节点描述'}
             </Paragraph>
           </Space>
         )}
