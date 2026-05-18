@@ -28,19 +28,19 @@ const Sidebar: React.FC = () => {
   ];
 
   return (
-    <Sider width={248} style={{ background: '#0f172a', padding: 16 }}>
+    <Sider width={248} style={{ background: '#FFFFFF', padding: 16, borderRight: '1px solid #E8E5E0' }}>
       <div
         style={{
           minHeight: 92,
           padding: 16,
           marginBottom: 16,
-          borderRadius: 20,
-          background: 'linear-gradient(135deg, #1d4ed8 0%, #0f766e 100%)',
-          color: '#fff',
+          borderRadius: 12,
+          background: '#FFFFFF',
+          borderLeft: '4px solid #D97757',
         }}
       >
-        <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>AuditBee</div>
-        <Text style={{ color: 'rgba(255,255,255,0.78)' }}>
+        <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 4, color: '#1A1A1A' }}>AuditBee</div>
+        <Text style={{ color: '#6B7280' }}>
           多智能体 GMP 合规审计
         </Text>
       </div>
@@ -51,10 +51,8 @@ const Sidebar: React.FC = () => {
         onClick={({ key }) => navigate(key)}
         style={{
           background: 'transparent',
-          color: '#e2e8f0',
           borderInlineEnd: 'none',
         }}
-        theme="dark"
       />
     </Sider>
   );

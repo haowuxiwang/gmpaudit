@@ -91,7 +91,7 @@ const ReportsPage: React.FC = () => {
       title: '模式',
       key: 'mode',
       width: 180,
-      render: (_: unknown, record: Report) => record.report_metadata?.report_mode || 'n/a',
+      render: (_: unknown, record: Report) => record.report_metadata?.report_mode || '未知',
     },
     {
       title: '创建时间',
@@ -118,21 +118,21 @@ const ReportsPage: React.FC = () => {
         bordered={false}
         style={{
           marginBottom: 24,
-          borderRadius: 24,
-          background: 'linear-gradient(135deg, #1f2937 0%, #7c3aed 100%)',
-          color: '#fff',
+          borderRadius: 12,
+          background: '#FFFFFF',
+          borderLeft: '4px solid #D97757',
         }}
         styles={{ body: { padding: 28 } }}
       >
-        <Title level={2} style={{ color: '#fff', marginTop: 0 }}>
+        <Title level={2} style={{ color: '#1A1A1A', marginTop: 0 }}>
           审计报告
         </Title>
-        <Paragraph style={{ color: 'rgba(255,255,255,0.82)', fontSize: 16, marginBottom: 0 }}>
+        <Paragraph style={{ color: '#6B7280', fontSize: 16, marginBottom: 0 }}>
           查看审计报告，追溯报告来源和生成方式
         </Paragraph>
       </Card>
 
-      <Card bordered={false} style={{ borderRadius: 20 }}>
+      <Card bordered={false} style={{ borderRadius: 12 }}>
         <Title level={4}>报告列表</Title>
         <Table
           columns={columns}

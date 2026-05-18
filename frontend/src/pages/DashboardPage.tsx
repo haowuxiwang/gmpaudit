@@ -79,8 +79,6 @@ const DashboardPage: React.FC = () => {
     [recentTasks],
   );
 
-  const heroTone = activeTask?.status === 'running' ? '#f59e0b' : '#0f766e';
-
   const columns = [
     {
       title: '任务',
@@ -136,23 +134,22 @@ const DashboardPage: React.FC = () => {
         bordered={false}
         style={{
           marginBottom: 24,
-          borderRadius: 24,
-          background: `linear-gradient(135deg, ${heroTone} 0%, #111827 100%)`,
-          color: '#fff',
-          overflow: 'hidden',
+          borderRadius: 12,
+          background: '#FFFFFF',
+          borderLeft: '4px solid #D97757',
         }}
         styles={{ body: { padding: 28 } }}
       >
         <Row gutter={[24, 24]} align="middle">
           <Col xs={24} lg={16}>
             <Space direction="vertical" size={12} style={{ width: '100%' }}>
-              <Tag color="rgba(255,255,255,0.18)" style={{ alignSelf: 'flex-start', borderRadius: 999 }}>
+              <Tag color="#D97757" style={{ alignSelf: 'flex-start', borderRadius: 999 }}>
                 审计工作台
               </Tag>
-              <Title level={2} style={{ color: '#fff', margin: 0 }}>
+              <Title level={2} style={{ color: '#1A1A1A', margin: 0 }}>
                 AuditBee
               </Title>
-              <Paragraph style={{ color: 'rgba(255,255,255,0.82)', fontSize: 16, marginBottom: 0 }}>
+              <Paragraph style={{ color: '#6B7280', fontSize: 16, marginBottom: 0 }}>
                 多智能体协作完成 GMP 合规审计，自动生成结构化报告。
               </Paragraph>
               <Space wrap>
@@ -171,20 +168,20 @@ const DashboardPage: React.FC = () => {
           <Col xs={24} lg={8}>
             <Card
               bordered={false}
-              style={{ borderRadius: 20, background: 'rgba(255,255,255,0.1)', color: '#fff' }}
+              style={{ borderRadius: 12, background: '#FAFAF8' }}
               styles={{ body: { padding: 20 } }}
             >
               <Space direction="vertical" style={{ width: '100%' }} size={12}>
-                <Text style={{ color: 'rgba(255,255,255,0.75)' }}>当前焦点</Text>
+                <Text style={{ color: '#6B7280' }}>当前焦点</Text>
                 {activeTask ? (
                   <>
-                    <Title level={4} style={{ color: '#fff', margin: 0 }}>
+                    <Title level={4} style={{ color: '#1A1A1A', margin: 0 }}>
                       {activeTask.task_name}
                     </Title>
-                    <Text style={{ color: 'rgba(255,255,255,0.82)' }}>
+                    <Text style={{ color: '#6B7280' }}>
                       {STAGE_LABELS[activeTask.stage || 'pending'] || activeTask.stage || '待处理'}
                     </Text>
-                    <Progress percent={activeTask.progress || 0} strokeColor="#f8fafc" trailColor="rgba(255,255,255,0.15)" />
+                    <Progress percent={activeTask.progress || 0} strokeColor="#D97757" trailColor="#E8E5E0" />
                     <Button
                       block
                       icon={<RightCircleOutlined />}
@@ -195,7 +192,7 @@ const DashboardPage: React.FC = () => {
                   </>
                 ) : (
                   <Empty
-                    description={<span style={{ color: 'rgba(255,255,255,0.75)' }}>暂无任务记录</span>}
+                    description={<span style={{ color: '#6B7280' }}>暂无任务记录</span>}
                     image={Empty.PRESENTED_IMAGE_SIMPLE}
                   />
                 )}
@@ -207,27 +204,27 @@ const DashboardPage: React.FC = () => {
 
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} md={12} xl={6}>
-          <Card loading={loading} bordered={false} style={{ borderRadius: 20 }}>
+          <Card loading={loading} bordered={false} style={{ borderRadius: 12 }}>
             <Statistic title="文档总数" value={stats.totalDocuments} prefix={<FileTextOutlined />} />
           </Card>
         </Col>
         <Col xs={24} md={12} xl={6}>
-          <Card loading={loading} bordered={false} style={{ borderRadius: 20 }}>
+          <Card loading={loading} bordered={false} style={{ borderRadius: 12 }}>
             <Statistic title="审计任务" value={stats.totalTasks} prefix={<RobotOutlined />} />
           </Card>
         </Col>
         <Col xs={24} md={12} xl={6}>
-          <Card loading={loading} bordered={false} style={{ borderRadius: 20 }}>
+          <Card loading={loading} bordered={false} style={{ borderRadius: 12 }}>
             <Statistic title="已完成报告" value={stats.completedTasks} prefix={<FileSearchOutlined />} />
           </Card>
         </Col>
         <Col xs={24} md={12} xl={6}>
-          <Card loading={loading} bordered={false} style={{ borderRadius: 20 }}>
+          <Card loading={loading} bordered={false} style={{ borderRadius: 12 }}>
             <Statistic
               title="高风险发现"
               value={stats.highRiskFindings}
               prefix={<WarningOutlined />}
-              valueStyle={{ color: '#cf1322' }}
+              valueStyle={{ color: '#DC2626' }}
             />
           </Card>
         </Col>
@@ -237,7 +234,7 @@ const DashboardPage: React.FC = () => {
         <Alert
           type="warning"
           showIcon
-          style={{ marginBottom: 24, borderRadius: 16 }}
+          style={{ marginBottom: 24, borderRadius: 8 }}
           message={`${dashboard.task_counts.running} 个审计任务正在执行`}
           description="可在工作台监控阶段进度、查看发现项，任务完成后可直接查看报告。"
         />
@@ -247,7 +244,7 @@ const DashboardPage: React.FC = () => {
         <Col xs={24} xl={14}>
           <Card
             bordered={false}
-            style={{ borderRadius: 20 }}
+            style={{ borderRadius: 12 }}
             title="最近任务"
             extra={<Button type="link" onClick={() => navigate('/audit')}>查看全部</Button>}
           >
@@ -262,15 +259,15 @@ const DashboardPage: React.FC = () => {
           </Card>
         </Col>
         <Col xs={24} xl={10}>
-          <Card bordered={false} style={{ borderRadius: 20 }} title="系统概览">
+          <Card bordered={false} style={{ borderRadius: 12 }} title="系统概览">
             <Space direction="vertical" size={16} style={{ width: '100%' }}>
-              <Card size="small" style={{ borderRadius: 16, background: '#f8fafc' }}>
+              <Card size="small" style={{ borderRadius: 8, background: '#FAFAF8' }}>
                 <Text strong>审计流程</Text>
                 <Paragraph style={{ margin: '8px 0 0' }}>
                   智能体依次完成法规检索、风险评估和报告撰写。可在工作台查看任务执行状态。
                 </Paragraph>
               </Card>
-              <Card size="small" style={{ borderRadius: 16, background: '#fff7ed' }}>
+              <Card size="small" style={{ borderRadius: 8, background: '#FFF8F5' }}>
                 <Text strong>数据链路</Text>
                 <Paragraph style={{ margin: '8px 0 0' }}>
                   结合知识图谱验证引用的法规依据，确保报告准确性。

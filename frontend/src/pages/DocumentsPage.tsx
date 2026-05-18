@@ -189,27 +189,27 @@ const DocumentsPage: React.FC = () => {
         bordered={false}
         style={{
           marginBottom: 24,
-          borderRadius: 24,
-          background: 'linear-gradient(135deg, #0f172a 0%, #0f766e 100%)',
-          color: '#fff',
+          borderRadius: 12,
+          background: '#FFFFFF',
+          borderLeft: '4px solid #D97757',
         }}
         styles={{ body: { padding: 28 } }}
       >
         <Space direction="vertical" size={12} style={{ width: '100%' }}>
-          <Tag color="rgba(255,255,255,0.18)" style={{ borderRadius: 999, alignSelf: 'flex-start' }}>
+          <Tag color="#D97757" style={{ borderRadius: 999, alignSelf: 'flex-start' }}>
             文档管理
           </Tag>
-          <Title level={2} style={{ color: '#fff', margin: 0 }}>
+          <Title level={2} style={{ color: '#1A1A1A', margin: 0 }}>
             上传文档，系统自动解析后用于审计分析
           </Title>
-          <Paragraph style={{ color: 'rgba(255,255,255,0.82)', fontSize: 16, marginBottom: 0 }}>
+          <Paragraph style={{ color: '#6B7280', fontSize: 16, marginBottom: 0 }}>
             上传原始文档，等待解析完成后即可提交审计
           </Paragraph>
         </Space>
       </Card>
 
       {documents.length > 0 && (
-        <Card bordered={false} style={{ marginBottom: 16, borderRadius: 20 }}>
+        <Card bordered={false} style={{ marginBottom: 16, borderRadius: 12 }}>
           <Steps
             current={processedCount > 0 ? 2 : pendingCount > 0 ? 1 : 0}
             items={[
@@ -227,7 +227,7 @@ const DocumentsPage: React.FC = () => {
         showUploadList={false}
         accept=".pdf,.docx,.doc,.txt,.jpg,.jpeg,.png"
         disabled={uploading}
-        style={{ marginBottom: 16, borderRadius: 20, overflow: 'hidden' }}
+        style={{ marginBottom: 16, borderRadius: 12, overflow: 'hidden' }}
       >
         <p className="ant-upload-drag-icon">
           <InboxOutlined />
@@ -237,12 +237,12 @@ const DocumentsPage: React.FC = () => {
       </Upload.Dragger>
 
       {pendingCount > 0 && (
-        <Card size="small" style={{ marginBottom: 16, borderRadius: 16, background: '#fffbe6' }}>
+        <Card size="small" style={{ marginBottom: 16, borderRadius: 8, background: '#FFFBEB' }}>
           <Text>{pendingCount} 个文档正在处理中</Text>
         </Card>
       )}
 
-      <Card bordered={false} style={{ borderRadius: 20 }}>
+      <Card bordered={false} style={{ borderRadius: 12 }}>
         <Title level={4}>文档列表</Title>
         <Table
           columns={columns}

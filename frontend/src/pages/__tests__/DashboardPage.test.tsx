@@ -58,13 +58,13 @@ describe('DashboardPage', () => {
     renderWithRouter(<DashboardPage />);
 
     await waitFor(() => {
-      expect(screen.getByText('AI agent control room')).toBeInTheDocument();
+      expect(screen.getByText('审计工作台')).toBeInTheDocument();
     });
 
     expect(
-      screen.getByText(/AuditBee runs audits as a guided agent session/i),
+      screen.getByText(/多智能体协作完成/i),
     ).toBeInTheDocument();
-    expect(screen.getByText('Resume this session')).toBeInTheDocument();
+    expect(screen.getByText('继续此任务')).toBeInTheDocument();
   });
 
   test('renders recent sessions table', async () => {
@@ -98,11 +98,11 @@ describe('DashboardPage', () => {
     renderWithRouter(<DashboardPage />);
 
     await waitFor(() => {
-      expect(screen.getByText('Evidence documents')).toBeInTheDocument();
+      expect(screen.getByText('任务文档')).toBeInTheDocument();
     });
 
-    expect(screen.getByText('Recent agent sessions')).toBeInTheDocument();
+    expect(screen.getByText('最近任务')).toBeInTheDocument();
     expect(screen.getAllByText('SOP review').length).toBeGreaterThan(0);
-    expect(screen.getByText('Open workspace')).toBeInTheDocument();
+    expect(screen.getByText('进入工作台')).toBeInTheDocument();
   });
 });

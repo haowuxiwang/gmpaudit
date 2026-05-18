@@ -24,11 +24,11 @@ const Loading = () => (
 );
 
 const AppLayout: React.FC = () => (
-  <Layout style={{ minHeight: '100vh', background: '#e5e7eb' }}>
+  <Layout style={{ minHeight: '100vh', background: '#FAFAF8' }}>
     <Sidebar />
     <Layout>
       <Header />
-      <Content style={{ padding: '24px', background: 'linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%)' }}>
+      <Content style={{ padding: '24px', background: '#FAFAF8' }}>
         <ErrorBoundary>
           <Suspense fallback={<Loading />}>
             <Routes>
@@ -50,7 +50,20 @@ const AppLayout: React.FC = () => (
 
 const App: React.FC = () => {
   return (
-    <ConfigProvider locale={zhCN}>
+    <ConfigProvider
+      locale={zhCN}
+      theme={{
+        token: {
+          colorPrimary: '#D97757',
+          colorBgLayout: '#FAFAF8',
+          colorBgContainer: '#FFFFFF',
+          borderRadius: 8,
+          colorText: '#1A1A1A',
+          colorTextSecondary: '#6B7280',
+          colorBorder: '#E8E5E0',
+        },
+      }}
+    >
       <Router>
         <Suspense fallback={<Loading />}>
           <Routes>

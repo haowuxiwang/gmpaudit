@@ -263,22 +263,22 @@ const AuditTasksPage: React.FC = () => {
         bordered={false}
         style={{
           marginBottom: 24,
-          borderRadius: 24,
-          background: 'linear-gradient(135deg, #111827 0%, #1d4ed8 100%)',
-          color: '#fff',
+          borderRadius: 12,
+          background: '#FFFFFF',
+          borderLeft: '4px solid #D97757',
         }}
         styles={{ body: { padding: 28 } }}
       >
         <Row gutter={[24, 24]} align="middle">
           <Col xs={24} xl={16}>
             <Space direction="vertical" size={12}>
-              <Tag color="rgba(255,255,255,0.18)" style={{ borderRadius: 999, alignSelf: 'flex-start' }}>
+              <Tag color="#D97757" style={{ borderRadius: 999, alignSelf: 'flex-start' }}>
                 审计任务
               </Tag>
-              <Title level={2} style={{ color: '#fff', margin: 0 }}>
+              <Title level={2} style={{ color: '#1A1A1A', margin: 0 }}>
                 创建审计任务，多智能体协作完成合规分析
               </Title>
-              <Paragraph style={{ color: 'rgba(255,255,255,0.82)', fontSize: 16, marginBottom: 0 }}>
+              <Paragraph style={{ color: '#6B7280', fontSize: 16, marginBottom: 0 }}>
                 实时查看任务进度、文档解析状态、审计发现和知识图谱溯源
               </Paragraph>
               <Space wrap>
@@ -298,19 +298,19 @@ const AuditTasksPage: React.FC = () => {
             </Space>
           </Col>
           <Col xs={24} xl={8}>
-            <Card bordered={false} style={{ borderRadius: 20, background: 'rgba(255,255,255,0.08)' }}>
+            <Card bordered={false} style={{ borderRadius: 12, background: '#FAFAF8' }}>
               <Space direction="vertical" size={12} style={{ width: '100%' }}>
-                <Text style={{ color: 'rgba(255,255,255,0.75)' }}>当前任务</Text>
-                <Title level={4} style={{ color: '#fff', margin: 0 }}>
+                <Text style={{ color: '#6B7280' }}>当前任务</Text>
+                <Title level={4} style={{ color: '#1A1A1A', margin: 0 }}>
                   {selectedTask?.task_name || '未选择任务'}
                 </Title>
-                <Text style={{ color: 'rgba(255,255,255,0.82)' }}>
+                <Text style={{ color: '#6B7280' }}>
                   {selectedTask ? STAGE_LABELS[selectedTask.stage || 'pending'] || selectedTask.stage : '请选择任务'}
                 </Text>
                 <Progress
                   percent={selectedTask?.progress || 0}
-                  strokeColor="#f8fafc"
-                  trailColor="rgba(255,255,255,0.14)"
+                  strokeColor="#D97757"
+                  trailColor="#E8E5E0"
                 />
               </Space>
             </Card>
@@ -320,17 +320,17 @@ const AuditTasksPage: React.FC = () => {
 
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} md={8}>
-          <Card bordered={false} style={{ borderRadius: 20 }}>
+          <Card bordered={false} style={{ borderRadius: 12 }}>
             <Statistic title="进行中" value={runningCount} prefix={<ThunderboltOutlined />} />
           </Card>
         </Col>
         <Col xs={24} md={8}>
-          <Card bordered={false} style={{ borderRadius: 20 }}>
+          <Card bordered={false} style={{ borderRadius: 12 }}>
             <Statistic title="已完成" value={completedCount} prefix={<FileSearchOutlined />} />
           </Card>
         </Col>
         <Col xs={24} md={8}>
-          <Card bordered={false} style={{ borderRadius: 20 }}>
+          <Card bordered={false} style={{ borderRadius: 12 }}>
             <Statistic title="失败" value={failedCount} prefix={<RobotOutlined />} />
           </Card>
         </Col>
@@ -340,7 +340,7 @@ const AuditTasksPage: React.FC = () => {
         <Col xs={24} xl={13}>
           <Card
             bordered={false}
-            style={{ borderRadius: 20 }}
+            style={{ borderRadius: 12 }}
             title="任务列表"
             extra={<Button type="link" onClick={() => void loadTasks(true, selectedTaskId)}>刷新</Button>}
           >
@@ -366,7 +366,7 @@ const AuditTasksPage: React.FC = () => {
           <Space direction="vertical" size={16} style={{ width: '100%' }}>
             <Card
               bordered={false}
-              style={{ borderRadius: 20 }}
+              style={{ borderRadius: 12 }}
               title="执行时间线"
               extra={
                 selectedTask?.report_id ? (
@@ -398,7 +398,7 @@ const AuditTasksPage: React.FC = () => {
                     }))}
                   />
                   {selectedTask.error_message && (
-                    <Card size="small" style={{ borderRadius: 16, background: '#fff1f0' }}>
+                    <Card size="small" style={{ borderRadius: 8, background: '#FEF2F2' }}>
                       <Text strong>错误</Text>
                       <Paragraph style={{ margin: '8px 0 0' }}>{selectedTask.error_message}</Paragraph>
                     </Card>
@@ -409,7 +409,7 @@ const AuditTasksPage: React.FC = () => {
               )}
             </Card>
 
-            <Card bordered={false} style={{ borderRadius: 20 }} title="审计发现">
+            <Card bordered={false} style={{ borderRadius: 12 }} title="审计发现">
               {selectedTask ? (
                 <Space direction="vertical" size={16} style={{ width: '100%' }}>
                   <div>

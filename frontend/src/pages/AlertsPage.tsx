@@ -135,21 +135,21 @@ const AlertsPage: React.FC = () => {
         bordered={false}
         style={{
           marginBottom: 24,
-          borderRadius: 24,
-          background: 'linear-gradient(135deg, #7f1d1d 0%, #1f2937 100%)',
-          color: '#fff',
+          borderRadius: 12,
+          background: '#FFFFFF',
+          borderLeft: '4px solid #D97757',
         }}
         styles={{ body: { padding: 28 } }}
       >
-        <Title level={2} style={{ color: '#fff', marginTop: 0 }}>
+        <Title level={2} style={{ color: '#1A1A1A', marginTop: 0 }}>
           风险告警
         </Title>
-        <Paragraph style={{ color: 'rgba(255,255,255,0.82)', fontSize: 16, marginBottom: 0 }}>
+        <Paragraph style={{ color: '#6B7280', fontSize: 16, marginBottom: 0 }}>
           审查并关闭审计流程中发现的高风险问题
         </Paragraph>
       </Card>
 
-      <Card bordered={false} style={{ borderRadius: 20 }}>
+      <Card bordered={false} style={{ borderRadius: 12 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <Title level={4} style={{ margin: 0 }}>告警列表</Title>
           <Select

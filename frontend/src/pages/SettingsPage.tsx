@@ -139,16 +139,16 @@ const SettingsPage: React.FC = () => {
         bordered={false}
         style={{
           marginBottom: 24,
-          borderRadius: 24,
-          background: 'linear-gradient(135deg, #1e293b 0%, #0f766e 100%)',
-          color: '#fff',
+          borderRadius: 12,
+          background: '#FFFFFF',
+          borderLeft: '4px solid #D97757',
         }}
         styles={{ body: { padding: 28 } }}
       >
-        <Title level={2} style={{ color: '#fff', marginTop: 0 }}>
+        <Title level={2} style={{ color: '#1A1A1A', marginTop: 0 }}>
           系统设置
         </Title>
-        <Paragraph style={{ color: 'rgba(255,255,255,0.82)', fontSize: 16, marginBottom: 0 }}>
+        <Paragraph style={{ color: '#6B7280', fontSize: 16, marginBottom: 0 }}>
           选择审计任务的默认大模型，配置各模型的密钥和参数
         </Paragraph>
       </Card>
@@ -189,7 +189,7 @@ const SettingsPage: React.FC = () => {
                   <Card
                     key={provider.id}
                     size="small"
-                    style={{ marginBottom: 12, borderRadius: 16 }}
+                    style={{ marginBottom: 12, borderRadius: 8 }}
                     title={(
                       <Space>
                         <Badge status={isConfigured(provider) ? 'success' : 'default'} />
@@ -233,8 +233,8 @@ const SettingsPage: React.FC = () => {
             key: 'feishu',
             label: '飞书通知',
             children: (
-              <Card bordered={false} style={{ borderRadius: 20 }}>
-                <Card type="inner" title="Webhook 配置指南" style={{ marginBottom: 16, borderRadius: 16 }}>
+              <Card bordered={false} style={{ borderRadius: 12 }}>
+                <Card type="inner" title="Webhook 配置指南" style={{ marginBottom: 16, borderRadius: 8 }}>
                   <ol style={{ margin: 0, paddingLeft: 20 }}>
                     <li>创建或打开飞书群机器人</li>
                     <li>复制生成的 Webhook 地址</li>
@@ -277,7 +277,7 @@ const SettingsPage: React.FC = () => {
             key: 'system',
             label: '运行参数',
             children: (
-              <Card bordered={false} style={{ borderRadius: 20 }}>
+              <Card bordered={false} style={{ borderRadius: 12 }}>
                 <Form layout="vertical">
                   <Form.Item label="温度">
                     <InputNumber
@@ -306,10 +306,10 @@ const SettingsPage: React.FC = () => {
                       value={getVal('log_level', 'INFO')}
                       onChange={(value) => setVal('log_level', value)}
                       options={[
-                        { value: 'DEBUG', label: 'DEBUG' },
-                        { value: 'INFO', label: 'INFO' },
-                        { value: 'WARNING', label: 'WARNING' },
-                        { value: 'ERROR', label: 'ERROR' },
+                        { value: 'DEBUG', label: '调试' },
+                        { value: 'INFO', label: '信息' },
+                        { value: 'WARNING', label: '警告' },
+                        { value: 'ERROR', label: '错误' },
                       ]}
                       style={{ width: 220 }}
                     />

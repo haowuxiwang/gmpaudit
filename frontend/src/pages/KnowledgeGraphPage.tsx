@@ -314,20 +314,20 @@ const KnowledgeGraphPage: React.FC = () => {
         bordered={false}
         style={{
           marginBottom: 24,
-          borderRadius: 24,
-          background: 'linear-gradient(135deg, #082f49 0%, #0f766e 100%)',
-          color: '#fff',
+          borderRadius: 12,
+          background: '#FFFFFF',
+          borderLeft: '4px solid #D97757',
         }}
         styles={{ body: { padding: 28 } }}
       >
         <Space direction="vertical" size={12} style={{ width: '100%' }}>
-          <Tag color="rgba(255,255,255,0.18)" style={{ borderRadius: 999, alignSelf: 'flex-start' }}>
+          <Tag color="#D97757" style={{ borderRadius: 999, alignSelf: 'flex-start' }}>
             知识图谱
           </Tag>
-          <Title level={2} style={{ color: '#fff', margin: 0 }}>
+          <Title level={2} style={{ color: '#1A1A1A', margin: 0 }}>
             基于法规文档构建知识图谱，支持语义检索
           </Title>
-          <Paragraph style={{ color: 'rgba(255,255,255,0.82)', fontSize: 16, marginBottom: 0 }}>
+          <Paragraph style={{ color: '#6B7280', fontSize: 16, marginBottom: 0 }}>
             使用与审计智能体相同的检索词查询图谱，在审批报告前审查关联的法规概念
           </Paragraph>
           <Input.Search
@@ -345,17 +345,17 @@ const KnowledgeGraphPage: React.FC = () => {
 
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} md={8}>
-          <Card bordered={false} loading={loading} style={{ borderRadius: 20 }}>
+          <Card bordered={false} loading={loading} style={{ borderRadius: 12 }}>
             <Statistic title="法规文档" value={documents.length} />
           </Card>
         </Col>
         <Col xs={24} md={8}>
-          <Card bordered={false} loading={loading} style={{ borderRadius: 20 }}>
+          <Card bordered={false} loading={loading} style={{ borderRadius: 12 }}>
             <Statistic title="图谱文件" value={status?.file_count || 0} prefix={<BranchesOutlined />} />
           </Card>
         </Col>
         <Col xs={24} md={8}>
-          <Card bordered={false} loading={loading} style={{ borderRadius: 20 }}>
+          <Card bordered={false} loading={loading} style={{ borderRadius: 12 }}>
             <Statistic title="图谱状态" value={status?.built ? '已构建' : '未构建'} />
           </Card>
         </Col>
@@ -363,7 +363,7 @@ const KnowledgeGraphPage: React.FC = () => {
 
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} lg={8}>
-          <Card bordered={false} style={{ borderRadius: 20 }} title="图谱操作">
+          <Card bordered={false} style={{ borderRadius: 12 }} title="图谱操作">
             <Space direction="vertical" style={{ width: '100%' }} size={12}>
               <Button type="primary" icon={<BuildOutlined />} loading={building} onClick={() => void handleBuild(false)} block>
                 {status?.built ? '重新构建' : '构建图谱'}
@@ -381,7 +381,7 @@ const KnowledgeGraphPage: React.FC = () => {
           </Card>
         </Col>
         <Col xs={24} lg={16}>
-          <Card bordered={false} style={{ borderRadius: 20 }} title="检索结果">
+          <Card bordered={false} style={{ borderRadius: 12 }} title="检索结果">
             {queryResults.length > 0 ? (
               <List
                 dataSource={queryResults}
@@ -406,7 +406,7 @@ const KnowledgeGraphPage: React.FC = () => {
       </Row>
 
       {building && (
-        <Card bordered={false} style={{ marginBottom: 24, borderRadius: 20 }} title="构建日志">
+        <Card bordered={false} style={{ marginBottom: 24, borderRadius: 12 }} title="构建日志">
           <pre style={{ margin: 0, whiteSpace: 'pre-wrap', maxHeight: 220, overflow: 'auto' }}>
             {buildLogs || '等待构建输出...'}
           </pre>
@@ -415,7 +415,7 @@ const KnowledgeGraphPage: React.FC = () => {
 
       <Card
         bordered={false}
-        style={{ marginBottom: 24, borderRadius: 20 }}
+        style={{ marginBottom: 24, borderRadius: 12 }}
         title="聚焦视图"
         extra={<Button type="link" icon={<SearchOutlined />} onClick={() => void loadGraphData()}>刷新图谱</Button>}
       >
@@ -440,7 +440,7 @@ const KnowledgeGraphPage: React.FC = () => {
         )}
       </Card>
 
-      <Card bordered={false} style={{ borderRadius: 20 }} title="法规库">
+      <Card bordered={false} style={{ borderRadius: 12 }} title="法规库">
         <Table
           columns={docColumns}
           dataSource={documents}

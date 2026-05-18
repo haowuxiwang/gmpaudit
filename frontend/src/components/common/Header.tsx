@@ -17,7 +17,7 @@ const Header: React.FC = () => {
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        borderBottom: '1px solid #e5e7eb',
+        borderBottom: '1px solid #E8E5E0',
       }}
     >
       <Space direction="vertical" size={0}>
@@ -27,7 +27,7 @@ const Header: React.FC = () => {
       </Space>
 
       <Space size="middle">
-        <Tag color="blue" style={{ borderRadius: 999 }}>
+        <Tag color="#D97757" style={{ borderRadius: 999 }}>
           智能体循环
         </Tag>
         <Button icon={<SettingOutlined />} onClick={() => navigate('/settings')}>
