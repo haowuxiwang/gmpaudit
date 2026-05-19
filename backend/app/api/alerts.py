@@ -16,8 +16,12 @@ async def list_alerts(status: str = None, page: int = 1, page_size: int = 20, db
     query = select(RiskAlert).options(selectinload(RiskAlert.finding))
     count_q = select(func.count()).select_from(RiskAlert)
     if status:
-        query = query.where(RiskAlert.status == AlertStatus(status))
-        count_q = count_q.where(RiskAlert.status == AlertStatus(status))
+        try:
+            alert_status = AlertStatus(status)
+        except ValueError:
+            raise HTTPException(status_code=422, detail=f"无效的状态值: {status}，可选: {[s.value for s in AlertStatus]}")
+        query = query.where(RiskAlert.status == alert_status)
+        count_q = count_q.where(RiskAlert.status == alert_status)
     total = (await db.execute(count_q)).scalar()
     query = query.order_by(RiskAlert.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
     result = await db.execute(query)

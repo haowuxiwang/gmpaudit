@@ -86,8 +86,11 @@ class OpenAICompatibleAdapter(BaseLLMAdapter):
         )
         _check_response(response)
         data = response.json()
+        choices = data.get("choices")
+        if not choices:
+            raise ValueError(f"LLM returned empty choices (model={self.model}, provider={self.name})")
         return LLMResponse(
-            content=data["choices"][0]["message"]["content"],
+            content=choices[0]["message"]["content"],
             model=data["model"],
             usage=data.get("usage", {}),
             finish_reason=data["choices"][0].get("finish_reason", "stop"),
@@ -380,8 +383,11 @@ class LLMEngine:
     async def close(self):
         """Close all adapter HTTP clients."""
         for adapter in self.adapters.values():
-            if hasattr(adapter, "close"):
-                await adapter.close()
+            try:
+                if hasattr(adapter, "close"):
+                    await adapter.close()
+            except Exception:
+                logger.warning("Failed to close LLM adapter: %s", getattr(adapter, "name", adapter))
 
 
 llm_engine = None

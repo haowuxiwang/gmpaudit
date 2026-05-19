@@ -395,6 +395,10 @@ class TaskRunner:
 
                 result_state = await asyncio.wait_for(_stream_graph(), timeout=timeout_seconds)
 
+                if not result_state:
+                    logger.warning("Agent graph returned no result for document %s, using empty state", document.filename)
+                    result_state = {"findings": [], "status": "completed", "risk_level": "unknown"}
+
                 doc_findings = result_state.get("findings", [])
                 for finding in doc_findings:
                     finding["document_id"] = document.id

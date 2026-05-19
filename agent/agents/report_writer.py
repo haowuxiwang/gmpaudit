@@ -77,10 +77,20 @@ async def report_writer_node(state: AuditState) -> dict:
         logger.warning(f"Report Writer LLM call failed, using fallback: {e}")
         used_fallback = True
         # Fallback: generate a basic report without LLM
-        fallback_md = _generate_fallback_report(
-            doc_name, doc_type, risk_score, risk_level,
-            regulation_summary, findings,
-        )
+        try:
+            fallback_md = _generate_fallback_report(
+                doc_name, doc_type, risk_score, risk_level,
+                regulation_summary, findings,
+            )
+        except Exception as fallback_err:
+            logger.error(f"Fallback report generation also failed: {fallback_err}")
+            fallback_md = (
+                f"# GMP 审计报告\n\n"
+                f"- 文档: {doc_name}\n"
+                f"- 风险评分: {risk_score}\n"
+                f"- 发现数量: {len(findings)}\n\n"
+                f"**注意**: 报告生成失败，请检查 LLM 配置后重试。"
+            )
         report_md = "> **注意**: 本报告由备用逻辑生成，因为 LLM 服务不可用。\n\n" + fallback_md
 
     # Save report to file

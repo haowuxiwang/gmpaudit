@@ -75,7 +75,10 @@ async def generate_report(
         }
         for finding in findings
     ]
-    report_content = await llm.generate_report(findings_data)
+    try:
+        report_content = await llm.generate_report(findings_data)
+    except ValueError as exc:
+        raise HTTPException(status_code=503, detail=f"LLM 服务不可用: {exc}")
 
     report = Report(
         task_id=task_id,
