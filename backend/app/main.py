@@ -142,6 +142,14 @@ async def lifespan(app: FastAPI):
     await startup()
     await app.state.task_runner_factory().startup_recover()
 
+    # Preload LightRAG knowledge graph index (non-blocking on failure)
+    try:
+        from agent.tools.lightrag_tool import get_lightrag
+        await get_lightrag()
+        logging.getLogger(__name__).info("LightRAG knowledge graph preloaded")
+    except Exception as e:
+        logging.getLogger(__name__).warning("LightRAG preload failed (will lazy-load on first query): %s", e)
+
     # Periodic cleanup of stale EventBus entries
     async def _eventbus_cleanup():
         while True:
