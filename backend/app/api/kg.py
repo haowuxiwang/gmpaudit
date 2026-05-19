@@ -316,14 +316,14 @@ async def upload_document(
 @router.delete("/documents/{filename}")
 async def delete_document(filename: str):
     """Delete a regulation document from the input directory."""
+    # Security check: ensure filename doesn't contain path traversal
+    if ".." in filename or "/" in filename or "\\" in filename:
+        raise HTTPException(status_code=400, detail="无效的文件名")
+
     filepath = os.path.join(INPUT_DIR, filename)
 
     if not os.path.isfile(filepath):
         raise HTTPException(status_code=404, detail="文件不存在")
-
-    # Security check: ensure filename doesn't contain path traversal
-    if ".." in filename or "/" in filename or "\\" in filename:
-        raise HTTPException(status_code=400, detail="无效的文件名")
 
     os.remove(filepath)
     logger.info(f"Deleted document: {filename}")

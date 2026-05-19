@@ -182,7 +182,7 @@ const SettingsPage: React.FC = () => {
     if (defaultProvider) keys.add(defaultProvider);
     PROVIDERS.forEach((p) => { if (isConfigured(p)) keys.add(p.id); });
     return Array.from(keys);
-  }, [draft]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [draft]);
 
   if (loading) {
     return <Spin size="large" style={{ display: 'block', margin: '100px auto' }} />;

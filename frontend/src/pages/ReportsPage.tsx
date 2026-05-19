@@ -4,7 +4,7 @@ import { DownloadOutlined, FileTextOutlined, PrinterOutlined } from '@ant-design
 import ReactMarkdown from 'react-markdown';
 import { useSearchParams } from 'react-router-dom';
 
-import { reportApi } from '../services/api';
+import { reportApi, API_BASE_URL } from '../services/api';
 import type { Report } from '../types/api';
 import { THEME } from '../constants/theme';
 
@@ -182,7 +182,7 @@ const ReportsPage: React.FC = () => {
               type="primary"
               icon={<PrinterOutlined />}
               disabled={!detailContent?.id}
-              onClick={() => window.open(`http://localhost:8000/api/reports/${detailContent?.id}/export/html`, '_blank')}
+              onClick={() => window.open(`${API_BASE_URL}/reports/${detailContent?.id}/export/html`, '_blank')}
             >
               打印 / 导出 PDF
             </Button>

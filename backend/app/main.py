@@ -67,6 +67,25 @@ async def startup():
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+        # Lightweight schema migration for existing databases
+        import sqlalchemy as sa
+        result = await conn.run_sync(
+            lambda sync_conn: sa.inspect(sync_conn).get_columns("audit_tasks")
+        )
+        existing_cols = {col["name"] for col in result}
+        migrations = {
+            "review_comment": "TEXT",
+            "reviewed_at": "DATETIME",
+            "auto_approve": "BOOLEAN DEFAULT 0",
+        }
+        for col_name, col_type in migrations.items():
+            if col_name not in existing_cols:
+                await conn.execute(sa.text(
+                    f"ALTER TABLE audit_tasks ADD COLUMN {col_name} {col_type}"
+                ))
+                logger.info("Added column audit_tasks.%s", col_name)
+
     logger.info("Database schema verified")
 
     # Recover zombie tasks (RUNNING tasks from previous process)

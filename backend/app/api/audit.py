@@ -261,7 +261,7 @@ async def stream_task_events(task_id: int, db: AsyncSession = Depends(get_db)):
                     yield f"data: {json.dumps({'type': 'event', 'data': event})}\n\n"
                 last_event_count += len(new_events)
 
-                if current_task.status in (TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.REJECTED):
+                if current_task.status in (TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.REJECTED, TaskStatus.AWAITING_REVIEW):
                     yield f"data: {json.dumps({'type': 'done', 'status': current_task.status.value})}\n\n"
                     break
 
