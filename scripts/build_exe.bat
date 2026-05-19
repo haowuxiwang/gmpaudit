@@ -54,13 +54,13 @@ if errorlevel 1 (
 )
 
 echo.
-echo [5/5] 创建运行时目录结构...
-mkdir dist\AuditBee\data\database 2>nul
-mkdir dist\AuditBee\data\documents 2>nul
-mkdir dist\AuditBee\data\processed 2>nul
-mkdir dist\AuditBee\data\reports 2>nul
-mkdir dist\AuditBee\data\logs 2>nul
-copy config\.env.example dist\AuditBee\config\.env >nul
+echo [5/5] Creating runtime directories...
+mkdir dist\AuditBee\_internal\data\database 2>nul
+mkdir dist\AuditBee\_internal\data\documents 2>nul
+mkdir dist\AuditBee\_internal\data\processed 2>nul
+mkdir dist\AuditBee\_internal\data\reports 2>nul
+mkdir dist\AuditBee\_internal\data\logs 2>nul
+copy config\.env.example dist\AuditBee\_internal\config\.env >nul
 echo   Done.
 
 echo.
