@@ -61,6 +61,14 @@ async def startup():
     logger = logging.getLogger(__name__)
     logger.info("AuditBee starting")
 
+    # Add bundled FFmpeg to PATH for torchcodec/sentence_transformers
+    ffmpeg_dir = os.path.join(PROJECT_ROOT, "tools", "ffmpeg")
+    if os.path.isdir(ffmpeg_dir):
+        current_path = os.environ.get("PATH", "")
+        if ffmpeg_dir not in current_path:
+            os.environ["PATH"] = ffmpeg_dir + os.pathsep + current_path
+            logger.info("Added FFmpeg to PATH: %s", ffmpeg_dir)
+
     for d in [settings.UPLOAD_DIR, settings.PROCESSED_DIR, settings.REPORTS_DIR,
               os.path.join(PROJECT_ROOT, "data", "database")]:
         os.makedirs(d, exist_ok=True)

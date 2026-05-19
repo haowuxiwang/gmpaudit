@@ -1,5 +1,6 @@
 import argparse
 import logging
+import os
 import signal
 import sys
 import time
@@ -36,6 +37,20 @@ def main() -> None:
     args = parser.parse_args()
 
     setup_signal_handlers()
+
+    # Add bundled FFmpeg to PATH for torchcodec/sentence_transformers
+    import sys
+    if getattr(sys, 'frozen', False):
+        # Running as PyInstaller bundle
+        bundle_dir = sys._MEIPASS
+        ffmpeg_dir = os.path.join(bundle_dir, 'tools', 'ffmpeg')
+    else:
+        # Running from source
+        ffmpeg_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'tools', 'ffmpeg')
+    if os.path.isdir(ffmpeg_dir):
+        current_path = os.environ.get("PATH", "")
+        if ffmpeg_dir not in current_path:
+            os.environ["PATH"] = ffmpeg_dir + os.pathsep + current_path
 
     if args.data_dir:
         import os
