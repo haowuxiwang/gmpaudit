@@ -9,6 +9,7 @@ import asyncio
 import logging
 import os
 import shutil
+import threading
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -20,6 +21,7 @@ MODEL_DIR = Path(os.getenv("EMBEDDING_MODEL_PATH", str(PROJECT_ROOT / "model")))
 
 # Module-level singleton for embedding model
 _embedding_model = None
+_embedding_lock = threading.Lock()
 
 
 def _get_embedding_func():
@@ -29,9 +31,11 @@ def _get_embedding_func():
     async def embed(texts: list[str]) -> list[list[float]]:
         global _embedding_model
         if _embedding_model is None:
-            from sentence_transformers import SentenceTransformer
-            logger.info("Loading embedding model from %s", MODEL_DIR)
-            _embedding_model = SentenceTransformer(str(MODEL_DIR), device="cpu")
+            with _embedding_lock:
+                if _embedding_model is None:
+                    from sentence_transformers import SentenceTransformer
+                    logger.info("Loading embedding model from %s", MODEL_DIR)
+                    _embedding_model = SentenceTransformer(str(MODEL_DIR), device="cpu")
         import numpy as np
         embeddings = _embedding_model.encode(texts, normalize_embeddings=True)
         return np.array(embeddings)
@@ -215,10 +219,13 @@ async def preload_embedding_model():
     if _embedding_model is not None:
         return
 
-    try:
-        from sentence_transformers import SentenceTransformer
-        logger.info("Preloading embedding model from %s", MODEL_DIR)
-        _embedding_model = SentenceTransformer(str(MODEL_DIR), device="cpu")
-        logger.info("Embedding model preloaded successfully")
-    except Exception as e:
-        logger.warning("Failed to preload embedding model: %s", e)
+    with _embedding_lock:
+        if _embedding_model is not None:
+            return
+        try:
+            from sentence_transformers import SentenceTransformer
+            logger.info("Preloading embedding model from %s", MODEL_DIR)
+            _embedding_model = SentenceTransformer(str(MODEL_DIR), device="cpu")
+            logger.info("Embedding model preloaded successfully")
+        except Exception as e:
+            logger.warning("Failed to preload embedding model: %s", e)

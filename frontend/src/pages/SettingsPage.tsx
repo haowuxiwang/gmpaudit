@@ -179,8 +179,9 @@ const SettingsPage: React.FC = () => {
   // Default active keys: configured providers + default provider
   const activeKeys = useMemo(() => {
     const keys = new Set<string>();
-    if (defaultProvider) keys.add(defaultProvider);
-    PROVIDERS.forEach((p) => { if (isConfigured(p)) keys.add(p.id); });
+    const dp = draft['agent_llm_provider'] || 'mimo';
+    if (dp) keys.add(dp);
+    PROVIDERS.forEach((p) => { if (draft[`${p.id}_api_key`]) keys.add(p.id); });
     return Array.from(keys);
   }, [draft]);
 

@@ -141,7 +141,21 @@ async def lifespan(app: FastAPI):
         )
     await startup()
     await app.state.task_runner_factory().startup_recover()
+
+    # Periodic cleanup of stale EventBus entries
+    async def _eventbus_cleanup():
+        while True:
+            await asyncio.sleep(300)  # every 5 minutes
+            try:
+                await app.state.event_bus.cleanup_stale()
+            except Exception:
+                pass
+
+    import asyncio
+    cleanup_task = asyncio.create_task(_eventbus_cleanup())
+
     yield
+    cleanup_task.cancel()
     from app.services.llm_engine import get_llm_engine
     await app.state.task_runner_factory().shutdown(timeout=30.0)
     await get_llm_engine().close()

@@ -142,29 +142,51 @@ def _get_anthropic_llm(model: Optional[str], temperature: float, max_tokens: int
     )
 
 
-async def call_llm_with_retry(llm, prompt: str, max_retries: int = 1, retry_delay: float = 2.0):
-    """Call LLM with simple retry for transient failures (network, rate limit).
+def _is_retryable_error(exc: Exception) -> bool:
+    """Check if an LLM error is retryable (rate limit, server error, timeout)."""
+    error_str = str(exc).lower()
+    # Non-retryable: auth errors, bad request
+    if any(kw in error_str for kw in ("401", "403", "invalid api key", "invalid_key", "unauthorized")):
+        return False
+    if any(kw in error_str for kw in ("400", "bad request", "invalid_request")):
+        return False
+    # Retryable: rate limit, server error, timeout, network
+    if any(kw in error_str for kw in ("429", "500", "502", "503", "504", "rate limit", "timeout", "connection", "overloaded")):
+        return True
+    # Default: retry on unknown errors (might be transient)
+    return True
+
+
+async def call_llm_with_retry(llm, prompt: str, max_retries: int = 3, retry_delay: float = 2.0):
+    """Call LLM with retry for transient failures.
+
+    Distinguishes retryable errors (429, 5xx, timeout) from
+    non-retryable errors (401, 400) using exponential backoff.
 
     Args:
         llm: LangChain LLM instance with .ainvoke()
         prompt: The prompt string
-        max_retries: Number of retries on failure (default 1)
-        retry_delay: Seconds to wait between retries (default 2.0)
+        max_retries: Number of retries on retryable failures (default 3)
+        retry_delay: Base delay in seconds, doubled each retry (default 2.0)
 
     Returns:
         LLM response object
 
     Raises:
-        Exception: The last exception if all retries fail
+        Exception: The last exception if all retries fail or error is non-retryable
     """
     for attempt in range(max_retries + 1):
         try:
             return await llm.ainvoke(prompt)
         except Exception as e:
+            if not _is_retryable_error(e):
+                logger.error("LLM call failed (non-retryable): %s", e)
+                raise
             if attempt < max_retries:
+                delay = retry_delay * (2 ** attempt)
                 logger.warning("LLM call failed (attempt %d/%d): %s, retrying in %.1fs",
-                               attempt + 1, max_retries + 1, e, retry_delay)
-                await asyncio.sleep(retry_delay)
+                               attempt + 1, max_retries + 1, e, delay)
+                await asyncio.sleep(delay)
             else:
                 logger.error("LLM call failed after %d attempts: %s", max_retries + 1, e)
                 raise

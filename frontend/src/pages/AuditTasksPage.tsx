@@ -12,8 +12,6 @@ import {
   Progress,
   Select,
   Space,
-  Steps,
-  Table,
   Tag,
   Timeline,
   Typography,
@@ -45,7 +43,7 @@ import {
 } from '../constants/audit';
 import { THEME } from '../constants/theme';
 
-const { Title, Paragraph, Text } = Typography;
+const { Paragraph, Text } = Typography;
 
 const TASK_TYPE_OPTIONS = Object.entries(TASK_TYPE_LABELS).map(([value, label]) => ({ value, label }));
 
@@ -172,7 +170,6 @@ const AuditTasksPage: React.FC = () => {
 
   // Merge SSE events into selectedTask display
   useEffect(() => {
-    if (!selectedTask) return;
     setSelectedTask(prev => {
       if (!prev) return prev;
       return {
@@ -181,7 +178,7 @@ const AuditTasksPage: React.FC = () => {
         events: sseEvents.length > 0 ? sseEvents : prev.events,
       };
     });
-  }, [sseEvents, currentStage, selectedTask?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sseEvents, currentStage, selectedTask?.id]);
 
   // On SSE "done", do one final refresh
   useEffect(() => {
@@ -189,7 +186,7 @@ const AuditTasksPage: React.FC = () => {
       void loadTasks(false, selectedTaskId);
       if (selectedTaskId) void loadTaskDetails(selectedTaskId);
     }
-  }, [sseStatus, selectedTaskId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sseStatus, selectedTaskId, loadTasks, loadTaskDetails]);
 
   // Lightweight list poll (30s) to catch tasks from other entry points
   useEffect(() => {
@@ -216,7 +213,7 @@ const AuditTasksPage: React.FC = () => {
     updateElapsed();
     const interval = setInterval(updateElapsed, 1000);
     return () => clearInterval(interval);
-  }, [selectedTask?.id, selectedTask?.status, selectedTask?.started_at]);
+  }, [selectedTask]);
 
   // Completion notification
   useEffect(() => {
@@ -232,7 +229,7 @@ const AuditTasksPage: React.FC = () => {
         });
       }
     }
-  }, [sseStatus]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sseStatus, selectedTask?.task_name]);
 
   // Pre-request notification permission when tasks are running
   useEffect(() => {
@@ -498,16 +495,26 @@ const AuditTasksPage: React.FC = () => {
             </div>
 
             {/* Agent Flow Chart */}
-            {selectedTask.status === 'running' || selectedTask.status === 'completed' || selectedTask.status === 'failed' ? (
-              <AgentFlowChart
-                currentStage={selectedTask.stage || 'pending'}
-                completedStages={selectedTask.events?.map(e => e.stage) || []}
-                failedStage={selectedTask.status === 'failed' ? selectedTask.stage : undefined}
-                onNodeClick={(stage) => {
-                  // Future: scroll timeline to events for this stage
-                }}
-              />
-            ) : null}
+            {selectedTask.status === 'running' || selectedTask.status === 'completed' || selectedTask.status === 'failed' ? (() => {
+              const STAGE_ORDER = ['parsing', 'regulation', 'risk', 'report'];
+              const currentIdx = STAGE_ORDER.indexOf(selectedTask.stage || '');
+              const completedStages = selectedTask.status === 'completed'
+                ? STAGE_ORDER
+                : currentIdx > 0
+                  ? STAGE_ORDER.slice(0, currentIdx)
+                  : [];
+              return (
+                <AgentFlowChart
+                  currentStage={selectedTask.stage || 'pending'}
+                  completedStages={completedStages}
+                  failedStage={selectedTask.status === 'failed' ? selectedTask.stage : undefined}
+                  onNodeClick={(stage) => {
+                    const el = document.getElementById('task-timeline');
+                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }}
+                />
+              );
+            })() : null}
 
             {/* Agent Thinking Panel */}
             {selectedTask.status === 'running' && (
@@ -520,7 +527,7 @@ const AuditTasksPage: React.FC = () => {
 
             {/* Timeline */}
             {selectedTask.events && selectedTask.events.length > 0 && (
-              <div>
+              <div id="task-timeline">
                 <Text strong style={{ fontSize: 13, color: THEME.textSecondary }}>执行时间线</Text>
                 <div style={{ marginTop: 12 }}>
                   <Timeline

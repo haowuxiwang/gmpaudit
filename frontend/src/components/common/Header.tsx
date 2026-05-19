@@ -1,5 +1,5 @@
 import React from 'react';
-import { Layout, Space, Typography } from 'antd';
+import { Layout, Typography } from 'antd';
 import { useLocation } from 'react-router-dom';
 import { THEME } from '../../constants/theme';
 

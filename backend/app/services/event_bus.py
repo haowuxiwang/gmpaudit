@@ -6,12 +6,15 @@ TaskRunner publishes events, SSE endpoints subscribe per connection.
 
 import asyncio
 import logging
+import time
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
 # Max queue size per SSE connection. Slow consumers get events dropped.
 _QUEUE_MAXSIZE = 256
+# TTL for stale task entries (seconds)
+_STALE_TTL = 600  # 10 minutes
 
 
 class _DoneSentinel:
@@ -34,6 +37,7 @@ class EventBus:
 
     def __init__(self) -> None:
         self._subscribers: dict[int, list[asyncio.Queue[Any]]] = {}
+        self._last_activity: dict[int, float] = {}
         self._lock = asyncio.Lock()
 
     async def subscribe(self, task_id: int) -> asyncio.Queue[Any]:
@@ -41,6 +45,7 @@ class EventBus:
         queue: asyncio.Queue[Any] = asyncio.Queue(maxsize=_QUEUE_MAXSIZE)
         async with self._lock:
             self._subscribers.setdefault(task_id, []).append(queue)
+            self._last_activity[task_id] = time.monotonic()
         logger.debug("SSE subscriber added for task %d (total: %d)", task_id, len(self._subscribers.get(task_id, [])))
         return queue
 
@@ -52,12 +57,34 @@ class EventBus:
                 queues.remove(queue)
             if not queues:
                 self._subscribers.pop(task_id, None)
+                self._last_activity.pop(task_id, None)
         logger.debug("SSE subscriber removed for task %d", task_id)
+
+    async def cleanup_stale(self) -> int:
+        """Remove task entries with no activity for longer than _STALE_TTL.
+
+        Returns number of stale entries removed.
+        """
+        now = time.monotonic()
+        removed = 0
+        async with self._lock:
+            stale_ids = [
+                tid for tid, last in self._last_activity.items()
+                if now - last > _STALE_TTL and not self._subscribers.get(tid)
+            ]
+            for tid in stale_ids:
+                self._subscribers.pop(tid, None)
+                self._last_activity.pop(tid, None)
+                removed += 1
+        if removed:
+            logger.info("EventBus: cleaned up %d stale task entries", removed)
+        return removed
 
     async def publish(self, task_id: int, event: dict[str, Any]) -> None:
         """Push event to all subscribers for task_id. Non-blocking."""
         async with self._lock:
             queues = list(self._subscribers.get(task_id, []))
+            self._last_activity[task_id] = time.monotonic()
 
         for q in queues:
             try:

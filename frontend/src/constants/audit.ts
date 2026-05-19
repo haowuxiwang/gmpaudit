@@ -4,6 +4,8 @@ export const STATUS_COLORS: Record<string, string> = {
   completed: 'success',
   failed: 'error',
   cancelled: 'warning',
+  awaiting_review: 'warning',
+  rejected: 'error',
 };
 
 export const STATUS_LABELS: Record<string, string> = {
@@ -12,6 +14,8 @@ export const STATUS_LABELS: Record<string, string> = {
   completed: '已完成',
   failed: '失败',
   cancelled: '已取消',
+  awaiting_review: '待审核',
+  rejected: '已驳回',
 };
 
 export const STAGE_LABELS: Record<string, string> = {

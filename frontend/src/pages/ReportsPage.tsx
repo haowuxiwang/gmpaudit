@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button, Card, Empty, Modal, Select, Space, Spin, Table, Tag, Typography, message } from 'antd';
 import { DownloadOutlined, FileTextOutlined, PrinterOutlined } from '@ant-design/icons';
 import ReactMarkdown from 'react-markdown';
@@ -26,11 +26,7 @@ const ReportsPage: React.FC = () => {
   const [detailContent, setDetailContent] = useState<Report | null>(null);
   const [typeFilter, setTypeFilter] = useState<string | undefined>(undefined);
 
-  useEffect(() => {
-    void loadReports();
-  }, [taskId]);
-
-  const loadReports = async () => {
+  const loadReports = useCallback(async () => {
     try {
       setLoading(true);
       const result = await reportApi.list(taskId);
@@ -40,7 +36,11 @@ const ReportsPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [taskId]);
+
+  useEffect(() => {
+    void loadReports();
+  }, [loadReports]);
 
   const handleView = async (record: Report) => {
     try {

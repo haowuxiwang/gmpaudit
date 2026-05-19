@@ -14,13 +14,15 @@ export function useSSE({ url, onMessage, onEvent, onError, onOpen, enabled = tru
   const onMessageRef = useRef(onMessage);
   const onErrorRef = useRef(onError);
   const onOpenRef = useRef(onOpen);
+  const onEventRef = useRef(onEvent);
   const [readyState, setReadyState] = useState<number>(EventSource.CLOSED);
 
   useEffect(() => {
     onMessageRef.current = onMessage;
     onErrorRef.current = onError;
     onOpenRef.current = onOpen;
-  }, [onMessage, onError, onOpen]);
+    onEventRef.current = onEvent;
+  }, [onMessage, onError, onOpen, onEvent]);
 
   const close = useCallback(() => {
     if (sourceRef.current) {
@@ -34,6 +36,12 @@ export function useSSE({ url, onMessage, onEvent, onError, onOpen, enabled = tru
     if (!url || !enabled) {
       close();
       return;
+    }
+
+    // Close any existing source before creating a new one (prevents race condition)
+    if (sourceRef.current) {
+      sourceRef.current.close();
+      sourceRef.current = null;
     }
 
     const source = new EventSource(url);
@@ -55,8 +63,8 @@ export function useSSE({ url, onMessage, onEvent, onError, onOpen, enabled = tru
     };
 
     // Named event listeners
-    if (onEvent) {
-      for (const [eventType, handler] of Object.entries(onEvent)) {
+    if (onEventRef.current) {
+      for (const [eventType, handler] of Object.entries(onEventRef.current)) {
         source.addEventListener(eventType, ((event: MessageEvent) => {
           try {
             const data = JSON.parse(event.data);
@@ -74,7 +82,7 @@ export function useSSE({ url, onMessage, onEvent, onError, onOpen, enabled = tru
     };
 
     return close;
-  }, [url, enabled, close]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [url, enabled, close]);
 
   return { close, readyState };
 }

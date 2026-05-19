@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Input, Typography, Spin, message } from 'antd';
+import { Modal, Input, Spin, message } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import { documentApi } from '../services/api';
-
-const { Text } = Typography;
 
 interface DocumentPreviewProps {
   documentId: number;

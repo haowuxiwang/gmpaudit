@@ -11,6 +11,8 @@ const STAGE_PROGRESS_MAP: Record<string, number> = {
   completed: 100,
 };
 
+const MAX_EVENTS = 200;
+
 interface UseTaskSSEReturn {
   events: TaskEvent[];
   thinkingEvents: AgentThinkingEvent[];
@@ -46,7 +48,8 @@ export function useTaskSSE(taskId: number | null, isActive: boolean): UseTaskSSE
     url,
     onEvent: {
       event: (data: TaskEvent) => {
-        eventsRef.current = [...eventsRef.current, data];
+        const next = [...eventsRef.current, data];
+        eventsRef.current = next.length > MAX_EVENTS ? next.slice(-MAX_EVENTS) : next;
         setEvents([...eventsRef.current]);
         // Fallback progress from stage events
         const stageProgress = STAGE_PROGRESS_MAP[data.stage];
@@ -61,7 +64,7 @@ export function useTaskSSE(taskId: number | null, isActive: boolean): UseTaskSSE
         }
       },
       progress: (data: { percent: number; stage: string }) => {
-        setProgress(data.percent);
+        setProgress(prev => Math.max(prev, data.percent));
         if (data.stage) {
           setCurrentStage(data.stage);
         }

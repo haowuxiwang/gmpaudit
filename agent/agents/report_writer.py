@@ -21,25 +21,25 @@ def _load_prompt() -> str:
 def _format_findings(findings: list[dict]) -> str:
     """Format findings into a readable text block."""
     if not findings:
-        return "No findings identified."
+        return "未发现审计问题。"
 
     lines = []
     for i, f in enumerate(findings, 1):
         severity = f.get("severity", "N/A").upper()
-        title = f.get("title", "Untitled")
+        title = f.get("title", "无标题")
         desc = f.get("description", "")
         evidence = f.get("evidence", "")
         suggestion = f.get("suggestion", "")
         ref = f.get("regulation_ref", "")
 
-        lines.append(f"### Finding {i}: [{severity}] {title}")
-        lines.append(f"Description: {desc}")
+        lines.append(f"### 发现 {i}: [{severity}] {title}")
+        lines.append(f"问题描述: {desc}")
         if evidence:
-            lines.append(f"Evidence: {evidence}")
+            lines.append(f"证据: {evidence}")
         if ref:
-            lines.append(f"Regulation: {ref}")
+            lines.append(f"法规依据: {ref}")
         if suggestion:
-            lines.append(f"Suggestion: {suggestion}")
+            lines.append(f"改进建议: {suggestion}")
         lines.append("")
 
     return "\n".join(lines)
@@ -81,7 +81,7 @@ async def report_writer_node(state: AuditState) -> dict:
             doc_name, doc_type, risk_score, risk_level,
             regulation_summary, findings,
         )
-        report_md = "> **Warning**: This report was generated using fallback logic because the LLM service was unavailable.\n\n" + fallback_md
+        report_md = "> **注意**: 本报告由备用逻辑生成，因为 LLM 服务不可用。\n\n" + fallback_md
 
     # Save report to file
     safe_name = Path(doc_name).stem
@@ -132,41 +132,41 @@ def _generate_fallback_report(
     low = [f for f in findings if f.get("severity") == "low"]
 
     lines = [
-        "# GMP Compliance Audit Report",
+        "# GMP 合规性审计报告",
         "",
-        "## 1. Audit Overview",
-        f"- Document: {doc_name}",
-        f"- Type: {doc_type}",
-        f"- Date: {date.today().isoformat()}",
+        "## 1. 审计概述",
+        f"- 审计对象: {doc_name}",
+        f"- 文档类型: {doc_type}",
+        f"- 审计日期: {date.today().isoformat()}",
         "",
-        "## 2. Regulation Basis",
-        regulation_summary or "N/A",
+        "## 2. 法规依据",
+        regulation_summary or "无",
         "",
-        "## 3. Audit Findings",
-        f"- High severity: {len(high)}",
-        f"- Medium severity: {len(medium)}",
-        f"- Low severity: {len(low)}",
+        "## 3. 审计发现",
+        f"- 高风险: {len(high)}",
+        f"- 中风险: {len(medium)}",
+        f"- 低风险: {len(low)}",
         "",
     ]
 
     for i, f in enumerate(findings, 1):
         sev = f.get("severity", "N/A").upper()
-        lines.append(f"### {i}. [{sev}] {f.get('title', 'Untitled')}")
+        lines.append(f"### {i}. [{sev}] {f.get('title', '无标题')}")
         lines.append(f"{f.get('description', '')}")
         if f.get("evidence"):
-            lines.append(f"Evidence: {f['evidence']}")
+            lines.append(f"证据: {f['evidence']}")
         lines.append("")
 
     lines.extend([
-        "## 4. Risk Assessment",
-        f"- Risk Score: {risk_score}/100",
-        f"- Risk Level: {risk_level}",
+        "## 4. 风险评估",
+        f"- 风险评分: {risk_score}/100",
+        f"- 风险等级: {risk_level}",
         "",
-        "## 5. Recommendations",
-        "Implement CAPA based on findings above.",
+        "## 5. 改进建议",
+        "根据上述发现实施纠正预防措施（CAPA）。",
         "",
-        "## 6. Conclusion",
-        "Review completed. See findings and recommendations.",
+        "## 6. 结论",
+        "审计完成。请参阅上述发现和建议。",
     ])
 
     return "\n".join(lines)

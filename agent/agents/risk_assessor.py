@@ -66,8 +66,8 @@ async def risk_assessor_node(state: AuditState) -> dict:
         logger.warning(f"Risk Assessor LLM call failed: {e}")
         return {
             "findings": [],
-            "risk_score": 0,
-            "risk_level": "not_assessed",
+            "risk_score": -1,
+            "risk_level": "评估失败",
             "risk_assessed": True,
             "status": "running",
             "messages": [f"Risk Assessor: LLM call failed, continuing with empty findings — {e}"],

@@ -126,37 +126,37 @@ async def build_task_payload(db: AsyncSession, task: AuditTask) -> dict[str, Any
 
 def build_aggregate_report(task_name: str, document_results: list[dict[str, Any]], findings: list[dict[str, Any]]) -> str:
     lines = [
-        f"# Audit Report - {task_name}",
+        f"# 审计报告 - {task_name}",
         "",
-        "## Summary",
-        f"- Documents: {len(document_results)}",
-        f"- Findings: {len(findings)}",
+        "## 概要",
+        f"- 文档数量: {len(document_results)}",
+        f"- 发现数量: {len(findings)}",
         "",
-        "## Document Results",
+        "## 文档结果",
     ]
 
     for item in document_results:
         lines.extend(
             [
                 f"### {item['filename']}",
-                f"- Status: {item['status']}",
-                f"- Findings: {item['findings_count']}",
-                f"- Risk: {item['risk_level']}",
+                f"- 状态: {item['status']}",
+                f"- 发现数: {item['findings_count']}",
+                f"- 风险等级: {item['risk_level']}",
                 "",
             ]
         )
 
-    lines.extend(["## Findings", ""])
+    lines.extend(["## 审计发现", ""])
     if not findings:
-        lines.append("No findings identified.")
+        lines.append("未发现审计问题。")
         return "\n".join(lines)
 
     for index, finding in enumerate(findings, start=1):
         lines.extend(
             [
-                f"### {index}. [{finding.get('severity', 'medium').upper()}] {finding.get('title', 'Untitled')}",
+                f"### {index}. [{finding.get('severity', 'medium').upper()}] {finding.get('title', '无标题')}",
                 finding.get("description", ""),
-                f"Document ID: {finding.get('document_id', 'N/A')}",
+                f"文档编号: {finding.get('document_id', 'N/A')}",
                 "",
             ]
         )
@@ -482,7 +482,10 @@ class TaskRunner:
                 await self._publish(task_id, {"type": "event", "data": {"time": datetime.now(timezone.utc).isoformat(), "stage": "awaiting_review", "level": "warning", "message": f"Task awaiting review: {high_risk_count} high-risk findings detected"}})
                 await self._publish_done(task_id, "awaiting_review")
                 await db.refresh(report)
-                await notify_audit_complete(task.task_name, len(persisted_findings), high_risk_count, medium_count, top_findings)
+                try:
+                    await notify_audit_complete(task.task_name, len(persisted_findings), high_risk_count, medium_count, top_findings)
+                except Exception:
+                    logger.exception("Failed to send audit complete notification for task %s", task.id)
                 return
 
             task.status = TaskStatus.COMPLETED
@@ -505,15 +508,21 @@ class TaskRunner:
                     db.add(RiskAlert(finding_id=finding.id, alert_level=AlertLevel.WARNING))
             await db.commit()
 
-            await notify_audit_complete(task.task_name, len(persisted_findings), high_risk_count, medium_count, top_findings)
+            try:
+                await notify_audit_complete(task.task_name, len(persisted_findings), high_risk_count, medium_count, top_findings)
+            except Exception:
+                logger.exception("Failed to send audit complete notification for task %s", task.id)
             for item in persisted_findings:
                 if item.get("severity", "").lower() in {"high", "critical"}:
-                    await notify_high_risk_finding(
-                        task.task_name,
-                        item.get("title", ""),
-                        item.get("severity", ""),
-                        item.get("description", ""),
-                    )
+                    try:
+                        await notify_high_risk_finding(
+                            task.task_name,
+                            item.get("title", ""),
+                            item.get("severity", ""),
+                            item.get("description", ""),
+                        )
+                    except Exception:
+                        logger.exception("Failed to send high-risk finding notification for task %s", task.id)
 
     async def _mark_failed(self, db: AsyncSession, task: AuditTask, error: str) -> None:
         task.status = TaskStatus.FAILED
@@ -524,7 +533,10 @@ class TaskRunner:
         await db.commit()
         await self._publish(task.id, {"type": "event", "data": {"time": datetime.now(timezone.utc).isoformat(), "stage": "failed", "level": "error", "message": error}})
         await self._publish_done(task.id, "failed")
-        await notify_task_failed(task.task_name, error)
+        try:
+            await notify_task_failed(task.task_name, error)
+        except Exception:
+            logger.exception("Failed to send task failed notification for task %s", task.id)
 
 
 def get_task_runner_factory(

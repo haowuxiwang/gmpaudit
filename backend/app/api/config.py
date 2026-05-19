@@ -61,7 +61,9 @@ _LLM_KEY_MAP = {
 
 
 async def _apply_setting(key: str, value: str):
-    """Update the settings singleton and reload LLM adapter if needed."""
+    """Update the settings singleton, sync to os.environ, persist to .env, and reload LLM adapter."""
+    import os
+    from pathlib import Path
     from app.core.config import settings
 
     mapping = _LLM_KEY_MAP.get(key)
@@ -80,9 +82,36 @@ async def _apply_setting(key: str, value: str):
     setattr(settings, attr, value)
     logger.info("Config updated: %s (was=%s)", attr, old_val)
 
+    # Sync to os.environ so agent/config.py's os.getenv() picks up the change
+    os.environ[attr] = str(value)
+
+    # Persist to .env file for restart survival
+    _update_env_file(attr, str(value))
+
     # Reload LLM adapter if API key, base URL, or model changed
     if provider and ("api_key" in key or "base_url" in key or "model" in key):
         await _reload_llm_provider(provider)
+
+
+def _update_env_file(attr: str, value: str):
+    """Update a single key in config/.env file."""
+    env_path = Path(__file__).parent.parent.parent.parent / "config" / ".env"
+    if not env_path.exists():
+        return
+    try:
+        lines = env_path.read_text(encoding="utf-8").splitlines()
+        updated = False
+        for i, line in enumerate(lines):
+            stripped = line.strip()
+            if stripped.startswith(f"{attr}=") or stripped.startswith(f"{attr} ="):
+                lines[i] = f"{attr}={value}"
+                updated = True
+                break
+        if not updated:
+            lines.append(f"{attr}={value}")
+        env_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    except Exception as e:
+        logger.warning("Failed to persist %s to .env: %s", attr, e)
 
 
 async def _reload_llm_provider(provider: str):

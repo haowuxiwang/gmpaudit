@@ -39,7 +39,7 @@ const AgentThinkingPanel: React.FC<AgentThinkingPanelProps> = ({
     if (!isRunning && thinkingEvents.length > 0) {
       setCollapsed(true);
     }
-  }, [isRunning]);
+  }, [isRunning, thinkingEvents.length]);
 
   useEffect(() => {
     if (scrollRef.current && !collapsed) {

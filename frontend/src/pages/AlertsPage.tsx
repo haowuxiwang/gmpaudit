@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, Button, Card, Empty, Modal, Select, Space, Table, Tag, Typography, message } from 'antd';
 import { CheckCircleOutlined, EyeOutlined, IssuesCloseOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
@@ -51,11 +51,7 @@ const AlertsPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
 
-  useEffect(() => {
-    void loadAlerts();
-  }, [statusFilter]);
-
-  const loadAlerts = async () => {
+  const loadAlerts = useCallback(async () => {
     try {
       setLoading(true);
       const result = await alertsApi.list(statusFilter);
@@ -65,7 +61,11 @@ const AlertsPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [statusFilter]);
+
+  useEffect(() => {
+    void loadAlerts();
+  }, [loadAlerts]);
 
   const handleAcknowledge = (id: number) => {
     Modal.confirm({
