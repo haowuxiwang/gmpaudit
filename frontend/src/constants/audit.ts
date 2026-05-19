@@ -16,10 +16,24 @@ export const STAGE_LABELS: Record<string, string> = {
   pending: '等待执行',
   queued: '排队中',
   running: '执行中',
-  parsing: '解析文档',
+  parsing: '文档解析',
+  regulation: '法规匹配',
   risk: '风险评估',
+  report: '报告生成',
   completed: '已完成',
   failed: '执行失败',
+};
+
+export const STAGE_COLORS: Record<string, string> = {
+  pending: '#D1D5DB',
+  queued: '#93C5FD',
+  running: '#3B82F6',
+  parsing: '#8B5CF6',
+  regulation: '#F59E0B',
+  risk: '#EF4444',
+  report: '#10B981',
+  completed: '#10B981',
+  failed: '#DC2626',
 };
 
 export const TASK_TYPE_LABELS: Record<string, string> = {

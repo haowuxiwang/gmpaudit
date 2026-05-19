@@ -1,7 +1,11 @@
+import asyncio
+import json
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.responses import StreamingResponse
 
 from app.core.database import get_db
 from app.models.audit_task import AuditTask, TaskStatus, TaskType
@@ -14,10 +18,19 @@ from app.utils.agent_helpers import AGENT_AVAILABLE
 router = APIRouter()
 
 
+def get_db_session():
+    from app.core.database import async_session
+    return async_session()
+
+
 class AuditTaskCreate(BaseModel):
     task_name: str
     task_type: TaskType
     document_ids: list[int]
+
+
+class ReviewComment(BaseModel):
+    comment: str = ""
 
 
 @router.post("/tasks")
@@ -113,6 +126,60 @@ async def run_audit_task(
     return {"status": "pending", "task_id": task_id}
 
 
+@router.post("/tasks/{task_id}/approve")
+async def approve_task(
+    task_id: int,
+    body: ReviewComment,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    task = (await db.execute(select(AuditTask).where(AuditTask.id == task_id))).scalar_one_or_none()
+    if task is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+    if task.status != TaskStatus.AWAITING_REVIEW:
+        raise HTTPException(status_code=400, detail="Task not in review state")
+
+    from datetime import datetime, timezone
+    task.status = TaskStatus.PENDING
+    task.review_comment = body.comment
+    task.reviewed_at = datetime.now(timezone.utc)
+    task.auto_approve = True
+    task.progress = 0
+    task.error_message = None
+    set_stage(task, "queued")
+    append_event(task, f"Task approved: {body.comment}", stage="queued")
+    await db.commit()
+
+    runner = request.app.state.task_runner_factory()
+    runner.enqueue(task.id)
+
+    return {"status": "approved", "task_id": task_id}
+
+
+@router.post("/tasks/{task_id}/reject")
+async def reject_task(
+    task_id: int,
+    body: ReviewComment,
+    db: AsyncSession = Depends(get_db),
+):
+    task = (await db.execute(select(AuditTask).where(AuditTask.id == task_id))).scalar_one_or_none()
+    if task is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+    if task.status != TaskStatus.AWAITING_REVIEW:
+        raise HTTPException(status_code=400, detail="Task not in review state")
+
+    from datetime import datetime, timezone
+    task.status = TaskStatus.REJECTED
+    task.review_comment = body.comment
+    task.reviewed_at = datetime.now(timezone.utc)
+    task.completed_at = datetime.now(timezone.utc)
+    set_stage(task, "rejected")
+    append_event(task, f"Task rejected: {body.comment}", stage="rejected", level="warning")
+    await db.commit()
+
+    return {"status": "rejected", "task_id": task_id}
+
+
 @router.get("/tasks/{task_id}/findings")
 async def get_task_findings(
     task_id: int,
@@ -168,3 +235,60 @@ async def get_dashboard_stats(
         "total_tasks": sum(task_counts.values()),
         "total_findings": sum(severity_counts.values()),
     }
+
+
+@router.get("/tasks/{task_id}/stream")
+async def stream_task_events(task_id: int, db: AsyncSession = Depends(get_db)):
+    task = (await db.execute(select(AuditTask).where(AuditTask.id == task_id))).scalar_one_or_none()
+    if task is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    async def event_generator():
+        last_event_count = 0
+        while True:
+            async with get_db_session() as session:
+                result = await session.execute(select(AuditTask).where(AuditTask.id == task_id))
+                current_task = result.scalar_one_or_none()
+                if current_task is None:
+                    yield f"data: {json.dumps({'type': 'error', 'message': 'Task not found'})}\n\n"
+                    break
+
+                meta = current_task.config or {}
+                execution = meta.get("execution", {})
+                events = execution.get("events", [])
+                new_events = events[last_event_count:]
+                for event in new_events:
+                    yield f"data: {json.dumps({'type': 'event', 'data': event})}\n\n"
+                last_event_count += len(new_events)
+
+                if current_task.status in (TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.REJECTED):
+                    yield f"data: {json.dumps({'type': 'done', 'status': current_task.status.value})}\n\n"
+                    break
+
+            await asyncio.sleep(1)
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
+@router.get("/tasks/stream")
+async def stream_all_tasks():
+    async def event_generator():
+        last_statuses = {}
+        while True:
+            async with get_db_session() as session:
+                result = await session.execute(select(AuditTask))
+                tasks = result.scalars().all()
+                current_statuses = {t.id: t.status.value for t in tasks}
+
+                changed = []
+                for task_id, status in current_statuses.items():
+                    if last_statuses.get(task_id) != status:
+                        changed.append({"task_id": task_id, "status": status})
+
+                if changed:
+                    yield f"data: {json.dumps({'type': 'status_change', 'tasks': changed})}\n\n"
+
+                last_statuses = current_statuses
+            await asyncio.sleep(2)
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")

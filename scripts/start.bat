@@ -37,5 +37,11 @@ echo 系统启动完成！
 echo 前端访问地址: http://localhost:3000
 echo 后端API地址: http://localhost:8000
 echo API文档地址: http://localhost:8000/docs
+echo.
+echo 按任意键停止所有服务...
+pause >nul
 
-pause
+echo 正在停止服务...
+taskkill /FI "WINDOWTITLE eq GMP Backend*" /F >nul 2>&1
+taskkill /FI "WINDOWTITLE eq GMP Frontend*" /F >nul 2>&1
+echo 服务已停止

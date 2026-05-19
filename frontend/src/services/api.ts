@@ -43,6 +43,7 @@ export const documentApi = {
   },
   list: (page = 1, pageSize = 20) =>
     api.get('/documents/', { params: { page, page_size: pageSize } }) as Promise<PaginatedResponse<Document>>,
+  getById: (id: number) => api.get(`/documents/${id}`) as Promise<Document>,
   delete: (id: number) => api.delete(`/documents/${id}`) as Promise<{ message: string }>,
 };
 
@@ -54,6 +55,10 @@ export const auditApi = {
   getTask: (id: number) => api.get(`/audit/tasks/${id}`) as Promise<AuditTask>,
   getFindings: (id: number) => api.get(`/audit/tasks/${id}/findings`) as Promise<Finding[]>,
   runTask: (id: number) => api.post(`/audit/tasks/${id}/run`) as Promise<{ status: string; task_id: number }>,
+  approveTask: (id: number, comment: string) =>
+    api.post(`/audit/tasks/${id}/approve`, { comment }) as Promise<{ status: string; task_id: number }>,
+  rejectTask: (id: number, comment: string) =>
+    api.post(`/audit/tasks/${id}/reject`, { comment }) as Promise<{ status: string; task_id: number }>,
   getDashboard: () => api.get('/audit/dashboard') as Promise<DashboardData>,
 };
 

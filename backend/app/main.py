@@ -6,8 +6,9 @@ from logging.handlers import RotatingFileHandler
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
-from app.api import agent_audit, alerts, audit, config, documents, kg, reports
+from app.api import agent_audit, alerts, audit, config, documents, health, kg, reports
 from app.core.database import Base, engine
 from app.core.config import settings
 from app.core.database import async_session
@@ -112,6 +113,7 @@ async def lifespan(app: FastAPI):
     await app.state.task_runner_factory().startup_recover()
     yield
     from app.services.llm_engine import get_llm_engine
+    await app.state.task_runner_factory().shutdown(timeout=30.0)
     await get_llm_engine().close()
     await engine.dispose()
     logging.getLogger(__name__).info("AuditBee stopped")
@@ -139,8 +141,15 @@ app.include_router(config.router, prefix="/api/config", tags=["config"])
 app.include_router(alerts.router, prefix="/api/alerts", tags=["alerts"])
 app.include_router(agent_audit.router, prefix="/api/agent-audit", tags=["agent-audit"])
 app.include_router(kg.router, prefix="/api/kg", tags=["knowledge-graph"])
+app.include_router(health.router, prefix="/api/health", tags=["health"])
 
 
 @app.get("/")
 async def root():
     return {"message": "AuditBee API"}
+
+
+# Mount static files for frontend (PyInstaller packaging)
+static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
+if os.path.isdir(static_dir):
+    app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")

@@ -1,13 +1,19 @@
 """Knowledge graph management API (LightRAG-based)."""
 
+import json
 import logging
 import os
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, BackgroundTasks, File, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.database import get_db
+from app.models.configuration import Configuration
 
 logger = logging.getLogger(__name__)
 
@@ -17,8 +23,32 @@ INDEX_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..",
 INPUT_DIR = os.path.join(INDEX_ROOT, "input")
 OUTPUT_DIR = os.path.join(INDEX_ROOT, "lightrag_output")
 
-# Track build status in-memory
+# In-memory build status (fallback for when DB is not available)
 _build_status = {"building": False, "started_at": None, "error": None, "recent_logs": []}
+
+KG_BUILD_STATUS_KEY = "kg_build_status"
+
+
+async def _get_build_status_from_db(db: AsyncSession) -> dict:
+    result = await db.execute(select(Configuration).where(Configuration.config_key == KG_BUILD_STATUS_KEY))
+    config = result.scalar_one_or_none()
+    if config:
+        try:
+            return json.loads(config.config_value)
+        except (json.JSONDecodeError, TypeError):
+            pass
+    return {"building": False, "started_at": None, "error": None, "recent_logs": []}
+
+
+async def _save_build_status_to_db(db: AsyncSession, status: dict) -> None:
+    result = await db.execute(select(Configuration).where(Configuration.config_key == KG_BUILD_STATUS_KEY))
+    config = result.scalar_one_or_none()
+    status_json = json.dumps(status, ensure_ascii=False)
+    if config:
+        config.config_value = status_json
+    else:
+        db.add(Configuration(config_key=KG_BUILD_STATUS_KEY, config_value=status_json, config_type="json"))
+    await db.commit()
 
 
 def _append_build_log(message: str) -> None:
@@ -109,7 +139,7 @@ def _parse_graphml(filepath: str) -> dict:
 
 
 @router.get("/status")
-async def get_status():
+async def get_status(db: AsyncSession = Depends(get_db)):
     """Get knowledge graph index status."""
     index_info = _get_index_info()
 
@@ -117,10 +147,12 @@ async def get_status():
     if os.path.isdir(INPUT_DIR):
         input_files = [f for f in os.listdir(INPUT_DIR) if f.endswith((".txt", ".md"))]
 
+    db_status = await _get_build_status_from_db(db)
+
     return {
         **index_info,
         "input_file_count": len(input_files),
-        "building": _build_status["building"],
+        "building": db_status.get("building", False),
     }
 
 
@@ -172,19 +204,27 @@ async def build_index(
             logger.exception("LightRAG build failed")
         finally:
             _build_status["building"] = False
+            # Persist to database
+            try:
+                from app.core.database import async_session
+                async with async_session() as db:
+                    await _save_build_status_to_db(db, _build_status)
+            except Exception as e:
+                logger.warning("Failed to persist KG build status: %s", e)
 
     background_tasks.add_task(_build)
     return {"status": "building", "message": "索引构建已启动"}
 
 
 @router.get("/build-status")
-async def get_build_status():
+async def get_build_status(db: AsyncSession = Depends(get_db)):
     """Get current build status."""
+    db_status = await _get_build_status_from_db(db)
     return {
-        "building": _build_status["building"],
-        "started_at": _build_status["started_at"],
-        "error": _build_status["error"],
-        "recent_logs": _build_status.get("recent_logs", []),
+        "building": db_status.get("building", False),
+        "started_at": db_status.get("started_at"),
+        "error": db_status.get("error"),
+        "recent_logs": db_status.get("recent_logs", []),
     }
 
 

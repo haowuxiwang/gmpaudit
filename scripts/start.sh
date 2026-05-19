@@ -1,6 +1,19 @@
 #!/bin/bash
 echo "启动GMP合规性审计系统..."
 
+cleanup() {
+    echo "正在停止服务..."
+    if [ -n "$BACKEND_PID" ]; then
+        kill $BACKEND_PID 2>/dev/null
+    fi
+    if [ -n "$FRONTEND_PID" ]; then
+        kill $FRONTEND_PID 2>/dev/null
+    fi
+    exit 0
+}
+
+trap cleanup EXIT INT TERM
+
 if [ ! -f config/.env ]; then
     echo "配置文件不存在，正在从示例创建..."
     cp config/.env.example config/.env

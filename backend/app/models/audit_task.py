@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Text, Enum, JSON
+from sqlalchemy import Column, Integer, String, DateTime, Text, Enum, JSON, Boolean
 from sqlalchemy.sql import func
 from app.core.database import Base
 import enum
@@ -6,6 +6,8 @@ import enum
 class TaskStatus(enum.Enum):
     PENDING = "pending"
     RUNNING = "running"
+    AWAITING_REVIEW = "awaiting_review"
+    REJECTED = "rejected"
     COMPLETED = "completed"
     FAILED = "failed"
 
@@ -28,3 +30,6 @@ class AuditTask(Base):
     document_ids = Column(JSON, nullable=True)
     progress = Column(Integer, default=0)
     error_message = Column(Text, nullable=True)
+    review_comment = Column(Text, nullable=True)
+    reviewed_at = Column(DateTime(timezone=True), nullable=True)
+    auto_approve = Column(Boolean, default=False)

@@ -31,12 +31,13 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { auditApi, documentApi } from '../services/api';
 import type { AuditTask, Document, Finding } from '../types/api';
+import AgentFlowChart from '../components/AgentFlowChart';
+import FindingDetailCard from '../components/FindingDetailCard';
 import {
   STATUS_COLORS,
   STATUS_LABELS,
   STAGE_LABELS,
   TASK_TYPE_LABELS,
-  SEVERITY_COLORS,
   DOC_STATUS_LABELS,
 } from '../constants/audit';
 import { THEME } from '../constants/theme';
@@ -61,6 +62,8 @@ const TYPE_FILTER_OPTIONS = [
 const STATUS_DOT_COLORS: Record<string, string> = {
   pending: THEME.pending,
   running: THEME.primary,
+  awaiting_review: '#faad14',
+  rejected: '#ff4d4f',
   completed: THEME.success,
   failed: THEME.error,
 };
@@ -412,6 +415,15 @@ const AuditTasksPage: React.FC = () => {
               />
             </div>
 
+            {/* Agent Flow Chart */}
+            {selectedTask.status === 'running' || selectedTask.status === 'completed' || selectedTask.status === 'failed' ? (
+              <AgentFlowChart
+                currentStage={selectedTask.stage || 'pending'}
+                completedStages={selectedTask.events?.map(e => e.stage) || []}
+                failedStage={selectedTask.status === 'failed' ? selectedTask.stage : undefined}
+              />
+            ) : null}
+
             {/* Timeline */}
             {selectedTask.events && selectedTask.events.length > 0 && (
               <div>
@@ -449,42 +461,19 @@ const AuditTasksPage: React.FC = () => {
                 审计发现 {findings.length > 0 && `(${findings.length} 项)`}
               </Text>
               {findings.length > 0 ? (
-                <List
-                  style={{ marginTop: 8 }}
-                  dataSource={findings}
-                  size="small"
-                  renderItem={(item) => (
-                    <List.Item
-                      style={{ padding: '8px 0' }}
-                      actions={[
-                        <Button
-                          key="graph"
-                          type="link"
-                          size="small"
-                          icon={<BranchesOutlined />}
-                          onClick={() => {
-                            setDrawerOpen(false);
-                            navigate(`/kg?q=${encodeURIComponent(item.title)}&task_id=${selectedTask.id}`);
-                          }}
-                        >
-                          图谱溯源
-                        </Button>,
-                      ]}
-                    >
-                      <Space direction="vertical" size={2} style={{ width: '100%' }}>
-                        <Space wrap size={6}>
-                          <Tag color={SEVERITY_COLORS[item.severity] || 'default'} style={{ margin: 0, borderRadius: 4 }}>
-                            {item.severity}
-                          </Tag>
-                          <Text strong style={{ fontSize: 13 }}>{item.title}</Text>
-                        </Space>
-                        <Text type="secondary" style={{ fontSize: 12 }}>
-                          {item.description || '暂无描述'}
-                        </Text>
-                      </Space>
-                    </List.Item>
-                  )}
-                />
+                <div style={{ marginTop: 8 }}>
+                  {findings.map((item) => (
+                    <FindingDetailCard
+                      key={item.id}
+                      finding={item}
+                      taskId={selectedTask.id}
+                      onGraphTrace={(title, taskId) => {
+                        setDrawerOpen(false);
+                        navigate(`/kg?q=${encodeURIComponent(title)}&task_id=${taskId}`);
+                      }}
+                    />
+                  ))}
+                </div>
               ) : (
                 <Text type="secondary" style={{ display: 'block', marginTop: 8, fontSize: 13 }}>
                   暂无审计发现
@@ -529,6 +518,74 @@ const AuditTasksPage: React.FC = () => {
                   <Button type="primary" icon={<PlayCircleOutlined />} onClick={() => void handleRun(selectedTask.id)}>
                     运行
                   </Button>
+                )}
+                {selectedTask.status === 'awaiting_review' && (
+                  <>
+                    <Button
+                      type="primary"
+                      onClick={() => {
+                        let comment = '';
+                        Modal.confirm({
+                          title: '批准任务',
+                          content: (
+                            <div>
+                              <p>确定要批准此任务吗？批准后将继续执行。</p>
+                              <Input.TextArea
+                                placeholder="审核意见（可选）"
+                                rows={3}
+                                onChange={(e) => { comment = e.target.value; }}
+                              />
+                            </div>
+                          ),
+                          onOk: async () => {
+                            try {
+                              await auditApi.approveTask(selectedTask.id, comment);
+                              message.success('任务已批准');
+                              void loadTasks(false, selectedTaskId);
+                            } catch (err) {
+                              message.error('批准失败，请重试');
+                            }
+                          },
+                        });
+                      }}
+                    >
+                      批准
+                    </Button>
+                    <Button
+                      danger
+                      onClick={() => {
+                        let comment = '';
+                        Modal.confirm({
+                          title: '驳回任务',
+                          content: (
+                            <div>
+                              <p>确定要驳回此任务吗？</p>
+                              <Input.TextArea
+                                placeholder="驳回原因（必填）"
+                                rows={3}
+                                onChange={(e) => { comment = e.target.value; }}
+                              />
+                            </div>
+                          ),
+                          onOk: async () => {
+                            if (!comment.trim()) {
+                              message.warning('请填写驳回原因');
+                              throw new Error('Missing comment');
+                            }
+                            try {
+                              await auditApi.rejectTask(selectedTask.id, comment);
+                              message.success('任务已驳回');
+                              void loadTasks(false, selectedTaskId);
+                            } catch (err) {
+                              message.error('驳回失败，请重试');
+                            }
+                          },
+                        });
+                      }}
+                    >
+                      驳回
+                    </Button>
+                  </>
                 )}
                 {selectedTask.report_id && (
                   <Button icon={<FileSearchOutlined />} onClick={() => navigate(`/reports?task_id=${selectedTask.id}`)}>

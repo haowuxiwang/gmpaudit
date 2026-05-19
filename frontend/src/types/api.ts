@@ -5,6 +5,7 @@ export interface Document {
   file_size?: number;
   process_status: 'uploaded' | 'processing' | 'processed' | 'failed';
   created_at?: string;
+  content_text?: string;
 }
 
 export interface PaginatedResponse<T> {
@@ -34,11 +35,14 @@ export interface AuditTask {
   id: number;
   task_name: string;
   task_type: string;
-  status: 'pending' | 'running' | 'completed' | 'failed';
+  status: 'pending' | 'running' | 'awaiting_review' | 'rejected' | 'completed' | 'failed';
   progress: number;
   stage?: string;
   document_ids?: number[];
   error_message?: string | null;
+  review_comment?: string | null;
+  reviewed_at?: string | null;
+  auto_approve?: boolean;
   created_at?: string;
   started_at?: string | null;
   completed_at?: string | null;

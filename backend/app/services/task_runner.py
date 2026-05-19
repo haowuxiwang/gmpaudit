@@ -182,6 +182,7 @@ def choose_report_content(
 class TaskRunner:
     def __init__(self, session_factory: async_sessionmaker[AsyncSession], max_concurrency: int = 2):
         self._session_factory = session_factory
+        self._max_concurrency = max_concurrency
         self._semaphore = asyncio.Semaphore(max_concurrency)
         self._active: dict[int, asyncio.Task] = {}
 
@@ -205,10 +206,23 @@ class TaskRunner:
         active = self._active.get(task_id)
         if active and not active.done():
             return False
+        if len(self._active) >= self._max_concurrency * 2:
+            logger.warning("Task queue full, rejecting task %s", task_id)
+            return False
         task = asyncio.create_task(self._run(task_id))
         self._active[task_id] = task
         task.add_done_callback(lambda _: self._active.pop(task_id, None))
         return True
+
+    async def shutdown(self, timeout: float = 30.0) -> None:
+        if not self._active:
+            return
+        logger.info("Waiting for %d active tasks to complete (timeout: %ss)", len(self._active), timeout)
+        done, pending = await asyncio.wait(self._active.values(), timeout=timeout)
+        for task in pending:
+            task.cancel()
+            logger.warning("Cancelled task: %s", task.get_name() if hasattr(task, 'get_name') else 'unknown')
+        logger.info("TaskRunner shutdown complete: %d completed, %d cancelled", len(done), len(pending))
 
     async def _run(self, task_id: int) -> None:
         async with self._semaphore:
@@ -309,7 +323,7 @@ class TaskRunner:
                 meta = get_execution_meta(task)
                 meta["documents"] = document_results
                 set_execution_meta(task, meta)
-                append_event(task, f"Completed document {document.filename}", stage="risk")
+                append_event(task, f"Completed document {document.filename}", stage="regulation")
                 await db.commit()
 
             persisted_findings: list[dict[str, Any]] = []
@@ -323,6 +337,8 @@ class TaskRunner:
                 persisted_findings,
                 agent_reports,
             )
+            append_event(task, "Generating audit report", stage="report")
+            await db.commit()
             report = Report(
                 task_id=task.id,
                 report_type=ReportType.FULL_REPORT,
@@ -331,6 +347,26 @@ class TaskRunner:
                 report_metadata=report_metadata,
             )
             db.add(report)
+
+            # Pre-compute finding statistics for notification
+            high_risk_count = sum(1 for item in persisted_findings if item.get("severity", "").lower() in {"high", "critical"})
+            medium_count = sum(1 for item in persisted_findings if item.get("severity", "").lower() == "medium")
+            top_findings = [
+                {"title": item.get("title", ""), "severity": item.get("severity", "")}
+                for item in persisted_findings
+                if item.get("severity", "").lower() in {"high", "critical"}
+            ][:3]
+
+            # Check risk level for review gate
+            if high_risk_count > 0 and not task.auto_approve:
+                task.status = TaskStatus.AWAITING_REVIEW
+                task.progress = 90
+                set_stage(task, "awaiting_review")
+                append_event(task, f"Task awaiting review: {high_risk_count} high-risk findings detected", stage="awaiting_review")
+                await db.commit()
+                await db.refresh(report)
+                await notify_audit_complete(task.task_name, len(persisted_findings), high_risk_count, medium_count, top_findings)
+                return
 
             task.status = TaskStatus.COMPLETED
             task.progress = 100
@@ -349,14 +385,7 @@ class TaskRunner:
                     db.add(RiskAlert(finding_id=finding.id, alert_level=AlertLevel.WARNING))
             await db.commit()
 
-            high_count = sum(1 for item in persisted_findings if item.get("severity", "").lower() in {"high", "critical"})
-            medium_count = sum(1 for item in persisted_findings if item.get("severity", "").lower() == "medium")
-            top_findings = [
-                {"title": item.get("title", ""), "severity": item.get("severity", "")}
-                for item in persisted_findings
-                if item.get("severity", "").lower() in {"high", "critical"}
-            ][:3]
-            await notify_audit_complete(task.task_name, len(persisted_findings), high_count, medium_count, top_findings)
+            await notify_audit_complete(task.task_name, len(persisted_findings), high_risk_count, medium_count, top_findings)
             for item in persisted_findings:
                 if item.get("severity", "").lower() in {"high", "critical"}:
                     await notify_high_risk_finding(
@@ -389,3 +418,16 @@ def get_task_runner_factory(
         return runner
 
     return factory
+
+
+def validate_findings(findings: list[dict]) -> list[dict]:
+    validated = []
+    for f in findings:
+        if not f.get("title") or not f.get("description"):
+            continue
+        if f.get("title") == "Untitled finding":
+            continue
+        if len(f.get("description", "")) < 10:
+            continue
+        validated.append(f)
+    return validated
