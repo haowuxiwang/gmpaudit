@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import threading
@@ -159,7 +160,6 @@ async def lifespan(app: FastAPI):
             except Exception:
                 pass
 
-    import asyncio
     cleanup_task = asyncio.create_task(_eventbus_cleanup())
 
     yield

@@ -75,11 +75,17 @@ async def _apply_setting(key: str, value: str):
     # Update settings singleton
     old_val = getattr(settings, attr, None)
     # Cast to correct type
-    if isinstance(getattr(settings, attr, None), int):
+    current = getattr(settings, attr, None)
+    if isinstance(current, int):
         try:
             value = int(value)
         except ValueError:
             raise HTTPException(status_code=422, detail=f"配置项 {key} 需要整数值，收到: {value}")
+    elif isinstance(current, float):
+        try:
+            value = float(value)
+        except ValueError:
+            raise HTTPException(status_code=422, detail=f"配置项 {key} 需要小数值，收到: {value}")
     setattr(settings, attr, value)
     logger.info("Config updated: %s (was=%s)", attr, old_val)
 
