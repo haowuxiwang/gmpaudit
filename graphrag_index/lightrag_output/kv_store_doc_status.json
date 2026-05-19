@@ -1,0 +1,172 @@
+{
+  "doc-2949dafb1d421a228f88f13753dc4e0c": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-2949dafb1d421a228f88f13753dc4e0c"
+    ],
+    "content_summary": "中国GMP（2010年修订版）第二章 质量管理\n\n第四条 企业应当建立并实施质量保证体系，确保药品按照批准的工艺规程和质量标准进行生产和控制。\n\n质量保证体系应当确保：\n（一）药品的设计与开发符合GMP要求；\n（二）生产和控制活动有明确规定；\n（三）管理职责被明确规定；\n（四）安排了原材料、中间产品和成品的检测；\n（五）按照要求完成了生产过程中各步骤；\n（六）药品未经质量控制部门放行不得发运或使用；\n（七）每批药品的生产和质量控制记录可追溯。\n\n第五条 质量控制包括相应的组织机构、文件系统以及取...",
+    "content_length": 936,
+    "created_at": "2026-05-09T05:35:47.786026+00:00",
+    "updated_at": "2026-05-09T05:38:27.869459+00:00",
+    "file_path": "unknown_source",
+    "track_id": "insert_20260509_133547_27dcaa3b",
+    "metadata": {
+      "processing_start_time": 1778304947,
+      "processing_end_time": 1778305107
+    }
+  },
+  "doc-afbbb826e07cbd2aa694c0ded935e688": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-afbbb826e07cbd2aa694c0ded935e688"
+    ],
+    "content_summary": "中国GMP（2010年修订版）第八章 文件管理\n\n第一百四十九条 文件是质量保证系统的基本要素。企业应当建立文件管理系统，明确文件的起草、修订、审核、批准、发放、替换和撤销的程序。\n\n第一百五十条 文件应当涵盖质量标准、生产处方和工艺规程、操作规程和记录等。文件的制定、修订、审核和批准应当有明确规定。文件应当定期审查和修订。\n\n第一百五十一条 文件应当：\n（一）标题详细明确；\n（二）内容准确、清晰、易懂；\n（三）使用规范的中文；\n（四）有起草、审核和批准的签名和日期；\n（五）注明发放日期和替换文...",
+    "content_length": 746,
+    "created_at": "2026-05-09T05:38:28.017041+00:00",
+    "updated_at": "2026-05-09T05:39:56.320123+00:00",
+    "file_path": "unknown_source",
+    "track_id": "insert_20260509_133828_372982ad",
+    "metadata": {
+      "processing_start_time": 1778305108,
+      "processing_end_time": 1778305196
+    }
+  },
+  "doc-f02f1d47c5603a456144bcf4cd0849d4": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-f02f1d47c5603a456144bcf4cd0849d4"
+    ],
+    "content_summary": "中国GMP（2010年修订版）第十章 质量控制与质量保证\n\n第二百二十条 质量控制部门应当独立于生产部门。\n\n第二百二十一条 质量控制部门的主要职责：\n（一）制定和修订物料、中间产品和成品的内控标准和检验操作规程；\n（二）制定取样操作规程；\n（三）制定检验用设备、仪器、试剂、标准品（或对照品）、标准溶液、培养基等的管理办法；\n（四）对物料、中间产品和成品进行取样、检验、留样，并出具检验报告；\n（五）监测洁净室（区）的微生物和尘粒数；\n（六）评价原料、中间产品及成品的质量稳定性；\n（七）制定质量控...",
+    "content_length": 788,
+    "created_at": "2026-05-09T05:39:56.413130+00:00",
+    "updated_at": "2026-05-09T05:41:27.074934+00:00",
+    "file_path": "unknown_source",
+    "track_id": "insert_20260509_133956_7743ad70",
+    "metadata": {
+      "processing_start_time": 1778305196,
+      "processing_end_time": 1778305287
+    }
+  },
+  "doc-f5b35ed187d30c5517f660031690eb31": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-f5b35ed187d30c5517f660031690eb31"
+    ],
+    "content_summary": "ICH Q10 药品质量体系\n\n1. 介绍\n本指南描述了基于ICH Q8（药物开发）、ICH Q9（质量风险管理）和本指南的药品质量体系（PQS）。\n\n2. 药品质量体系的管理职责\n2.1 高层管理人员的职责\n高层管理人员对药品质量体系的最终责任，包括：\n- 建立清晰的质量目标\n- 确保资源的可用性\n- 建立组织结构\n- 确保员工的理解和实施\n\n2.2 药品质量体系\n药品质量体系应当：\n- 包含GMP要求\n- 整合质量风险管理\n- 促进知识管理\n- 实现持续改进\n\n3. 药品质量体系的关键要素\n...",
+    "content_length": 675,
+    "created_at": "2026-05-09T05:41:27.236293+00:00",
+    "updated_at": "2026-05-09T05:42:50.098464+00:00",
+    "file_path": "unknown_source",
+    "track_id": "insert_20260509_134127_69f06eaa",
+    "metadata": {
+      "processing_start_time": 1778305287,
+      "processing_end_time": 1778305370
+    }
+  },
+  "doc-6ec2e5ac9373134e60f22a76aa5fcf8b": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-6ec2e5ac9373134e60f22a76aa5fcf8b"
+    ],
+    "content_summary": "ICH Q9 质量风险管理\n\n1. 介绍\n质量风险管理（QRM）是在产品生命周期内评估、控制、沟通和回顾药品质量风险的系统化过程。\n\n2. 范围\n本指南适用于原料药和制剂的开发、生产和上市后的各个阶段。\n\n3. 质量风险管理流程\n质量风险管理流程包括：\n- 风险评估：风险识别、风险分析、风险评价\n- 风险控制：风险降低、风险接受\n- 风险回顾\n\n4. 风险评估\n4.1 风险识别\n识别潜在的危害和与危害相关的风险。\n\n4.2 风险分析\n对已识别的风险进行估计。风险分析包括对风险的严重程度和发生概率...",
+    "content_length": 567,
+    "created_at": "2026-05-09T05:42:50.263286+00:00",
+    "updated_at": "2026-05-09T05:44:19.479364+00:00",
+    "file_path": "unknown_source",
+    "track_id": "insert_20260509_134250_6342a002",
+    "metadata": {
+      "processing_start_time": 1778305370,
+      "processing_end_time": 1778305459
+    }
+  },
+  "dup-f23b7e4f895f7f8fc8ec6d26a18b7218": {
+    "status": "failed",
+    "content_summary": "[DUPLICATE] Original document: doc-2949dafb1d421a228f88f13753dc4e0c",
+    "content_length": 936,
+    "chunks_count": 0,
+    "chunks_list": [],
+    "created_at": "2026-05-11T08:47:23.359880+00:00",
+    "updated_at": "2026-05-11T08:47:23.359880+00:00",
+    "file_path": "unknown_source",
+    "track_id": "insert_20260511_164723_3c0cc740",
+    "error_msg": "Content already exists. Original doc_id: doc-2949dafb1d421a228f88f13753dc4e0c, Status: processed",
+    "metadata": {
+      "is_duplicate": true,
+      "original_doc_id": "doc-2949dafb1d421a228f88f13753dc4e0c",
+      "original_track_id": "insert_20260509_133547_27dcaa3b"
+    }
+  },
+  "dup-133dcd179a7a084ddd1dc4ecd27f4f4d": {
+    "status": "failed",
+    "content_summary": "[DUPLICATE] Original document: doc-afbbb826e07cbd2aa694c0ded935e688",
+    "content_length": 746,
+    "chunks_count": 0,
+    "chunks_list": [],
+    "created_at": "2026-05-11T08:47:23.367619+00:00",
+    "updated_at": "2026-05-11T08:47:23.367619+00:00",
+    "file_path": "unknown_source",
+    "track_id": "insert_20260511_164723_f0664c91",
+    "error_msg": "Content already exists. Original doc_id: doc-afbbb826e07cbd2aa694c0ded935e688, Status: processed",
+    "metadata": {
+      "is_duplicate": true,
+      "original_doc_id": "doc-afbbb826e07cbd2aa694c0ded935e688",
+      "original_track_id": "insert_20260509_133828_372982ad"
+    }
+  },
+  "dup-70da85aa0b6da77b23a1acf7fb118e29": {
+    "status": "failed",
+    "content_summary": "[DUPLICATE] Original document: doc-f02f1d47c5603a456144bcf4cd0849d4",
+    "content_length": 788,
+    "chunks_count": 0,
+    "chunks_list": [],
+    "created_at": "2026-05-11T08:47:23.372559+00:00",
+    "updated_at": "2026-05-11T08:47:23.372559+00:00",
+    "file_path": "unknown_source",
+    "track_id": "insert_20260511_164723_3b062b18",
+    "error_msg": "Content already exists. Original doc_id: doc-f02f1d47c5603a456144bcf4cd0849d4, Status: processed",
+    "metadata": {
+      "is_duplicate": true,
+      "original_doc_id": "doc-f02f1d47c5603a456144bcf4cd0849d4",
+      "original_track_id": "insert_20260509_133956_7743ad70"
+    }
+  },
+  "dup-73d52664f760388d072012452afce09c": {
+    "status": "failed",
+    "content_summary": "[DUPLICATE] Original document: doc-f5b35ed187d30c5517f660031690eb31",
+    "content_length": 675,
+    "chunks_count": 0,
+    "chunks_list": [],
+    "created_at": "2026-05-11T08:47:23.387033+00:00",
+    "updated_at": "2026-05-11T08:47:23.387033+00:00",
+    "file_path": "unknown_source",
+    "track_id": "insert_20260511_164723_eb91ec3b",
+    "error_msg": "Content already exists. Original doc_id: doc-f5b35ed187d30c5517f660031690eb31, Status: processed",
+    "metadata": {
+      "is_duplicate": true,
+      "original_doc_id": "doc-f5b35ed187d30c5517f660031690eb31",
+      "original_track_id": "insert_20260509_134127_69f06eaa"
+    }
+  },
+  "dup-236ff4423fa7b463ba0c5556d0c3765f": {
+    "status": "failed",
+    "content_summary": "[DUPLICATE] Original document: doc-6ec2e5ac9373134e60f22a76aa5fcf8b",
+    "content_length": 567,
+    "chunks_count": 0,
+    "chunks_list": [],
+    "created_at": "2026-05-11T08:47:23.394411+00:00",
+    "updated_at": "2026-05-11T08:47:23.394411+00:00",
+    "file_path": "unknown_source",
+    "track_id": "insert_20260511_164723_d4059831",
+    "error_msg": "Content already exists. Original doc_id: doc-6ec2e5ac9373134e60f22a76aa5fcf8b, Status: processed",
+    "metadata": {
+      "is_duplicate": true,
+      "original_doc_id": "doc-6ec2e5ac9373134e60f22a76aa5fcf8b",
+      "original_track_id": "insert_20260509_134250_6342a002"
+    }
+  }
+}

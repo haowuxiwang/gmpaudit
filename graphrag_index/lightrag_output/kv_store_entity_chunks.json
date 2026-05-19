@@ -1,0 +1,1154 @@
+{
+  "质量保证体系": {
+    "chunk_ids": [
+      "chunk-2949dafb1d421a228f88f13753dc4e0c"
+    ],
+    "count": 1,
+    "create_time": 1778305072,
+    "update_time": 1778305072,
+    "_id": "质量保证体系"
+  },
+  "质量控制": {
+    "chunk_ids": [
+      "chunk-2949dafb1d421a228f88f13753dc4e0c"
+    ],
+    "count": 1,
+    "create_time": 1778305072,
+    "update_time": 1778305072,
+    "_id": "质量控制"
+  },
+  "企业": {
+    "chunk_ids": [
+      "chunk-2949dafb1d421a228f88f13753dc4e0c"
+    ],
+    "count": 1,
+    "create_time": 1778305072,
+    "update_time": 1778305072,
+    "_id": "企业"
+  },
+  "高层管理人员": {
+    "chunk_ids": [
+      "chunk-2949dafb1d421a228f88f13753dc4e0c"
+    ],
+    "count": 1,
+    "create_time": 1778305072,
+    "update_time": 1778305072,
+    "_id": "高层管理人员"
+  },
+  "质量管理部门": {
+    "chunk_ids": [
+      "chunk-2949dafb1d421a228f88f13753dc4e0c"
+    ],
+    "count": 1,
+    "create_time": 1778305072,
+    "update_time": 1778305072,
+    "_id": "质量管理部门"
+  },
+  "偏差处理程序": {
+    "chunk_ids": [
+      "chunk-2949dafb1d421a228f88f13753dc4e0c"
+    ],
+    "count": 1,
+    "create_time": 1778305072,
+    "update_time": 1778305072,
+    "_id": "偏差处理程序"
+  },
+  "变更控制系统": {
+    "chunk_ids": [
+      "chunk-2949dafb1d421a228f88f13753dc4e0c"
+    ],
+    "count": 1,
+    "create_time": 1778305072,
+    "update_time": 1778305072,
+    "_id": "变更控制系统"
+  },
+  "CAPA系统": {
+    "chunk_ids": [
+      "chunk-2949dafb1d421a228f88f13753dc4e0c"
+    ],
+    "count": 1,
+    "create_time": 1778305072,
+    "update_time": 1778305072,
+    "_id": "CAPA系统"
+  },
+  "供应商评估和批准程序": {
+    "chunk_ids": [
+      "chunk-2949dafb1d421a228f88f13753dc4e0c"
+    ],
+    "count": 1,
+    "create_time": 1778305074,
+    "update_time": 1778305074,
+    "_id": "供应商评估和批准程序"
+  },
+  "自检": {
+    "chunk_ids": [
+      "chunk-2949dafb1d421a228f88f13753dc4e0c"
+    ],
+    "count": 1,
+    "create_time": 1778305074,
+    "update_time": 1778305074,
+    "_id": "自检"
+  },
+  "药品": {
+    "chunk_ids": [
+      "chunk-2949dafb1d421a228f88f13753dc4e0c"
+    ],
+    "count": 1,
+    "create_time": 1778305074,
+    "update_time": 1778305074,
+    "_id": "药品"
+  },
+  "生产工艺": {
+    "chunk_ids": [
+      "chunk-2949dafb1d421a228f88f13753dc4e0c"
+    ],
+    "count": 1,
+    "create_time": 1778305074,
+    "update_time": 1778305074,
+    "_id": "生产工艺"
+  },
+  "中文说明书": {
+    "chunk_ids": [
+      "chunk-2949dafb1d421a228f88f13753dc4e0c"
+    ],
+    "count": 1,
+    "create_time": 1778305074,
+    "update_time": 1778305074,
+    "_id": "中文说明书"
+  },
+  "操作人员": {
+    "chunk_ids": [
+      "chunk-2949dafb1d421a228f88f13753dc4e0c"
+    ],
+    "count": 1,
+    "create_time": 1778305074,
+    "update_time": 1778305074,
+    "_id": "操作人员"
+  },
+  "记录": {
+    "chunk_ids": [
+      "chunk-2949dafb1d421a228f88f13753dc4e0c"
+    ],
+    "count": 1,
+    "create_time": 1778305075,
+    "update_time": 1778305075,
+    "_id": "记录"
+  },
+  "批产品": {
+    "chunk_ids": [
+      "chunk-2949dafb1d421a228f88f13753dc4e0c"
+    ],
+    "count": 1,
+    "create_time": 1778305075,
+    "update_time": 1778305075,
+    "_id": "批产品"
+  },
+  "投诉": {
+    "chunk_ids": [
+      "chunk-2949dafb1d421a228f88f13753dc4e0c"
+    ],
+    "count": 1,
+    "create_time": 1778305075,
+    "update_time": 1778305075,
+    "_id": "投诉"
+  },
+  "原材料": {
+    "chunk_ids": [
+      "chunk-2949dafb1d421a228f88f13753dc4e0c"
+    ],
+    "count": 1,
+    "create_time": 1778305076,
+    "update_time": 1778305076,
+    "_id": "原材料"
+  },
+  "中间产品": {
+    "chunk_ids": [
+      "chunk-2949dafb1d421a228f88f13753dc4e0c"
+    ],
+    "count": 1,
+    "create_time": 1778305076,
+    "update_time": 1778305076,
+    "_id": "中间产品"
+  },
+  "成品": {
+    "chunk_ids": [
+      "chunk-2949dafb1d421a228f88f13753dc4e0c"
+    ],
+    "count": 1,
+    "create_time": 1778305077,
+    "update_time": 1778305077,
+    "_id": "成品"
+  },
+  "中国GMP(2010年修订版)": {
+    "chunk_ids": [
+      "chunk-2949dafb1d421a228f88f13753dc4e0c"
+    ],
+    "count": 1,
+    "create_time": 1778305077,
+    "update_time": 1778305077,
+    "_id": "中国GMP(2010年修订版)"
+  },
+  "召回系统": {
+    "chunk_ids": [
+      "chunk-2949dafb1d421a228f88f13753dc4e0c"
+    ],
+    "count": 1,
+    "create_time": 1778305078,
+    "update_time": 1778305078,
+    "_id": "召回系统"
+  },
+  "质量目标": {
+    "chunk_ids": [
+      "chunk-2949dafb1d421a228f88f13753dc4e0c"
+    ],
+    "count": 1,
+    "create_time": 1778305078,
+    "update_time": 1778305078,
+    "_id": "质量目标"
+  },
+  "质量标准": {
+    "chunk_ids": [
+      "chunk-2949dafb1d421a228f88f13753dc4e0c"
+    ],
+    "count": 1,
+    "create_time": 1778305078,
+    "update_time": 1778305078,
+    "_id": "质量标准"
+  },
+  "工艺规程": {
+    "chunk_ids": [
+      "chunk-2949dafb1d421a228f88f13753dc4e0c"
+    ],
+    "count": 1,
+    "create_time": 1778305078,
+    "update_time": 1778305078,
+    "_id": "工艺规程"
+  },
+  "偏差": {
+    "chunk_ids": [
+      "chunk-2949dafb1d421a228f88f13753dc4e0c"
+    ],
+    "count": 1,
+    "create_time": 1778305079,
+    "update_time": 1778305079,
+    "_id": "偏差"
+  },
+  "变更": {
+    "chunk_ids": [
+      "chunk-2949dafb1d421a228f88f13753dc4e0c"
+    ],
+    "count": 1,
+    "create_time": 1778305080,
+    "update_time": 1778305080,
+    "_id": "变更"
+  },
+  "验证": {
+    "chunk_ids": [
+      "chunk-2949dafb1d421a228f88f13753dc4e0c"
+    ],
+    "count": 1,
+    "create_time": 1778305080,
+    "update_time": 1778305080,
+    "_id": "验证"
+  },
+  "培训": {
+    "chunk_ids": [
+      "chunk-2949dafb1d421a228f88f13753dc4e0c"
+    ],
+    "count": 1,
+    "create_time": 1778305081,
+    "update_time": 1778305081,
+    "_id": "培训"
+  },
+  "资源": {
+    "chunk_ids": [
+      "chunk-2949dafb1d421a228f88f13753dc4e0c"
+    ],
+    "count": 1,
+    "create_time": 1778305081,
+    "update_time": 1778305081,
+    "_id": "资源"
+  },
+  "GMP": {
+    "chunk_ids": [
+      "chunk-2949dafb1d421a228f88f13753dc4e0c",
+      "chunk-f5b35ed187d30c5517f660031690eb31"
+    ],
+    "count": 2,
+    "update_time": 1778305346,
+    "_id": "GMP"
+  },
+  "质量风险": {
+    "chunk_ids": [
+      "chunk-2949dafb1d421a228f88f13753dc4e0c"
+    ],
+    "count": 1,
+    "create_time": 1778305082,
+    "update_time": 1778305082,
+    "_id": "质量风险"
+  },
+  "不符合项": {
+    "chunk_ids": [
+      "chunk-2949dafb1d421a228f88f13753dc4e0c"
+    ],
+    "count": 1,
+    "create_time": 1778305082,
+    "update_time": 1778305082,
+    "_id": "不符合项"
+  },
+  "组织机构": {
+    "chunk_ids": [
+      "chunk-2949dafb1d421a228f88f13753dc4e0c"
+    ],
+    "count": 1,
+    "create_time": 1778305085,
+    "update_time": 1778305085,
+    "_id": "组织机构"
+  },
+  "管理职责": {
+    "chunk_ids": [
+      "chunk-2949dafb1d421a228f88f13753dc4e0c"
+    ],
+    "count": 1,
+    "create_time": 1778305086,
+    "update_time": 1778305086,
+    "_id": "管理职责"
+  },
+  "文件系统": {
+    "chunk_ids": [
+      "chunk-2949dafb1d421a228f88f13753dc4e0c"
+    ],
+    "count": 1,
+    "create_time": 1778305087,
+    "update_time": 1778305087,
+    "_id": "文件系统"
+  },
+  "取样检验": {
+    "chunk_ids": [
+      "chunk-2949dafb1d421a228f88f13753dc4e0c"
+    ],
+    "count": 1,
+    "create_time": 1778305088,
+    "update_time": 1778305088,
+    "_id": "取样检验"
+  },
+  "人员": {
+    "chunk_ids": [
+      "chunk-2949dafb1d421a228f88f13753dc4e0c"
+    ],
+    "count": 1,
+    "create_time": 1778305088,
+    "update_time": 1778305088,
+    "_id": "人员"
+  },
+  "物料": {
+    "chunk_ids": [
+      "chunk-2949dafb1d421a228f88f13753dc4e0c"
+    ],
+    "count": 1,
+    "create_time": 1778305089,
+    "update_time": 1778305089,
+    "_id": "物料"
+  },
+  "质量活动": {
+    "chunk_ids": [
+      "chunk-2949dafb1d421a228f88f13753dc4e0c"
+    ],
+    "count": 1,
+    "create_time": 1778305090,
+    "update_time": 1778305090,
+    "_id": "质量活动"
+  },
+  "厂房设施设备": {
+    "chunk_ids": [
+      "chunk-2949dafb1d421a228f88f13753dc4e0c"
+    ],
+    "count": 1,
+    "create_time": 1778305090,
+    "update_time": 1778305090,
+    "_id": "厂房设施设备"
+  },
+  "生产步骤": {
+    "chunk_ids": [
+      "chunk-2949dafb1d421a228f88f13753dc4e0c"
+    ],
+    "count": 1,
+    "create_time": 1778305092,
+    "update_time": 1778305092,
+    "_id": "生产步骤"
+  },
+  "产品": {
+    "chunk_ids": [
+      "chunk-2949dafb1d421a228f88f13753dc4e0c"
+    ],
+    "count": 1,
+    "create_time": 1778305092,
+    "update_time": 1778305092,
+    "_id": "产品"
+  },
+  "调查": {
+    "chunk_ids": [
+      "chunk-2949dafb1d421a228f88f13753dc4e0c"
+    ],
+    "count": 1,
+    "create_time": 1778305094,
+    "update_time": 1778305094,
+    "_id": "调查"
+  },
+  "重大偏差": {
+    "chunk_ids": [
+      "chunk-2949dafb1d421a228f88f13753dc4e0c"
+    ],
+    "count": 1,
+    "create_time": 1778305096,
+    "update_time": 1778305096,
+    "_id": "重大偏差"
+  },
+  "产品发运": {
+    "chunk_ids": [
+      "chunk-2949dafb1d421a228f88f13753dc4e0c"
+    ],
+    "count": 1,
+    "create_time": 1778305097,
+    "update_time": 1778305097,
+    "_id": "产品发运"
+  },
+  "评估批准": {
+    "chunk_ids": [
+      "chunk-2949dafb1d421a228f88f13753dc4e0c"
+    ],
+    "count": 1,
+    "create_time": 1778305097,
+    "update_time": 1778305097,
+    "_id": "评估批准"
+  },
+  "评价": {
+    "chunk_ids": [
+      "chunk-2949dafb1d421a228f88f13753dc4e0c"
+    ],
+    "count": 1,
+    "create_time": 1778305098,
+    "update_time": 1778305098,
+    "_id": "评价"
+  },
+  "GMP实施": {
+    "chunk_ids": [
+      "chunk-2949dafb1d421a228f88f13753dc4e0c"
+    ],
+    "count": 1,
+    "create_time": 1778305100,
+    "update_time": 1778305100,
+    "_id": "GMP实施"
+  },
+  "纠正预防措施": {
+    "chunk_ids": [
+      "chunk-2949dafb1d421a228f88f13753dc4e0c"
+    ],
+    "count": 1,
+    "create_time": 1778305101,
+    "update_time": 1778305101,
+    "_id": "纠正预防措施"
+  },
+  "已发现不符合项": {
+    "chunk_ids": [
+      "chunk-2949dafb1d421a228f88f13753dc4e0c"
+    ],
+    "count": 1,
+    "create_time": 1778305102,
+    "update_time": 1778305102,
+    "_id": "已发现不符合项"
+  },
+  "潜在不符合项": {
+    "chunk_ids": [
+      "chunk-2949dafb1d421a228f88f13753dc4e0c"
+    ],
+    "count": 1,
+    "create_time": 1778305105,
+    "update_time": 1778305105,
+    "_id": "潜在不符合项"
+  },
+  "China GMP (2010 Revision) Chapter 8": {
+    "chunk_ids": [
+      "chunk-afbbb826e07cbd2aa694c0ded935e688"
+    ],
+    "count": 1,
+    "create_time": 1778305179,
+    "update_time": 1778305179,
+    "_id": "China GMP (2010 Revision) Chapter 8"
+  },
+  "Document Management System": {
+    "chunk_ids": [
+      "chunk-afbbb826e07cbd2aa694c0ded935e688"
+    ],
+    "count": 1,
+    "create_time": 1778305179,
+    "update_time": 1778305179,
+    "_id": "Document Management System"
+  },
+  "Document": {
+    "chunk_ids": [
+      "chunk-afbbb826e07cbd2aa694c0ded935e688"
+    ],
+    "count": 1,
+    "create_time": 1778305179,
+    "update_time": 1778305179,
+    "_id": "Document"
+  },
+  "Batch Production Record": {
+    "chunk_ids": [
+      "chunk-afbbb826e07cbd2aa694c0ded935e688"
+    ],
+    "count": 1,
+    "create_time": 1778305179,
+    "update_time": 1778305179,
+    "_id": "Batch Production Record"
+  },
+  "Batch Inspection Record": {
+    "chunk_ids": [
+      "chunk-afbbb826e07cbd2aa694c0ded935e688"
+    ],
+    "count": 1,
+    "create_time": 1778305179,
+    "update_time": 1778305179,
+    "_id": "Batch Inspection Record"
+  },
+  "Production Department": {
+    "chunk_ids": [
+      "chunk-afbbb826e07cbd2aa694c0ded935e688",
+      "chunk-f02f1d47c5603a456144bcf4cd0849d4"
+    ],
+    "count": 2,
+    "update_time": 1778305255,
+    "_id": "Production Department"
+  },
+  "Quality Control Department": {
+    "chunk_ids": [
+      "chunk-afbbb826e07cbd2aa694c0ded935e688",
+      "chunk-f02f1d47c5603a456144bcf4cd0849d4"
+    ],
+    "count": 2,
+    "update_time": 1778305255,
+    "_id": "Quality Control Department"
+  },
+  "Data": {
+    "chunk_ids": [
+      "chunk-afbbb826e07cbd2aa694c0ded935e688"
+    ],
+    "count": 1,
+    "create_time": 1778305180,
+    "update_time": 1778305180,
+    "_id": "Data"
+  },
+  "Electronic Record": {
+    "chunk_ids": [
+      "chunk-afbbb826e07cbd2aa694c0ded935e688"
+    ],
+    "count": 1,
+    "create_time": 1778305181,
+    "update_time": 1778305181,
+    "_id": "Electronic Record"
+  },
+  "Drug": {
+    "chunk_ids": [
+      "chunk-afbbb826e07cbd2aa694c0ded935e688"
+    ],
+    "count": 1,
+    "create_time": 1778305182,
+    "update_time": 1778305182,
+    "_id": "Drug"
+  },
+  "Authorized Personnel": {
+    "chunk_ids": [
+      "chunk-afbbb826e07cbd2aa694c0ded935e688"
+    ],
+    "count": 1,
+    "create_time": 1778305182,
+    "update_time": 1778305182,
+    "_id": "Authorized Personnel"
+  },
+  "Shelf Life": {
+    "chunk_ids": [
+      "chunk-afbbb826e07cbd2aa694c0ded935e688"
+    ],
+    "count": 1,
+    "create_time": 1778305182,
+    "update_time": 1778305182,
+    "_id": "Shelf Life"
+  },
+  "Quality Assurance System": {
+    "chunk_ids": [
+      "chunk-afbbb826e07cbd2aa694c0ded935e688"
+    ],
+    "count": 1,
+    "create_time": 1778305182,
+    "update_time": 1778305182,
+    "_id": "Quality Assurance System"
+  },
+  "Production Formula": {
+    "chunk_ids": [
+      "chunk-afbbb826e07cbd2aa694c0ded935e688"
+    ],
+    "count": 1,
+    "create_time": 1778305183,
+    "update_time": 1778305183,
+    "_id": "Production Formula"
+  },
+  "Process Procedure": {
+    "chunk_ids": [
+      "chunk-afbbb826e07cbd2aa694c0ded935e688"
+    ],
+    "count": 1,
+    "create_time": 1778305183,
+    "update_time": 1778305183,
+    "_id": "Process Procedure"
+  },
+  "Key Process Parameters": {
+    "chunk_ids": [
+      "chunk-afbbb826e07cbd2aa694c0ded935e688"
+    ],
+    "count": 1,
+    "create_time": 1778305183,
+    "update_time": 1778305183,
+    "_id": "Key Process Parameters"
+  },
+  "Material Balance Calculation": {
+    "chunk_ids": [
+      "chunk-afbbb826e07cbd2aa694c0ded935e688"
+    ],
+    "count": 1,
+    "create_time": 1778305185,
+    "update_time": 1778305185,
+    "_id": "Material Balance Calculation"
+  },
+  "Deviation Investigation Record": {
+    "chunk_ids": [
+      "chunk-afbbb826e07cbd2aa694c0ded935e688"
+    ],
+    "count": 1,
+    "create_time": 1778305185,
+    "update_time": 1778305185,
+    "_id": "Deviation Investigation Record"
+  },
+  "China GMP (2010 Revision)": {
+    "chunk_ids": [
+      "chunk-f02f1d47c5603a456144bcf4cd0849d4"
+    ],
+    "count": 1,
+    "create_time": 1778305255,
+    "update_time": 1778305255,
+    "_id": "China GMP (2010 Revision)"
+  },
+  "Quality Control": {
+    "chunk_ids": [
+      "chunk-f02f1d47c5603a456144bcf4cd0849d4"
+    ],
+    "count": 1,
+    "create_time": 1778305255,
+    "update_time": 1778305255,
+    "_id": "Quality Control"
+  },
+  "Quality Assurance": {
+    "chunk_ids": [
+      "chunk-f02f1d47c5603a456144bcf4cd0849d4"
+    ],
+    "count": 1,
+    "create_time": 1778305255,
+    "update_time": 1778305255,
+    "_id": "Quality Assurance"
+  },
+  "Deviation Handling Procedure": {
+    "chunk_ids": [
+      "chunk-f02f1d47c5603a456144bcf4cd0849d4"
+    ],
+    "count": 1,
+    "create_time": 1778305255,
+    "update_time": 1778305255,
+    "_id": "Deviation Handling Procedure"
+  },
+  "Change Control Procedure": {
+    "chunk_ids": [
+      "chunk-f02f1d47c5603a456144bcf4cd0849d4"
+    ],
+    "count": 1,
+    "create_time": 1778305255,
+    "update_time": 1778305255,
+    "_id": "Change Control Procedure"
+  },
+  "CAPA Procedure": {
+    "chunk_ids": [
+      "chunk-f02f1d47c5603a456144bcf4cd0849d4"
+    ],
+    "count": 1,
+    "create_time": 1778305255,
+    "update_time": 1778305255,
+    "_id": "CAPA Procedure"
+  },
+  "Complaint Handling Procedure": {
+    "chunk_ids": [
+      "chunk-f02f1d47c5603a456144bcf4cd0849d4"
+    ],
+    "count": 1,
+    "create_time": 1778305259,
+    "update_time": 1778305259,
+    "_id": "Complaint Handling Procedure"
+  },
+  "Recall Procedure": {
+    "chunk_ids": [
+      "chunk-f02f1d47c5603a456144bcf4cd0849d4"
+    ],
+    "count": 1,
+    "create_time": 1778305259,
+    "update_time": 1778305259,
+    "_id": "Recall Procedure"
+  },
+  "Self-Inspection Procedure": {
+    "chunk_ids": [
+      "chunk-f02f1d47c5603a456144bcf4cd0849d4"
+    ],
+    "count": 1,
+    "create_time": 1778305259,
+    "update_time": 1778305259,
+    "_id": "Self-Inspection Procedure"
+  },
+  "Clean Room": {
+    "chunk_ids": [
+      "chunk-f02f1d47c5603a456144bcf4cd0849d4"
+    ],
+    "count": 1,
+    "create_time": 1778305259,
+    "update_time": 1778305259,
+    "_id": "Clean Room"
+  },
+  "Quality Control Laboratory": {
+    "chunk_ids": [
+      "chunk-f02f1d47c5603a456144bcf4cd0849d4"
+    ],
+    "count": 1,
+    "create_time": 1778305259,
+    "update_time": 1778305259,
+    "_id": "Quality Control Laboratory"
+  },
+  "Internal Control Standards": {
+    "chunk_ids": [
+      "chunk-f02f1d47c5603a456144bcf4cd0849d4"
+    ],
+    "count": 1,
+    "create_time": 1778305259,
+    "update_time": 1778305259,
+    "_id": "Internal Control Standards"
+  },
+  "Sampling Procedures": {
+    "chunk_ids": [
+      "chunk-f02f1d47c5603a456144bcf4cd0849d4"
+    ],
+    "count": 1,
+    "create_time": 1778305260,
+    "update_time": 1778305260,
+    "_id": "Sampling Procedures"
+  },
+  "Testing Equipment": {
+    "chunk_ids": [
+      "chunk-f02f1d47c5603a456144bcf4cd0849d4"
+    ],
+    "count": 1,
+    "create_time": 1778305261,
+    "update_time": 1778305261,
+    "_id": "Testing Equipment"
+  },
+  "Raw Materials": {
+    "chunk_ids": [
+      "chunk-f02f1d47c5603a456144bcf4cd0849d4"
+    ],
+    "count": 1,
+    "create_time": 1778305263,
+    "update_time": 1778305263,
+    "_id": "Raw Materials"
+  },
+  "Intermediates": {
+    "chunk_ids": [
+      "chunk-f02f1d47c5603a456144bcf4cd0849d4"
+    ],
+    "count": 1,
+    "create_time": 1778305264,
+    "update_time": 1778305264,
+    "_id": "Intermediates"
+  },
+  "Finished Products": {
+    "chunk_ids": [
+      "chunk-f02f1d47c5603a456144bcf4cd0849d4"
+    ],
+    "count": 1,
+    "create_time": 1778305264,
+    "update_time": 1778305264,
+    "_id": "Finished Products"
+  },
+  "Testing Reports": {
+    "chunk_ids": [
+      "chunk-f02f1d47c5603a456144bcf4cd0849d4"
+    ],
+    "count": 1,
+    "create_time": 1778305265,
+    "update_time": 1778305265,
+    "_id": "Testing Reports"
+  },
+  "Deviation Investigation": {
+    "chunk_ids": [
+      "chunk-f02f1d47c5603a456144bcf4cd0849d4"
+    ],
+    "count": 1,
+    "create_time": 1778305265,
+    "update_time": 1778305265,
+    "_id": "Deviation Investigation"
+  },
+  "Root Cause Analysis": {
+    "chunk_ids": [
+      "chunk-f02f1d47c5603a456144bcf4cd0849d4"
+    ],
+    "count": 1,
+    "create_time": 1778305265,
+    "update_time": 1778305265,
+    "_id": "Root Cause Analysis"
+  },
+  "Corrective And Preventive Actions": {
+    "chunk_ids": [
+      "chunk-f02f1d47c5603a456144bcf4cd0849d4"
+    ],
+    "count": 1,
+    "create_time": 1778305266,
+    "update_time": 1778305266,
+    "_id": "Corrective And Preventive Actions"
+  },
+  "ICH Q10": {
+    "chunk_ids": [
+      "chunk-f5b35ed187d30c5517f660031690eb31"
+    ],
+    "count": 1,
+    "create_time": 1778305346,
+    "update_time": 1778305346,
+    "_id": "ICH Q10"
+  },
+  "ICH Q8": {
+    "chunk_ids": [
+      "chunk-f5b35ed187d30c5517f660031690eb31"
+    ],
+    "count": 1,
+    "create_time": 1778305346,
+    "update_time": 1778305346,
+    "_id": "ICH Q8"
+  },
+  "ICH Q9": {
+    "chunk_ids": [
+      "chunk-f5b35ed187d30c5517f660031690eb31",
+      "chunk-6ec2e5ac9373134e60f22a76aa5fcf8b"
+    ],
+    "count": 2,
+    "update_time": 1778305424,
+    "_id": "ICH Q9"
+  },
+  "Pharmaceutical Quality System": {
+    "chunk_ids": [
+      "chunk-f5b35ed187d30c5517f660031690eb31"
+    ],
+    "count": 1,
+    "create_time": 1778305346,
+    "update_time": 1778305346,
+    "_id": "Pharmaceutical Quality System"
+  },
+  "Quality Risk Management": {
+    "chunk_ids": [
+      "chunk-f5b35ed187d30c5517f660031690eb31",
+      "chunk-6ec2e5ac9373134e60f22a76aa5fcf8b"
+    ],
+    "count": 2,
+    "update_time": 1778305424,
+    "_id": "Quality Risk Management"
+  },
+  "Knowledge Management": {
+    "chunk_ids": [
+      "chunk-f5b35ed187d30c5517f660031690eb31"
+    ],
+    "count": 1,
+    "create_time": 1778305346,
+    "update_time": 1778305346,
+    "_id": "Knowledge Management"
+  },
+  "Process Performance and Product Quality Monitoring": {
+    "chunk_ids": [
+      "chunk-f5b35ed187d30c5517f660031690eb31"
+    ],
+    "count": 1,
+    "create_time": 1778305346,
+    "update_time": 1778305346,
+    "_id": "Process Performance and Product Quality Monitoring"
+  },
+  "CAPA": {
+    "chunk_ids": [
+      "chunk-f5b35ed187d30c5517f660031690eb31"
+    ],
+    "count": 1,
+    "create_time": 1778305349,
+    "update_time": 1778305349,
+    "_id": "CAPA"
+  },
+  "Change Management": {
+    "chunk_ids": [
+      "chunk-f5b35ed187d30c5517f660031690eb31",
+      "chunk-6ec2e5ac9373134e60f22a76aa5fcf8b"
+    ],
+    "count": 2,
+    "update_time": 1778305435,
+    "_id": "Change Management"
+  },
+  "Continuous Improvement": {
+    "chunk_ids": [
+      "chunk-f5b35ed187d30c5517f660031690eb31"
+    ],
+    "count": 1,
+    "create_time": 1778305349,
+    "update_time": 1778305349,
+    "_id": "Continuous Improvement"
+  },
+  "Senior Management": {
+    "chunk_ids": [
+      "chunk-f5b35ed187d30c5517f660031690eb31"
+    ],
+    "count": 1,
+    "create_time": 1778305349,
+    "update_time": 1778305349,
+    "_id": "Senior Management"
+  },
+  "Periodic Review of PQS": {
+    "chunk_ids": [
+      "chunk-f5b35ed187d30c5517f660031690eb31"
+    ],
+    "count": 1,
+    "create_time": 1778305350,
+    "update_time": 1778305350,
+    "_id": "Periodic Review of PQS"
+  },
+  "Quality Objectives": {
+    "chunk_ids": [
+      "chunk-f5b35ed187d30c5517f660031690eb31"
+    ],
+    "count": 1,
+    "create_time": 1778305350,
+    "update_time": 1778305350,
+    "_id": "Quality Objectives"
+  },
+  "Root Cause Investigation": {
+    "chunk_ids": [
+      "chunk-f5b35ed187d30c5517f660031690eb31"
+    ],
+    "count": 1,
+    "create_time": 1778305351,
+    "update_time": 1778305351,
+    "_id": "Root Cause Investigation"
+  },
+  "Product Quality": {
+    "chunk_ids": [
+      "chunk-f5b35ed187d30c5517f660031690eb31"
+    ],
+    "count": 1,
+    "create_time": 1778305351,
+    "update_time": 1778305351,
+    "_id": "Product Quality"
+  },
+  "Product Quality Review": {
+    "chunk_ids": [
+      "chunk-f5b35ed187d30c5517f660031690eb31"
+    ],
+    "count": 1,
+    "create_time": 1778305354,
+    "update_time": 1778305354,
+    "_id": "Product Quality Review"
+  },
+  "Process Performance Evaluation": {
+    "chunk_ids": [
+      "chunk-f5b35ed187d30c5517f660031690eb31"
+    ],
+    "count": 1,
+    "create_time": 1778305355,
+    "update_time": 1778305355,
+    "_id": "Process Performance Evaluation"
+  },
+  "Risk Assessment": {
+    "chunk_ids": [
+      "chunk-6ec2e5ac9373134e60f22a76aa5fcf8b"
+    ],
+    "count": 1,
+    "create_time": 1778305424,
+    "update_time": 1778305424,
+    "_id": "Risk Assessment"
+  },
+  "Risk Control": {
+    "chunk_ids": [
+      "chunk-6ec2e5ac9373134e60f22a76aa5fcf8b"
+    ],
+    "count": 1,
+    "create_time": 1778305424,
+    "update_time": 1778305424,
+    "_id": "Risk Control"
+  },
+  "Risk Review": {
+    "chunk_ids": [
+      "chunk-6ec2e5ac9373134e60f22a76aa5fcf8b"
+    ],
+    "count": 1,
+    "create_time": 1778305424,
+    "update_time": 1778305424,
+    "_id": "Risk Review"
+  },
+  "Risk Identification": {
+    "chunk_ids": [
+      "chunk-6ec2e5ac9373134e60f22a76aa5fcf8b"
+    ],
+    "count": 1,
+    "create_time": 1778305424,
+    "update_time": 1778305424,
+    "_id": "Risk Identification"
+  },
+  "Risk Analysis": {
+    "chunk_ids": [
+      "chunk-6ec2e5ac9373134e60f22a76aa5fcf8b"
+    ],
+    "count": 1,
+    "create_time": 1778305424,
+    "update_time": 1778305424,
+    "_id": "Risk Analysis"
+  },
+  "Risk Evaluation": {
+    "chunk_ids": [
+      "chunk-6ec2e5ac9373134e60f22a76aa5fcf8b"
+    ],
+    "count": 1,
+    "create_time": 1778305424,
+    "update_time": 1778305424,
+    "_id": "Risk Evaluation"
+  },
+  "Risk Reduction": {
+    "chunk_ids": [
+      "chunk-6ec2e5ac9373134e60f22a76aa5fcf8b"
+    ],
+    "count": 1,
+    "create_time": 1778305429,
+    "update_time": 1778305429,
+    "_id": "Risk Reduction"
+  },
+  "Risk Acceptance": {
+    "chunk_ids": [
+      "chunk-6ec2e5ac9373134e60f22a76aa5fcf8b"
+    ],
+    "count": 1,
+    "create_time": 1778305429,
+    "update_time": 1778305429,
+    "_id": "Risk Acceptance"
+  },
+  "FMEA": {
+    "chunk_ids": [
+      "chunk-6ec2e5ac9373134e60f22a76aa5fcf8b"
+    ],
+    "count": 1,
+    "create_time": 1778305429,
+    "update_time": 1778305429,
+    "_id": "FMEA"
+  },
+  "FTA": {
+    "chunk_ids": [
+      "chunk-6ec2e5ac9373134e60f22a76aa5fcf8b"
+    ],
+    "count": 1,
+    "create_time": 1778305429,
+    "update_time": 1778305429,
+    "_id": "FTA"
+  },
+  "HACCP": {
+    "chunk_ids": [
+      "chunk-6ec2e5ac9373134e60f22a76aa5fcf8b"
+    ],
+    "count": 1,
+    "create_time": 1778305430,
+    "update_time": 1778305430,
+    "_id": "HACCP"
+  },
+  "HAZOP": {
+    "chunk_ids": [
+      "chunk-6ec2e5ac9373134e60f22a76aa5fcf8b"
+    ],
+    "count": 1,
+    "create_time": 1778305430,
+    "update_time": 1778305430,
+    "_id": "HAZOP"
+  },
+  "PHA": {
+    "chunk_ids": [
+      "chunk-6ec2e5ac9373134e60f22a76aa5fcf8b"
+    ],
+    "count": 1,
+    "create_time": 1778305430,
+    "update_time": 1778305430,
+    "_id": "PHA"
+  },
+  "Risk Ranking And Filtering": {
+    "chunk_ids": [
+      "chunk-6ec2e5ac9373134e60f22a76aa5fcf8b"
+    ],
+    "count": 1,
+    "create_time": 1778305431,
+    "update_time": 1778305431,
+    "_id": "Risk Ranking And Filtering"
+  },
+  "Production Process Control": {
+    "chunk_ids": [
+      "chunk-6ec2e5ac9373134e60f22a76aa5fcf8b"
+    ],
+    "count": 1,
+    "create_time": 1778305434,
+    "update_time": 1778305434,
+    "_id": "Production Process Control"
+  },
+  "Deviation Handling": {
+    "chunk_ids": [
+      "chunk-6ec2e5ac9373134e60f22a76aa5fcf8b"
+    ],
+    "count": 1,
+    "create_time": 1778305435,
+    "update_time": 1778305435,
+    "_id": "Deviation Handling"
+  },
+  "Supplier Management": {
+    "chunk_ids": [
+      "chunk-6ec2e5ac9373134e60f22a76aa5fcf8b"
+    ],
+    "count": 1,
+    "create_time": 1778305435,
+    "update_time": 1778305435,
+    "_id": "Supplier Management"
+  },
+  "Facility And Equipment Design": {
+    "chunk_ids": [
+      "chunk-6ec2e5ac9373134e60f22a76aa5fcf8b"
+    ],
+    "count": 1,
+    "create_time": 1778305436,
+    "update_time": 1778305436,
+    "_id": "Facility And Equipment Design"
+  },
+  "Validation And Confirmation": {
+    "chunk_ids": [
+      "chunk-6ec2e5ac9373134e60f22a76aa5fcf8b"
+    ],
+    "count": 1,
+    "create_time": 1778305436,
+    "update_time": 1778305436,
+    "_id": "Validation And Confirmation"
+  },
+  "Document Management": {
+    "chunk_ids": [
+      "chunk-6ec2e5ac9373134e60f22a76aa5fcf8b"
+    ],
+    "count": 1,
+    "create_time": 1778305436,
+    "update_time": 1778305436,
+    "_id": "Document Management"
+  }
+}

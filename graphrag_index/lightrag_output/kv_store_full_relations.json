@@ -1,0 +1,606 @@
+{
+  "doc-2949dafb1d421a228f88f13753dc4e0c": {
+    "relation_pairs": [
+      [
+        "变更",
+        "评估批准"
+      ],
+      [
+        "人员",
+        "企业"
+      ],
+      [
+        "取样检验",
+        "质量控制"
+      ],
+      [
+        "偏差处理程序",
+        "重大偏差"
+      ],
+      [
+        "CAPA系统",
+        "潜在不符合项"
+      ],
+      [
+        "产品发运",
+        "企业"
+      ],
+      [
+        "企业",
+        "供应商评估和批准程序"
+      ],
+      [
+        "GMP",
+        "中国GMP(2010年修订版)"
+      ],
+      [
+        "CAPA系统",
+        "企业"
+      ],
+      [
+        "生产工艺",
+        "质量保证体系"
+      ],
+      [
+        "管理职责",
+        "质量保证体系"
+      ],
+      [
+        "偏差",
+        "偏差处理程序"
+      ],
+      [
+        "企业",
+        "投诉"
+      ],
+      [
+        "CAPA系统",
+        "不符合项"
+      ],
+      [
+        "物料",
+        "质量控制"
+      ],
+      [
+        "质量保证体系",
+        "质量标准"
+      ],
+      [
+        "文件系统",
+        "质量控制"
+      ],
+      [
+        "质量目标",
+        "资源"
+      ],
+      [
+        "生产工艺",
+        "验证"
+      ],
+      [
+        "企业",
+        "质量保证体系"
+      ],
+      [
+        "组织机构",
+        "质量控制"
+      ],
+      [
+        "中文说明书",
+        "企业"
+      ],
+      [
+        "企业",
+        "召回系统"
+      ],
+      [
+        "偏差",
+        "调查"
+      ],
+      [
+        "中间产品",
+        "质量保证体系"
+      ],
+      [
+        "质量目标",
+        "高层管理人员"
+      ],
+      [
+        "企业",
+        "偏差处理程序"
+      ],
+      [
+        "药品",
+        "质量保证体系"
+      ],
+      [
+        "原材料",
+        "质量保证体系"
+      ],
+      [
+        "质量活动",
+        "质量管理部门"
+      ],
+      [
+        "企业",
+        "记录"
+      ],
+      [
+        "变更",
+        "评价"
+      ],
+      [
+        "产品",
+        "质量控制"
+      ],
+      [
+        "工艺规程",
+        "质量保证体系"
+      ],
+      [
+        "召回系统",
+        "批产品"
+      ],
+      [
+        "成品",
+        "质量保证体系"
+      ],
+      [
+        "产品发运",
+        "质量风险"
+      ],
+      [
+        "纠正预防措施",
+        "自检"
+      ],
+      [
+        "企业",
+        "批产品"
+      ],
+      [
+        "企业",
+        "生产工艺"
+      ],
+      [
+        "资源",
+        "高层管理人员"
+      ],
+      [
+        "中国GMP(2010年修订版)",
+        "质量控制"
+      ],
+      [
+        "企业",
+        "厂房设施设备"
+      ],
+      [
+        "记录",
+        "质量保证体系"
+      ],
+      [
+        "企业",
+        "变更控制系统"
+      ],
+      [
+        "生产步骤",
+        "质量保证体系"
+      ],
+      [
+        "CAPA系统",
+        "已发现不符合项"
+      ],
+      [
+        "培训",
+        "操作人员"
+      ],
+      [
+        "变更",
+        "变更控制系统"
+      ],
+      [
+        "企业",
+        "自检"
+      ],
+      [
+        "GMP实施",
+        "自检"
+      ],
+      [
+        "供应商评估和批准程序",
+        "原材料"
+      ],
+      [
+        "中国GMP(2010年修订版)",
+        "质量保证体系"
+      ]
+    ],
+    "count": 53,
+    "create_time": 1778305107,
+    "update_time": 1778305107,
+    "_id": "doc-2949dafb1d421a228f88f13753dc4e0c"
+  },
+  "doc-afbbb826e07cbd2aa694c0ded935e688": {
+    "relation_pairs": [
+      [
+        "Document",
+        "Production Formula"
+      ],
+      [
+        "Document",
+        "Process Procedure"
+      ],
+      [
+        "Batch Production Record",
+        "Production Formula"
+      ],
+      [
+        "Batch Production Record",
+        "Process Procedure"
+      ],
+      [
+        "Data",
+        "Electronic Record"
+      ],
+      [
+        "Drug",
+        "Shelf Life"
+      ],
+      [
+        "Document",
+        "Quality Assurance System"
+      ],
+      [
+        "Batch Inspection Record",
+        "Quality Control Department"
+      ],
+      [
+        "Batch Inspection Record",
+        "Drug"
+      ],
+      [
+        "Batch Inspection Record",
+        "Document"
+      ],
+      [
+        "Authorized Personnel",
+        "Electronic Record"
+      ],
+      [
+        "Batch Production Record",
+        "Material Balance Calculation"
+      ],
+      [
+        "Batch Production Record",
+        "Key Process Parameters"
+      ],
+      [
+        "Batch Production Record",
+        "Quality Control Department"
+      ],
+      [
+        "Batch Production Record",
+        "Document"
+      ],
+      [
+        "Batch Production Record",
+        "Drug"
+      ],
+      [
+        "Batch Production Record",
+        "Deviation Investigation Record"
+      ],
+      [
+        "Document",
+        "Document Management System"
+      ],
+      [
+        "Batch Production Record",
+        "Production Department"
+      ]
+    ],
+    "count": 19,
+    "create_time": 1778305196,
+    "update_time": 1778305196,
+    "_id": "doc-afbbb826e07cbd2aa694c0ded935e688"
+  },
+  "doc-f02f1d47c5603a456144bcf4cd0849d4": {
+    "relation_pairs": [
+      [
+        "Finished Products",
+        "Quality Control Department"
+      ],
+      [
+        "Quality Control Department",
+        "Quality Control Laboratory"
+      ],
+      [
+        "China GMP (2010 Revision)",
+        "Self-Inspection Procedure"
+      ],
+      [
+        "China GMP (2010 Revision)",
+        "Deviation Handling Procedure"
+      ],
+      [
+        "China GMP (2010 Revision)",
+        "Complaint Handling Procedure"
+      ],
+      [
+        "Clean Room",
+        "Quality Control Department"
+      ],
+      [
+        "Deviation Investigation",
+        "Root Cause Analysis"
+      ],
+      [
+        "CAPA Procedure",
+        "Root Cause Analysis"
+      ],
+      [
+        "Deviation Handling Procedure",
+        "Deviation Investigation"
+      ],
+      [
+        "China GMP (2010 Revision)",
+        "Quality Control Department"
+      ],
+      [
+        "Quality Control Department",
+        "Raw Materials"
+      ],
+      [
+        "Quality Control Department",
+        "Testing Equipment"
+      ],
+      [
+        "CAPA Procedure",
+        "Self-Inspection Procedure"
+      ],
+      [
+        "CAPA Procedure",
+        "Corrective And Preventive Actions"
+      ],
+      [
+        "Change Control Procedure",
+        "China GMP (2010 Revision)"
+      ],
+      [
+        "China GMP (2010 Revision)",
+        "Recall Procedure"
+      ],
+      [
+        "Internal Control Standards",
+        "Quality Control Department"
+      ],
+      [
+        "Quality Control Department",
+        "Sampling Procedures"
+      ],
+      [
+        "Corrective And Preventive Actions",
+        "Deviation Handling Procedure"
+      ],
+      [
+        "Quality Assurance",
+        "Quality Control"
+      ],
+      [
+        "CAPA Procedure",
+        "Deviation Handling Procedure"
+      ],
+      [
+        "Production Department",
+        "Quality Control Department"
+      ],
+      [
+        "CAPA Procedure",
+        "China GMP (2010 Revision)"
+      ],
+      [
+        "Quality Control",
+        "Quality Control Department"
+      ],
+      [
+        "Intermediates",
+        "Quality Control Department"
+      ],
+      [
+        "Quality Control Department",
+        "Testing Reports"
+      ]
+    ],
+    "count": 26,
+    "create_time": 1778305287,
+    "update_time": 1778305287,
+    "_id": "doc-f02f1d47c5603a456144bcf4cd0849d4"
+  },
+  "doc-f5b35ed187d30c5517f660031690eb31": {
+    "relation_pairs": [
+      [
+        "Periodic Review of PQS",
+        "Pharmaceutical Quality System"
+      ],
+      [
+        "Knowledge Management",
+        "Product Quality"
+      ],
+      [
+        "Pharmaceutical Quality System",
+        "Process Performance and Product Quality Monitoring"
+      ],
+      [
+        "CAPA",
+        "Pharmaceutical Quality System"
+      ],
+      [
+        "Continuous Improvement",
+        "Periodic Review of PQS"
+      ],
+      [
+        "CAPA",
+        "Root Cause Investigation"
+      ],
+      [
+        "CAPA",
+        "Knowledge Management"
+      ],
+      [
+        "Process Performance Evaluation",
+        "Process Performance and Product Quality Monitoring"
+      ],
+      [
+        "ICH Q10",
+        "ICH Q9"
+      ],
+      [
+        "Pharmaceutical Quality System",
+        "Quality Risk Management"
+      ],
+      [
+        "Pharmaceutical Quality System",
+        "Senior Management"
+      ],
+      [
+        "ICH Q10",
+        "Pharmaceutical Quality System"
+      ],
+      [
+        "GMP",
+        "Pharmaceutical Quality System"
+      ],
+      [
+        "Quality Objectives",
+        "Senior Management"
+      ],
+      [
+        "Change Management",
+        "Pharmaceutical Quality System"
+      ],
+      [
+        "Knowledge Management",
+        "Pharmaceutical Quality System"
+      ],
+      [
+        "Process Performance and Product Quality Monitoring",
+        "Product Quality Review"
+      ],
+      [
+        "Change Management",
+        "Product Quality"
+      ],
+      [
+        "ICH Q10",
+        "ICH Q8"
+      ],
+      [
+        "Continuous Improvement",
+        "Pharmaceutical Quality System"
+      ]
+    ],
+    "count": 20,
+    "create_time": 1778305370,
+    "update_time": 1778305370,
+    "_id": "doc-f5b35ed187d30c5517f660031690eb31"
+  },
+  "doc-6ec2e5ac9373134e60f22a76aa5fcf8b": {
+    "relation_pairs": [
+      [
+        "Risk Control",
+        "Risk Reduction"
+      ],
+      [
+        "Risk Assessment",
+        "Risk Identification"
+      ],
+      [
+        "Risk Acceptance",
+        "Risk Control"
+      ],
+      [
+        "FMEA",
+        "Quality Risk Management"
+      ],
+      [
+        "Production Process Control",
+        "Quality Risk Management"
+      ],
+      [
+        "Quality Risk Management",
+        "Risk Control"
+      ],
+      [
+        "HAZOP",
+        "Quality Risk Management"
+      ],
+      [
+        "Facility And Equipment Design",
+        "Quality Risk Management"
+      ],
+      [
+        "Quality Risk Management",
+        "Validation And Confirmation"
+      ],
+      [
+        "Quality Risk Management",
+        "Risk Review"
+      ],
+      [
+        "Deviation Handling",
+        "Quality Risk Management"
+      ],
+      [
+        "Quality Risk Management",
+        "Risk Assessment"
+      ],
+      [
+        "ICH Q9",
+        "Quality Risk Management"
+      ],
+      [
+        "FTA",
+        "Quality Risk Management"
+      ],
+      [
+        "HACCP",
+        "Quality Risk Management"
+      ],
+      [
+        "Quality Risk Management",
+        "Supplier Management"
+      ],
+      [
+        "Risk Assessment",
+        "Risk Evaluation"
+      ],
+      [
+        "Document Management",
+        "Quality Risk Management"
+      ],
+      [
+        "Risk Analysis",
+        "Risk Assessment"
+      ],
+      [
+        "Quality Risk Management",
+        "Risk Ranking And Filtering"
+      ],
+      [
+        "Change Management",
+        "Quality Risk Management"
+      ],
+      [
+        "PHA",
+        "Quality Risk Management"
+      ],
+      [
+        "Risk Analysis",
+        "Risk Identification"
+      ]
+    ],
+    "count": 23,
+    "create_time": 1778305459,
+    "update_time": 1778305459,
+    "_id": "doc-6ec2e5ac9373134e60f22a76aa5fcf8b"
+  }
+}

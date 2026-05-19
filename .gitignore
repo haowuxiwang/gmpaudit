@@ -51,9 +51,8 @@ frontend/dist/
 # Local model files (large, download separately)
 model/
 
-# GraphRAG build artifacts
+# GraphRAG build artifacts (保留 lightrag_output 作为预构建索引)
 graphrag_index/output/
-graphrag_index/lightrag_output/
 graphrag_index/logs/
 
 # Test artifacts

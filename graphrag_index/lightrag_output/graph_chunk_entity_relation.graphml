@@ -1,0 +1,2437 @@
+<?xml version='1.0' encoding='utf-8'?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd"><key id="d13" for="edge" attr.name="truncate" attr.type="string"/>
+<key id="d12" for="edge" attr.name="created_at" attr.type="long"/>
+<key id="d11" for="edge" attr.name="file_path" attr.type="string"/>
+<key id="d10" for="edge" attr.name="source_id" attr.type="string"/>
+<key id="d9" for="edge" attr.name="keywords" attr.type="string"/>
+<key id="d8" for="edge" attr.name="description" attr.type="string"/>
+<key id="d7" for="edge" attr.name="weight" attr.type="double"/>
+<key id="d6" for="node" attr.name="truncate" attr.type="string"/>
+<key id="d5" for="node" attr.name="created_at" attr.type="long"/>
+<key id="d4" for="node" attr.name="file_path" attr.type="string"/>
+<key id="d3" for="node" attr.name="source_id" attr.type="string"/>
+<key id="d2" for="node" attr.name="description" attr.type="string"/>
+<key id="d1" for="node" attr.name="entity_type" attr.type="string"/>
+<key id="d0" for="node" attr.name="entity_id" attr.type="string"/>
+<graph edgedefault="undirected"><node id="质量保证体系">
+  <data key="d0">质量保证体系</data>
+  <data key="d1">concept</data>
+  <data key="d2">质量保证体系是企业建立并实施的体系，旨在确保药品按照批准的工艺规程和质量标准进行生产和控制。</data>
+  <data key="d3">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305072</data>
+  <data key="d6"></data>
+</node>
+<node id="质量控制">
+  <data key="d0">质量控制</data>
+  <data key="d1">concept</data>
+  <data key="d2">质量控制包括相应的组织机构、文件系统以及取样、检验等活动，旨在确保物料或产品在放行前完成必要的检验，确认其质量符合要求。</data>
+  <data key="d3">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305072</data>
+  <data key="d6"></data>
+</node>
+<node id="企业">
+  <data key="d0">企业</data>
+  <data key="d1">organization</data>
+  <data key="d2">企业是需要建立并实施质量保证体系、配备资源、建立各种管理程序并定期自检的组织。</data>
+  <data key="d3">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305072</data>
+  <data key="d6"></data>
+</node>
+<node id="高层管理人员">
+  <data key="d0">高层管理人员</data>
+  <data key="d1">person</data>
+  <data key="d2">高层管理人员是企业的领导层，负责确保实现质量目标所必需的资源。</data>
+  <data key="d3">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305072</data>
+  <data key="d6"></data>
+</node>
+<node id="质量管理部门">
+  <data key="d0">质量管理部门</data>
+  <data key="d1">organization</data>
+  <data key="d2">质量管理部门是企业内负责参与所有与质量有关活动的部门。</data>
+  <data key="d3">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305072</data>
+  <data key="d6"></data>
+</node>
+<node id="偏差处理程序">
+  <data key="d0">偏差处理程序</data>
+  <data key="d1">method</data>
+  <data key="d2">偏差处理程序是企业建立的程序，用于记录、说明任何偏差，并对重大偏差进行调查，调查及结论需形成文件。</data>
+  <data key="d3">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305072</data>
+  <data key="d6"></data>
+</node>
+<node id="变更控制系统">
+  <data key="d0">变更控制系统</data>
+  <data key="d1">method</data>
+  <data key="d2">变更控制系统是企业建立的系统，用于对可能影响产品质量的变更进行评估、批准和管理，并在实施后进行评价。</data>
+  <data key="d3">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305072</data>
+  <data key="d6"></data>
+</node>
+<node id="CAPA系统">
+  <data key="d0">CAPA系统</data>
+  <data key="d1">method</data>
+  <data key="d2">CAPA系统(纠正和预防措施系统)是企业建立的系统，其纠正措施用于消除已发现的不符合项的原因，预防措施用于消除潜在不符合项的原因。</data>
+  <data key="d3">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305072</data>
+  <data key="d6"></data>
+</node>
+<node id="供应商评估和批准程序">
+  <data key="d0">供应商评估和批准程序</data>
+  <data key="d1">method</data>
+  <data key="d2">供应商评估和批准程序是企业建立的程序，旨在确保原材料从认可的供应商处采购。</data>
+  <data key="d3">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305074</data>
+  <data key="d6"></data>
+</node>
+<node id="自检">
+  <data key="d0">自检</data>
+  <data key="d1">method</data>
+  <data key="d2">自检是企业定期进行的活动，用于监控GMP的实施情况，并提出必要的纠正和预防措施。</data>
+  <data key="d3">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305074</data>
+  <data key="d6"></data>
+</node>
+<node id="药品">
+  <data key="d0">药品</data>
+  <data key="d1">artifact</data>
+  <data key="d2">药品是按照批准的工艺规程和质量标准进行生产和控制的产品。</data>
+  <data key="d3">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305074</data>
+  <data key="d6"></data>
+</node>
+<node id="生产工艺">
+  <data key="d0">生产工艺</data>
+  <data key="d1">method</data>
+  <data key="d2">生产工艺是制定并经过验证的生产过程，旨在可持续稳定地生产出符合要求的产品。</data>
+  <data key="d3">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305074</data>
+  <data key="d6"></data>
+</node>
+<node id="中文说明书">
+  <data key="d0">中文说明书</data>
+  <data key="d1">content</data>
+  <data key="d2">中文说明书是清晰准确的产品使用说明。</data>
+  <data key="d3">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305075</data>
+  <data key="d6"></data>
+</node>
+<node id="操作人员">
+  <data key="d0">操作人员</data>
+  <data key="d1">person</data>
+  <data key="d2">操作人员是经过培训的生产操作人员。</data>
+  <data key="d3">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305075</data>
+  <data key="d6"></data>
+</node>
+<node id="记录">
+  <data key="d0">记录</data>
+  <data key="d1">data</data>
+  <data key="d2">记录是生产全过程的手工或仪器记录，用于追溯批产品的完整生产历史。</data>
+  <data key="d3">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305075</data>
+  <data key="d6"></data>
+</node>
+<node id="批产品">
+  <data key="d0">批产品</data>
+  <data key="d1">data</data>
+  <data key="d2">批产品是能够追溯完整生产历史的产品批次。</data>
+  <data key="d3">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305075</data>
+  <data key="d6"></data>
+</node>
+<node id="投诉">
+  <data key="d0">投诉</data>
+  <data key="d1">data</data>
+  <data key="d2">投诉是针对上市产品提出的，企业需要审查其原因并采取措施。</data>
+  <data key="d3">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305076</data>
+  <data key="d6"></data>
+</node>
+<node id="原材料">
+  <data key="d0">原材料</data>
+  <data key="d1">data</data>
+  <data key="d2">原材料是从认可供应商处采购的生产物料。</data>
+  <data key="d3">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305076</data>
+  <data key="d6"></data>
+</node>
+<node id="中间产品">
+  <data key="d0">中间产品</data>
+  <data key="d1">data</data>
+  <data key="d2">中间产品是生产过程中的中间物料。</data>
+  <data key="d3">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305077</data>
+  <data key="d6"></data>
+</node>
+<node id="成品">
+  <data key="d0">成品</data>
+  <data key="d1">data</data>
+  <data key="d2">成品是完成生产的最终产品。</data>
+  <data key="d3">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305077</data>
+  <data key="d6"></data>
+</node>
+<node id="中国GMP(2010年修订版)">
+  <data key="d0">中国GMP(2010年修订版)</data>
+  <data key="d1">artifact</data>
+  <data key="d2">中国GMP(2010年修订版)是中国药品生产质量管理规范的法规文件，规定了企业质量管理体系的基本要求。</data>
+  <data key="d3">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305078</data>
+  <data key="d6"></data>
+</node>
+<node id="召回系统">
+  <data key="d0">召回系统</data>
+  <data key="d1">method</data>
+  <data key="d2">召回系统是企业建立的系统，能够召回任何一批已发运的产品，以降低质量风险。</data>
+  <data key="d3">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305078</data>
+  <data key="d6"></data>
+</node>
+<node id="质量目标">
+  <data key="d0">质量目标</data>
+  <data key="d1">concept</data>
+  <data key="d2">质量目标是企业需要实现的目标，高层管理人员应当确保实现质量目标所必需的资源。</data>
+  <data key="d3">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305078</data>
+  <data key="d6"></data>
+</node>
+<node id="质量标准">
+  <data key="d0">质量标准</data>
+  <data key="d1">concept</data>
+  <data key="d2">质量标准是药品生产和控制必须遵循的标准，确保药品质量符合要求。</data>
+  <data key="d3">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305078</data>
+  <data key="d6"></data>
+</node>
+<node id="工艺规程">
+  <data key="d0">工艺规程</data>
+  <data key="d1">content</data>
+  <data key="d2">工艺规程是经批准的药品生产工艺文件，药品应按照批准的工艺规程进行生产和控制。</data>
+  <data key="d3">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305079</data>
+  <data key="d6"></data>
+</node>
+<node id="偏差">
+  <data key="d0">偏差</data>
+  <data key="d1">concept</data>
+  <data key="d2">偏差是生产过程中出现的偏离规定程序的情况，任何偏差都应当记录并说明，重大偏差应当进行调查。</data>
+  <data key="d3">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305080</data>
+  <data key="d6"></data>
+</node>
+<node id="变更">
+  <data key="d0">变更</data>
+  <data key="d1">concept</data>
+  <data key="d2">变更是可能影响产品质量的改变，实施前应当经过评估、批准，实施后应当进行评价。</data>
+  <data key="d3">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305080</data>
+  <data key="d6"></data>
+</node>
+<node id="验证">
+  <data key="d0">验证</data>
+  <data key="d1">method</data>
+  <data key="d2">验证是对生产工艺及其重大变更进行确认的活动，确保其可持续稳定地生产出符合要求的产品。</data>
+  <data key="d3">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305081</data>
+  <data key="d6"></data>
+</node>
+<node id="培训">
+  <data key="d0">培训</data>
+  <data key="d1">method</data>
+  <data key="d2">培训是操作人员必须接受的教育活动，确保其具备正确执行生产操作的能力。</data>
+  <data key="d3">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305081</data>
+  <data key="d6"></data>
+</node>
+<node id="资源">
+  <data key="d0">资源</data>
+  <data key="d1">concept</data>
+  <data key="d2">资源是实现质量目标所必需的人员、厂房、设施和设备等，由高层管理人员确保配备。</data>
+  <data key="d3">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305082</data>
+  <data key="d6"></data>
+</node>
+<node id="GMP">
+  <data key="d0">GMP</data>
+  <data key="d1">concept</data>
+  <data key="d2">GMP(Good Manufacturing Practice)是药品生产质量管理规范，是企业实施质量管理的基本框架。&lt;SEP&gt;Good Manufacturing Practice (GMP) is a set of requirements that must be contained within the Pharmaceutical Quality System.</data>
+  <data key="d3">chunk-2949dafb1d421a228f88f13753dc4e0c&lt;SEP&gt;chunk-f5b35ed187d30c5517f660031690eb31</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305346</data>
+  <data key="d6"></data>
+</node>
+<node id="质量风险">
+  <data key="d0">质量风险</data>
+  <data key="d1">concept</data>
+  <data key="d2">质量风险是产品在发运和使用过程中可能面临的质量隐患，企业应当最大限度地降低质量风险。</data>
+  <data key="d3">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305082</data>
+  <data key="d6"></data>
+</node>
+<node id="不符合项">
+  <data key="d0">不符合项</data>
+  <data key="d1">concept</data>
+  <data key="d2">不符合项是质量管理体系中发现的问题，包括已发现的不符合项和潜在的不符合项，CAPA系统用于消除其原因。</data>
+  <data key="d3">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305083</data>
+  <data key="d6"></data>
+</node>
+<node id="组织机构">
+  <data key="d0">组织机构</data>
+  <data key="d3">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d2">质量控制包括相应的组织机构。</data>
+  <data key="d1">UNKNOWN</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305085</data>
+  <data key="d6"></data>
+</node>
+<node id="管理职责">
+  <data key="d0">管理职责</data>
+  <data key="d3">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d2">质量保证体系确保管理职责被明确规定。</data>
+  <data key="d1">UNKNOWN</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305086</data>
+  <data key="d6"></data>
+</node>
+<node id="文件系统">
+  <data key="d0">文件系统</data>
+  <data key="d3">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d2">质量控制包括相应的文件系统。</data>
+  <data key="d1">UNKNOWN</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305087</data>
+  <data key="d6"></data>
+</node>
+<node id="取样检验">
+  <data key="d0">取样检验</data>
+  <data key="d3">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d2">质量控制包括取样、检验等活动。</data>
+  <data key="d1">UNKNOWN</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305088</data>
+  <data key="d6"></data>
+</node>
+<node id="人员">
+  <data key="d0">人员</data>
+  <data key="d3">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d2">企业应当配备足够的具有相应资质的人员。</data>
+  <data key="d1">UNKNOWN</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305088</data>
+  <data key="d6"></data>
+</node>
+<node id="物料">
+  <data key="d0">物料</data>
+  <data key="d3">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d2">质量控制确保物料在放行前完成必要的检验。</data>
+  <data key="d1">UNKNOWN</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305089</data>
+  <data key="d6"></data>
+</node>
+<node id="质量活动">
+  <data key="d0">质量活动</data>
+  <data key="d3">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d2">质量管理部门应当参与所有与质量有关的活动。</data>
+  <data key="d1">UNKNOWN</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305090</data>
+  <data key="d6"></data>
+</node>
+<node id="厂房设施设备">
+  <data key="d0">厂房设施设备</data>
+  <data key="d3">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d2">企业应当配备足够的厂房、设施和设备。</data>
+  <data key="d1">UNKNOWN</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305090</data>
+  <data key="d6"></data>
+</node>
+<node id="生产步骤">
+  <data key="d0">生产步骤</data>
+  <data key="d3">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d2">质量保证体系确保按照要求完成了生产过程中各步骤。</data>
+  <data key="d1">UNKNOWN</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305091</data>
+  <data key="d6"></data>
+</node>
+<node id="产品">
+  <data key="d0">产品</data>
+  <data key="d3">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d2">质量控制确保产品在放行前完成必要的检验。</data>
+  <data key="d1">UNKNOWN</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305091</data>
+  <data key="d6"></data>
+</node>
+<node id="调查">
+  <data key="d0">调查</data>
+  <data key="d3">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d2">偏差均经过调查。</data>
+  <data key="d1">UNKNOWN</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305094</data>
+  <data key="d6"></data>
+</node>
+<node id="重大偏差">
+  <data key="d0">重大偏差</data>
+  <data key="d3">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d2">偏差处理程序对重大偏差进行调查。</data>
+  <data key="d1">UNKNOWN</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305096</data>
+  <data key="d6"></data>
+</node>
+<node id="产品发运">
+  <data key="d0">产品发运</data>
+  <data key="d3">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d2">产品的发运能够最大限度地降低质量风险。</data>
+  <data key="d1">UNKNOWN</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305097</data>
+  <data key="d6"></data>
+</node>
+<node id="评估批准">
+  <data key="d0">评估批准</data>
+  <data key="d3">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d2">变更实施前应当经过评估、批准。</data>
+  <data key="d1">UNKNOWN</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305097</data>
+  <data key="d6"></data>
+</node>
+<node id="评价">
+  <data key="d0">评价</data>
+  <data key="d3">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d2">变更实施后应当进行评价，确认变更达到了预期目标。</data>
+  <data key="d1">UNKNOWN</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305098</data>
+  <data key="d6"></data>
+</node>
+<node id="GMP实施">
+  <data key="d0">GMP实施</data>
+  <data key="d3">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d2">自检用于监控GMP的实施情况。</data>
+  <data key="d1">UNKNOWN</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305100</data>
+  <data key="d6"></data>
+</node>
+<node id="纠正预防措施">
+  <data key="d0">纠正预防措施</data>
+  <data key="d3">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d2">自检提出必要的纠正和预防措施。</data>
+  <data key="d1">UNKNOWN</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305101</data>
+  <data key="d6"></data>
+</node>
+<node id="已发现不符合项">
+  <data key="d0">已发现不符合项</data>
+  <data key="d3">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d2">CAPA系统的纠正措施应当消除已发现的不符合项的原因。</data>
+  <data key="d1">UNKNOWN</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305102</data>
+  <data key="d6"></data>
+</node>
+<node id="潜在不符合项">
+  <data key="d0">潜在不符合项</data>
+  <data key="d3">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d2">CAPA系统的预防措施应当消除潜在不符合项的原因。</data>
+  <data key="d1">UNKNOWN</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305105</data>
+  <data key="d6"></data>
+</node>
+<node id="China GMP (2010 Revision) Chapter 8">
+  <data key="d0">China GMP (2010 Revision) Chapter 8</data>
+  <data key="d1">content</data>
+  <data key="d2">Chapter 8 of the China GMP (2010 Revision) details the requirements for document management in pharmaceutical manufacturing.</data>
+  <data key="d3">chunk-afbbb826e07cbd2aa694c0ded935e688</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305179</data>
+  <data key="d6"></data>
+</node>
+<node id="Document Management System">
+  <data key="d0">Document Management System</data>
+  <data key="d1">artifact</data>
+  <data key="d2">A system that enterprises must establish to manage the drafting, revision, review, approval, distribution, replacement, and withdrawal of documents.</data>
+  <data key="d3">chunk-afbbb826e07cbd2aa694c0ded935e688</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305179</data>
+  <data key="d6"></data>
+</node>
+<node id="Document">
+  <data key="d0">Document</data>
+  <data key="d1">content</data>
+  <data key="d2">A fundamental element of the quality assurance system, covering quality standards, production formulas, process procedures, operating procedures, and records.</data>
+  <data key="d3">chunk-afbbb826e07cbd2aa694c0ded935e688</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305179</data>
+  <data key="d6"></data>
+</node>
+<node id="Batch Production Record">
+  <data key="d0">Batch Production Record</data>
+  <data key="d1">content</data>
+  <data key="d2">A record created based on the approved current production formula and process procedure, designed to avoid transcription errors, and containing specific production details.</data>
+  <data key="d3">chunk-afbbb826e07cbd2aa694c0ded935e688</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305180</data>
+  <data key="d6"></data>
+</node>
+<node id="Batch Inspection Record">
+  <data key="d0">Batch Inspection Record</data>
+  <data key="d1">content</data>
+  <data key="d2">A record that must accompany each batch of drug, which must be true and complete, reflecting the entire production process.</data>
+  <data key="d3">chunk-afbbb826e07cbd2aa694c0ded935e688</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305180</data>
+  <data key="d6"></data>
+</node>
+<node id="Production Department">
+  <data key="d0">Production Department</data>
+  <data key="d1">organization</data>
+  <data key="d2">The department responsible for filling out batch production records.&lt;SEP&gt;The Production Department is an organizational unit from which the Quality Control Department must maintain independence.</data>
+  <data key="d3">chunk-afbbb826e07cbd2aa694c0ded935e688&lt;SEP&gt;chunk-f02f1d47c5603a456144bcf4cd0849d4</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305255</data>
+  <data key="d6"></data>
+</node>
+<node id="Quality Control Department">
+  <data key="d0">Quality Control Department</data>
+  <data key="d1">organization</data>
+  <data key="d2">The department responsible for reviewing batch records.&lt;SEP&gt;The Quality Control Department is an organizational unit that must be independent of the Production Department, responsible for setting internal standards, sampling, testing, stability evaluation, clean room monitoring, and laboratory management.</data>
+  <data key="d3">chunk-afbbb826e07cbd2aa694c0ded935e688&lt;SEP&gt;chunk-f02f1d47c5603a456144bcf4cd0849d4</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305255</data>
+  <data key="d6"></data>
+</node>
+<node id="Data">
+  <data key="d0">Data</data>
+  <data key="d1">data</data>
+  <data key="d2">Information that must be accurate and complete; changes to data must be justified, with the original data kept readable and the changer and date recorded.</data>
+  <data key="d3">chunk-afbbb826e07cbd2aa694c0ded935e688</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305181</data>
+  <data key="d6"></data>
+</node>
+<node id="Electronic Record">
+  <data key="d0">Electronic Record</data>
+  <data key="d1">content</data>
+  <data key="d2">A type of record that must meet specific requirements, including access control, change logging, regular backups, and authorization for data entry or modification.</data>
+  <data key="d3">chunk-afbbb826e07cbd2aa694c0ded935e688</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305182</data>
+  <data key="d6"></data>
+</node>
+<node id="Drug">
+  <data key="d0">Drug</data>
+  <data key="d1">artifact</data>
+  <data key="d2">A pharmaceutical product for which batch production and inspection records must be maintained.</data>
+  <data key="d3">chunk-afbbb826e07cbd2aa694c0ded935e688</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305182</data>
+  <data key="d6"></data>
+</node>
+<node id="Authorized Personnel">
+  <data key="d0">Authorized Personnel</data>
+  <data key="d1">person</data>
+  <data key="d2">Individuals who are permitted to enter or modify data in electronic records.</data>
+  <data key="d3">chunk-afbbb826e07cbd2aa694c0ded935e688</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305182</data>
+  <data key="d6"></data>
+</node>
+<node id="Shelf Life">
+  <data key="d0">Shelf Life</data>
+  <data key="d1">concept</data>
+  <data key="d2">The period during which a drug is considered usable; batch records must be kept for at least one year after its expiration, or for at least five years if no shelf life is specified.</data>
+  <data key="d3">chunk-afbbb826e07cbd2aa694c0ded935e688</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305183</data>
+  <data key="d6"></data>
+</node>
+<node id="Quality Assurance System">
+  <data key="d0">Quality Assurance System</data>
+  <data key="d1">concept</data>
+  <data key="d2">The overarching system for ensuring pharmaceutical quality, for which documents are described as a fundamental element.</data>
+  <data key="d3">chunk-afbbb826e07cbd2aa694c0ded935e688</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305183</data>
+  <data key="d6"></data>
+</node>
+<node id="Production Formula">
+  <data key="d0">Production Formula</data>
+  <data key="d1">method</data>
+  <data key="d2">The approved formula for drug production, which serves as the basis for creating batch production records.</data>
+  <data key="d3">chunk-afbbb826e07cbd2aa694c0ded935e688</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305183</data>
+  <data key="d6"></data>
+</node>
+<node id="Process Procedure">
+  <data key="d0">Process Procedure</data>
+  <data key="d1">method</data>
+  <data key="d2">The approved manufacturing process steps, which serve as the basis for creating batch production records.</data>
+  <data key="d3">chunk-afbbb826e07cbd2aa694c0ded935e688</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305184</data>
+  <data key="d6"></data>
+</node>
+<node id="Key Process Parameters">
+  <data key="d0">Key Process Parameters</data>
+  <data key="d1">data</data>
+  <data key="d2">Critical manufacturing parameters whose actual values must be recorded in the batch production record.</data>
+  <data key="d3">chunk-afbbb826e07cbd2aa694c0ded935e688</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305185</data>
+  <data key="d6"></data>
+</node>
+<node id="Material Balance Calculation">
+  <data key="d0">Material Balance Calculation</data>
+  <data key="d1">method</data>
+  <data key="d2">A calculation that must be included in the batch production record to account for material usage and yield.</data>
+  <data key="d3">chunk-afbbb826e07cbd2aa694c0ded935e688</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305185</data>
+  <data key="d6"></data>
+</node>
+<node id="Deviation Investigation Record">
+  <data key="d0">Deviation Investigation Record</data>
+  <data key="d1">content</data>
+  <data key="d2">A record of deviations from standard procedures and their investigation, which must be included in the batch production record.</data>
+  <data key="d3">chunk-afbbb826e07cbd2aa694c0ded935e688</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305186</data>
+  <data key="d6"></data>
+</node>
+<node id="China GMP (2010 Revision)">
+  <data key="d0">China GMP (2010 Revision)</data>
+  <data key="d1">concept</data>
+  <data key="d2">China GMP (2010 Revision) is a national regulatory framework for pharmaceutical Good Manufacturing Practice in China, with Chapter 10 specifically addressing quality control and quality assurance requirements.</data>
+  <data key="d3">chunk-f02f1d47c5603a456144bcf4cd0849d4</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305255</data>
+  <data key="d6"></data>
+</node>
+<node id="Quality Control">
+  <data key="d0">Quality Control</data>
+  <data key="d1">concept</data>
+  <data key="d2">Quality Control refers to the systematic activities including sampling, testing, stability evaluation, and monitoring of materials, intermediates, and finished products to ensure they meet established standards.</data>
+  <data key="d3">chunk-f02f1d47c5603a456144bcf4cd0849d4</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305255</data>
+  <data key="d6"></data>
+</node>
+<node id="Quality Assurance">
+  <data key="d0">Quality Assurance</data>
+  <data key="d1">concept</data>
+  <data key="d2">Quality Assurance is a broad concept encompassing all planned and systematic activities implemented within the quality system to ensure that products meet quality requirements, as covered in Chapter 10 of China GMP.</data>
+  <data key="d3">chunk-f02f1d47c5603a456144bcf4cd0849d4</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305255</data>
+  <data key="d6"></data>
+</node>
+<node id="Deviation Handling Procedure">
+  <data key="d0">Deviation Handling Procedure</data>
+  <data key="d1">method</data>
+  <data key="d2">The Deviation Handling Procedure is a formal process that includes deviation reporting and recording, investigation and evaluation, classification, corrective and preventive action development and implementation, and deviation closure.</data>
+  <data key="d3">chunk-f02f1d47c5603a456144bcf4cd0849d4</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305256</data>
+  <data key="d6"></data>
+</node>
+<node id="Change Control Procedure">
+  <data key="d0">Change Control Procedure</data>
+  <data key="d1">method</data>
+  <data key="d2">The Change Control Procedure is a formal process that includes change application and approval, classification and evaluation, implementation and verification, and change closure.</data>
+  <data key="d3">chunk-f02f1d47c5603a456144bcf4cd0849d4</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305256</data>
+  <data key="d6"></data>
+</node>
+<node id="CAPA Procedure">
+  <data key="d0">CAPA Procedure</data>
+  <data key="d1">method</data>
+  <data key="d2">The Corrective and Preventive Actions (CAPA) Procedure is a formal process that includes non-conformance reporting and recording, root cause analysis, corrective action development and implementation, preventive action development and implementation, and CAPA effectiveness verification.</data>
+  <data key="d3">chunk-f02f1d47c5603a456144bcf4cd0849d4</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305256</data>
+  <data key="d6"></data>
+</node>
+<node id="Complaint Handling Procedure">
+  <data key="d0">Complaint Handling Procedure</data>
+  <data key="d1">method</data>
+  <data key="d2">The Complaint Handling Procedure is a formal process that includes complaint receipt and recording, investigation and evaluation, handling and response, and complaint trend analysis.</data>
+  <data key="d3">chunk-f02f1d47c5603a456144bcf4cd0849d4</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305259</data>
+  <data key="d6"></data>
+</node>
+<node id="Recall Procedure">
+  <data key="d0">Recall Procedure</data>
+  <data key="d1">method</data>
+  <data key="d2">The Recall Procedure is a formal process that includes recall initiation and evaluation, implementation and monitoring, and closure and summary.</data>
+  <data key="d3">chunk-f02f1d47c5603a456144bcf4cd0849d4</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305259</data>
+  <data key="d6"></data>
+</node>
+<node id="Self-Inspection Procedure">
+  <data key="d0">Self-Inspection Procedure</data>
+  <data key="d1">method</data>
+  <data key="d2">The Self-Inspection Procedure is a formal process that includes self-inspection plan development, implementation, report preparation, and corrective and preventive action follow-up.</data>
+  <data key="d3">chunk-f02f1d47c5603a456144bcf4cd0849d4</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305259</data>
+  <data key="d6"></data>
+</node>
+<node id="Clean Room">
+  <data key="d0">Clean Room</data>
+  <data key="d1">artifact</data>
+  <data key="d2">A Clean Room (or clean area) is a controlled environment whose microbial and particulate levels must be monitored by the Quality Control Department.</data>
+  <data key="d3">chunk-f02f1d47c5603a456144bcf4cd0849d4</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305260</data>
+  <data key="d6"></data>
+</node>
+<node id="Quality Control Laboratory">
+  <data key="d0">Quality Control Laboratory</data>
+  <data key="d1">organization</data>
+  <data key="d2">The Quality Control Laboratory is the facility where testing and analysis are performed, requiring its own set of management procedures.</data>
+  <data key="d3">chunk-f02f1d47c5603a456144bcf4cd0849d4</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305260</data>
+  <data key="d6"></data>
+</node>
+<node id="Internal Control Standards">
+  <data key="d0">Internal Control Standards</data>
+  <data key="d1">concept</data>
+  <data key="d2">Internal Control Standards are specifications established and revised by the Quality Control Department for raw materials, intermediates, and finished products to ensure product quality.</data>
+  <data key="d3">chunk-f02f1d47c5603a456144bcf4cd0849d4</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305261</data>
+  <data key="d6"></data>
+</node>
+<node id="Sampling Procedures">
+  <data key="d0">Sampling Procedures</data>
+  <data key="d1">method</data>
+  <data key="d2">Sampling Procedures are operational guidelines developed by the Quality Control Department for the collection of representative samples from materials, intermediates, and finished products.</data>
+  <data key="d3">chunk-f02f1d47c5603a456144bcf4cd0849d4</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305262</data>
+  <data key="d6"></data>
+</node>
+<node id="Testing Equipment">
+  <data key="d0">Testing Equipment</data>
+  <data key="d1">artifact</data>
+  <data key="d2">Testing Equipment refers to instruments, reagents, reference standards (or reference substances), standard solutions, and culture media used in quality control testing, which require management procedures.</data>
+  <data key="d3">chunk-f02f1d47c5603a456144bcf4cd0849d4</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305262</data>
+  <data key="d6"></data>
+</node>
+<node id="Raw Materials">
+  <data key="d0">Raw Materials</data>
+  <data key="d1">data</data>
+  <data key="d2">Raw Materials are input substances used in pharmaceutical manufacturing that are subject to sampling, testing, retention, and quality stability evaluation by the Quality Control Department.</data>
+  <data key="d3">chunk-f02f1d47c5603a456144bcf4cd0849d4</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305264</data>
+  <data key="d6"></data>
+</node>
+<node id="Intermediates">
+  <data key="d0">Intermediates</data>
+  <data key="d1">data</data>
+  <data key="d2">Intermediates are in-process products during pharmaceutical manufacturing that are subject to sampling, testing, retention, and quality stability evaluation by the Quality Control Department.</data>
+  <data key="d3">chunk-f02f1d47c5603a456144bcf4cd0849d4</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305264</data>
+  <data key="d6"></data>
+</node>
+<node id="Finished Products">
+  <data key="d0">Finished Products</data>
+  <data key="d1">data</data>
+  <data key="d2">Finished Products are the final pharmaceutical products that are subject to sampling, testing, retention, quality stability evaluation, and testing report issuance by the Quality Control Department.</data>
+  <data key="d3">chunk-f02f1d47c5603a456144bcf4cd0849d4</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305265</data>
+  <data key="d6"></data>
+</node>
+<node id="Testing Reports">
+  <data key="d0">Testing Reports</data>
+  <data key="d1">content</data>
+  <data key="d2">Testing Reports are formal documents issued by the Quality Control Department after sampling, testing, and retention of raw materials, intermediates, and finished products.</data>
+  <data key="d3">chunk-f02f1d47c5603a456144bcf4cd0849d4</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305266</data>
+  <data key="d6"></data>
+</node>
+<node id="Deviation Investigation">
+  <data key="d0">Deviation Investigation</data>
+  <data key="d1">method</data>
+  <data key="d2">Deviation Investigation is a systematic process that includes deviation description, root cause analysis, impact assessment on product quality, corrective measures, and preventive measures.</data>
+  <data key="d3">chunk-f02f1d47c5603a456144bcf4cd0849d4</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305266</data>
+  <data key="d6"></data>
+</node>
+<node id="Root Cause Analysis">
+  <data key="d0">Root Cause Analysis</data>
+  <data key="d1">method</data>
+  <data key="d2">Root Cause Analysis is a systematic method used in deviation investigation and CAPA procedures to identify the fundamental cause of a non-conformance or deviation.</data>
+  <data key="d3">chunk-f02f1d47c5603a456144bcf4cd0849d4</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305266</data>
+  <data key="d6"></data>
+</node>
+<node id="Corrective And Preventive Actions">
+  <data key="d0">Corrective And Preventive Actions</data>
+  <data key="d1">concept</data>
+  <data key="d2">Corrective And Preventive Actions (CAPA) are measures developed and implemented to address identified non-conformances, deviations, and to prevent their recurrence, with effectiveness verification required.</data>
+  <data key="d3">chunk-f02f1d47c5603a456144bcf4cd0849d4</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305267</data>
+  <data key="d6"></data>
+</node>
+<node id="ICH Q10">
+  <data key="d0">ICH Q10</data>
+  <data key="d1">content</data>
+  <data key="d2">ICH Q10 is a guideline that describes the Pharmaceutical Quality System (PQS) for pharmaceutical products, based on ICH Q8, ICH Q9, and itself.</data>
+  <data key="d3">chunk-f5b35ed187d30c5517f660031690eb31</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305346</data>
+  <data key="d6"></data>
+</node>
+<node id="ICH Q8">
+  <data key="d0">ICH Q8</data>
+  <data key="d1">content</data>
+  <data key="d2">ICH Q8 is a guideline focused on pharmaceutical development, serving as one of the foundational references for ICH Q10.</data>
+  <data key="d3">chunk-f5b35ed187d30c5517f660031690eb31</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305346</data>
+  <data key="d6"></data>
+</node>
+<node id="ICH Q9">
+  <data key="d0">ICH Q9</data>
+  <data key="d1">content</data>
+  <data key="d2">ICH Q9 is a guideline focused on quality risk management, serving as one of the foundational references for ICH Q10.&lt;SEP&gt;ICH Q9 is a pharmaceutical guideline that defines the systematic process of quality risk management for assessing, controlling, communicating, and reviewing quality risks throughout the product lifecycle.</data>
+  <data key="d3">chunk-f5b35ed187d30c5517f660031690eb31&lt;SEP&gt;chunk-6ec2e5ac9373134e60f22a76aa5fcf8b</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305424</data>
+  <data key="d6"></data>
+</node>
+<node id="Pharmaceutical Quality System">
+  <data key="d0">Pharmaceutical Quality System</data>
+  <data key="d1">concept</data>
+  <data key="d2">The Pharmaceutical Quality System (PQS) is a comprehensive framework that encompasses GMP requirements, quality risk management, knowledge management, and continuous improvement for ensuring pharmaceutical product quality.</data>
+  <data key="d3">chunk-f5b35ed187d30c5517f660031690eb31</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305346</data>
+  <data key="d6"></data>
+</node>
+<node id="Quality Risk Management">
+  <data key="d0">Quality Risk Management</data>
+  <data key="d1">method</data>
+  <data key="d2">Quality Risk Management is a systematic approach to assessing, controlling, communicating, and reviewing risks to the quality of pharmaceutical products across the product lifecycle.&lt;SEP&gt;Quality Risk Management (QRM) is a systematic process for assessing, controlling, communicating, and reviewing quality risks of pharmaceutical products throughout the product lifecycle.</data>
+  <data key="d3">chunk-f5b35ed187d30c5517f660031690eb31&lt;SEP&gt;chunk-6ec2e5ac9373134e60f22a76aa5fcf8b</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305424</data>
+  <data key="d6"></data>
+</node>
+<node id="Knowledge Management">
+  <data key="d0">Knowledge Management</data>
+  <data key="d1">method</data>
+  <data key="d2">Knowledge Management is a systematic method for collecting, analyzing, updating, and transferring data and knowledge to improve pharmaceutical processes and products.</data>
+  <data key="d3">chunk-f5b35ed187d30c5517f660031690eb31</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305347</data>
+  <data key="d6"></data>
+</node>
+<node id="Process Performance and Product Quality Monitoring">
+  <data key="d0">Process Performance and Product Quality Monitoring</data>
+  <data key="d1">method</data>
+  <data key="d2">Process Performance and Product Quality Monitoring is a system for establishing monitoring of process performance and product quality, conducting periodic process performance evaluations, and implementing product quality reviews.</data>
+  <data key="d3">chunk-f5b35ed187d30c5517f660031690eb31</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305347</data>
+  <data key="d6"></data>
+</node>
+<node id="CAPA">
+  <data key="d0">CAPA</data>
+  <data key="d1">method</data>
+  <data key="d2">Corrective Actions and Preventive Actions (CAPA) is a system that uses investigation methods to determine root causes of deviations, takes measures to prevent recurrence, validates effectiveness, and integrates with the knowledge management system.</data>
+  <data key="d3">chunk-f5b35ed187d30c5517f660031690eb31</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305349</data>
+  <data key="d6"></data>
+</node>
+<node id="Change Management">
+  <data key="d0">Change Management</data>
+  <data key="d1">method</data>
+  <data key="d2">Change Management is a system that evaluates the impact of changes on product quality, requires changes to be approved, ensures planned and documented implementation, and confirms that changes achieve expected objectives through post-change review.&lt;SEP&gt;Change management is an application area where quality risk management can be applied to evaluate and control risks associated with changes in pharmaceutical processes or systems.</data>
+  <data key="d3">chunk-f5b35ed187d30c5517f660031690eb31&lt;SEP&gt;chunk-6ec2e5ac9373134e60f22a76aa5fcf8b</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305436</data>
+  <data key="d6"></data>
+</node>
+<node id="Continuous Improvement">
+  <data key="d0">Continuous Improvement</data>
+  <data key="d1">concept</data>
+  <data key="d2">Continuous Improvement is a culture and approach that uses data-driven methods and periodically evaluates the effectiveness of improvement measures within the pharmaceutical quality system.</data>
+  <data key="d3">chunk-f5b35ed187d30c5517f660031690eb31</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305349</data>
+  <data key="d6"></data>
+</node>
+<node id="Senior Management">
+  <data key="d0">Senior Management</data>
+  <data key="d1">organization</data>
+  <data key="d2">Senior Management holds ultimate responsibility for the Pharmaceutical Quality System, including establishing clear quality objectives, ensuring resource availability, establishing organizational structure, and ensuring employee understanding and implementation.</data>
+  <data key="d3">chunk-f5b35ed187d30c5517f660031690eb31</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305350</data>
+  <data key="d6"></data>
+</node>
+<node id="Periodic Review of PQS">
+  <data key="d0">Periodic Review of PQS</data>
+  <data key="d1">event</data>
+  <data key="d2">Periodic Review of PQS is a scheduled evaluation of the effectiveness of the Pharmaceutical Quality System, covering process performance, product quality, and CAPA, with results used for continuous improvement.</data>
+  <data key="d3">chunk-f5b35ed187d30c5517f660031690eb31</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305351</data>
+  <data key="d6"></data>
+</node>
+<node id="Quality Objectives">
+  <data key="d0">Quality Objectives</data>
+  <data key="d1">concept</data>
+  <data key="d2">Quality Objectives are clear targets established by Senior Management as part of their responsibility for the Pharmaceutical Quality System.</data>
+  <data key="d3">chunk-f5b35ed187d30c5517f660031690eb31</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305351</data>
+  <data key="d6"></data>
+</node>
+<node id="Root Cause Investigation">
+  <data key="d0">Root Cause Investigation</data>
+  <data key="d1">method</data>
+  <data key="d2">Root Cause Investigation is a systematic method used by the CAPA system to determine the underlying causes of deviations and quality issues.</data>
+  <data key="d3">chunk-f5b35ed187d30c5517f660031690eb31</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305353</data>
+  <data key="d6"></data>
+</node>
+<node id="Product Quality">
+  <data key="d0">Product Quality</data>
+  <data key="d1">concept</data>
+  <data key="d2">Product Quality refers to the overall quality characteristics of pharmaceutical products that must be monitored, maintained, and improved through the Pharmaceutical Quality System.</data>
+  <data key="d3">chunk-f5b35ed187d30c5517f660031690eb31</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305353</data>
+  <data key="d6"></data>
+</node>
+<node id="Product Quality Review">
+  <data key="d0">Product Quality Review</data>
+  <data key="d1">method</data>
+  <data key="d2">Product Quality Review is a periodic evaluation implemented as part of the Process Performance and Product Quality Monitoring system to assess the quality of pharmaceutical products.</data>
+  <data key="d3">chunk-f5b35ed187d30c5517f660031690eb31</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305355</data>
+  <data key="d6"></data>
+</node>
+<node id="Process Performance Evaluation">
+  <data key="d0">Process Performance Evaluation</data>
+  <data key="d1">method</data>
+  <data key="d2">Process Performance Evaluation is a periodic assessment conducted to monitor and evaluate the performance of pharmaceutical manufacturing processes.</data>
+  <data key="d3">chunk-f5b35ed187d30c5517f660031690eb31</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305355</data>
+  <data key="d6"></data>
+</node>
+<node id="Risk Assessment">
+  <data key="d0">Risk Assessment</data>
+  <data key="d1">method</data>
+  <data key="d2">Risk assessment is a component of the quality risk management process that includes risk identification, risk analysis, and risk evaluation.</data>
+  <data key="d3">chunk-6ec2e5ac9373134e60f22a76aa5fcf8b</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305424</data>
+  <data key="d6"></data>
+</node>
+<node id="Risk Control">
+  <data key="d0">Risk Control</data>
+  <data key="d1">method</data>
+  <data key="d2">Risk control is a component of the quality risk management process that includes risk reduction and risk acceptance.</data>
+  <data key="d3">chunk-6ec2e5ac9373134e60f22a76aa5fcf8b</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305424</data>
+  <data key="d6"></data>
+</node>
+<node id="Risk Review">
+  <data key="d0">Risk Review</data>
+  <data key="d1">method</data>
+  <data key="d2">Risk review is a component of the quality risk management process that involves periodically reviewing risk management decisions.</data>
+  <data key="d3">chunk-6ec2e5ac9373134e60f22a76aa5fcf8b</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305426</data>
+  <data key="d6"></data>
+</node>
+<node id="Risk Identification">
+  <data key="d0">Risk Identification</data>
+  <data key="d1">method</data>
+  <data key="d2">Risk identification is the first step of risk assessment, focused on identifying potential hazards and risks associated with those hazards.</data>
+  <data key="d3">chunk-6ec2e5ac9373134e60f22a76aa5fcf8b</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305426</data>
+  <data key="d6"></data>
+</node>
+<node id="Risk Analysis">
+  <data key="d0">Risk Analysis</data>
+  <data key="d1">method</data>
+  <data key="d2">Risk analysis is the second step of risk assessment, involving estimation of identified risks through evaluation of their severity and probability of occurrence.</data>
+  <data key="d3">chunk-6ec2e5ac9373134e60f22a76aa5fcf8b</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305426</data>
+  <data key="d6"></data>
+</node>
+<node id="Risk Evaluation">
+  <data key="d0">Risk Evaluation</data>
+  <data key="d1">method</data>
+  <data key="d2">Risk evaluation is the third step of risk assessment, involving comparison of identified and analyzed risks against given risk criteria.</data>
+  <data key="d3">chunk-6ec2e5ac9373134e60f22a76aa5fcf8b</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305426</data>
+  <data key="d6"></data>
+</node>
+<node id="Risk Reduction">
+  <data key="d0">Risk Reduction</data>
+  <data key="d1">method</data>
+  <data key="d2">Risk reduction is a component of risk control that involves taking measures to reduce risk when it exceeds acceptable levels.</data>
+  <data key="d3">chunk-6ec2e5ac9373134e60f22a76aa5fcf8b</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305429</data>
+  <data key="d6"></data>
+</node>
+<node id="Risk Acceptance">
+  <data key="d0">Risk Acceptance</data>
+  <data key="d1">concept</data>
+  <data key="d2">Risk acceptance is a component of risk control that involves deciding to accept the level of residual risk.</data>
+  <data key="d3">chunk-6ec2e5ac9373134e60f22a76aa5fcf8b</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305429</data>
+  <data key="d6"></data>
+</node>
+<node id="FMEA">
+  <data key="d0">FMEA</data>
+  <data key="d1">method</data>
+  <data key="d2">Failure Mode and Effects Analysis (FMEA) is a commonly used quality risk management tool for evaluating potential failure modes and their effects.</data>
+  <data key="d3">chunk-6ec2e5ac9373134e60f22a76aa5fcf8b</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305429</data>
+  <data key="d6"></data>
+</node>
+<node id="FTA">
+  <data key="d0">FTA</data>
+  <data key="d1">method</data>
+  <data key="d2">Fault Tree Analysis (FTA) is a commonly used quality risk management tool for identifying root causes of failures through logical tree diagrams.</data>
+  <data key="d3">chunk-6ec2e5ac9373134e60f22a76aa5fcf8b</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305430</data>
+  <data key="d6"></data>
+</node>
+<node id="HACCP">
+  <data key="d0">HACCP</data>
+  <data key="d1">method</data>
+  <data key="d2">Hazard Analysis and Critical Control Points (HACCP) is a commonly used quality risk management tool for identifying hazards and establishing critical control points.</data>
+  <data key="d3">chunk-6ec2e5ac9373134e60f22a76aa5fcf8b</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305430</data>
+  <data key="d6"></data>
+</node>
+<node id="HAZOP">
+  <data key="d0">HAZOP</data>
+  <data key="d1">method</data>
+  <data key="d2">Hazard and Operability Analysis (HAZOP) is a commonly used quality risk management tool for identifying hazards and operability problems.</data>
+  <data key="d3">chunk-6ec2e5ac9373134e60f22a76aa5fcf8b</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305431</data>
+  <data key="d6"></data>
+</node>
+<node id="PHA">
+  <data key="d0">PHA</data>
+  <data key="d1">method</data>
+  <data key="d2">Preliminary Hazard Analysis (PHA) is a commonly used quality risk management tool for identifying potential hazards at an early stage.</data>
+  <data key="d3">chunk-6ec2e5ac9373134e60f22a76aa5fcf8b</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305431</data>
+  <data key="d6"></data>
+</node>
+<node id="Risk Ranking And Filtering">
+  <data key="d0">Risk Ranking And Filtering</data>
+  <data key="d1">method</data>
+  <data key="d2">Risk ranking and filtering is a commonly used quality risk management tool for prioritizing risks based on defined criteria.</data>
+  <data key="d3">chunk-6ec2e5ac9373134e60f22a76aa5fcf8b</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305434</data>
+  <data key="d6"></data>
+</node>
+<node id="Production Process Control">
+  <data key="d0">Production Process Control</data>
+  <data key="d1">method</data>
+  <data key="d2">Production process control is an application area where quality risk management can be applied to manage risks in pharmaceutical manufacturing processes.</data>
+  <data key="d3">chunk-6ec2e5ac9373134e60f22a76aa5fcf8b</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305435</data>
+  <data key="d6"></data>
+</node>
+<node id="Deviation Handling">
+  <data key="d0">Deviation Handling</data>
+  <data key="d1">method</data>
+  <data key="d2">Deviation handling is an application area where quality risk management can be applied to assess and manage risks arising from deviations in pharmaceutical processes.</data>
+  <data key="d3">chunk-6ec2e5ac9373134e60f22a76aa5fcf8b</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305436</data>
+  <data key="d6"></data>
+</node>
+<node id="Supplier Management">
+  <data key="d0">Supplier Management</data>
+  <data key="d1">method</data>
+  <data key="d2">Supplier management is an application area where quality risk management can be applied to evaluate and control risks related to suppliers of materials and services.</data>
+  <data key="d3">chunk-6ec2e5ac9373134e60f22a76aa5fcf8b</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305436</data>
+  <data key="d6"></data>
+</node>
+<node id="Facility And Equipment Design">
+  <data key="d0">Facility And Equipment Design</data>
+  <data key="d1">method</data>
+  <data key="d2">Facility and equipment design is an application area where quality risk management can be applied to identify and mitigate risks in the design of pharmaceutical facilities and equipment.</data>
+  <data key="d3">chunk-6ec2e5ac9373134e60f22a76aa5fcf8b</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305437</data>
+  <data key="d6"></data>
+</node>
+<node id="Validation And Confirmation">
+  <data key="d0">Validation And Confirmation</data>
+  <data key="d1">method</data>
+  <data key="d2">Validation and confirmation is an application area where quality risk management can be applied to ensure that processes and systems meet predetermined specifications and quality requirements.</data>
+  <data key="d3">chunk-6ec2e5ac9373134e60f22a76aa5fcf8b</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305437</data>
+  <data key="d6"></data>
+</node>
+<node id="Document Management">
+  <data key="d0">Document Management</data>
+  <data key="d1">method</data>
+  <data key="d2">Document management is an application area where quality risk management can be applied to manage risks associated with pharmaceutical documentation and record-keeping.</data>
+  <data key="d3">chunk-6ec2e5ac9373134e60f22a76aa5fcf8b</data>
+  <data key="d4">unknown_source</data>
+  <data key="d5">1778305438</data>
+  <data key="d6"></data>
+</node>
+<edge source="质量保证体系" target="企业">
+  <data key="d7">1.0</data>
+  <data key="d8">企业应当建立并实施质量保证体系。</data>
+  <data key="d9">建立实施</data>
+  <data key="d10">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305084</data>
+  <data key="d13"></data>
+</edge>
+<edge source="质量保证体系" target="药品">
+  <data key="d7">2.0</data>
+  <data key="d8">质量保证体系确保药品未经质量控制部门放行不得发运或使用。&lt;SEP&gt;质量保证体系确保药品的设计与开发符合GMP要求。</data>
+  <data key="d9">控制放行,确保符合</data>
+  <data key="d10">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305085</data>
+  <data key="d13"></data>
+</edge>
+<edge source="质量保证体系" target="生产工艺">
+  <data key="d7">1.0</data>
+  <data key="d8">质量保证体系确保生产和控制活动有明确规定。</data>
+  <data key="d9">确保明确</data>
+  <data key="d10">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305085</data>
+  <data key="d13"></data>
+</edge>
+<edge source="质量保证体系" target="管理职责">
+  <data key="d7">1.0</data>
+  <data key="d8">质量保证体系确保管理职责被明确规定。</data>
+  <data key="d9">确保明确</data>
+  <data key="d10">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305087</data>
+  <data key="d13"></data>
+</edge>
+<edge source="质量保证体系" target="原材料">
+  <data key="d7">1.0</data>
+  <data key="d8">质量保证体系确保安排了原材料的检测。</data>
+  <data key="d9">确保检测</data>
+  <data key="d10">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305088</data>
+  <data key="d13"></data>
+</edge>
+<edge source="质量保证体系" target="中间产品">
+  <data key="d7">1.0</data>
+  <data key="d8">质量保证体系确保安排了中间产品的检测。</data>
+  <data key="d9">确保检测</data>
+  <data key="d10">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305088</data>
+  <data key="d13"></data>
+</edge>
+<edge source="质量保证体系" target="成品">
+  <data key="d7">1.0</data>
+  <data key="d8">质量保证体系确保安排了成品的检测。</data>
+  <data key="d9">确保检测</data>
+  <data key="d10">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305090</data>
+  <data key="d13"></data>
+</edge>
+<edge source="质量保证体系" target="生产步骤">
+  <data key="d7">1.0</data>
+  <data key="d8">质量保证体系确保按照要求完成了生产过程中各步骤。</data>
+  <data key="d9">确保完成</data>
+  <data key="d10">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305093</data>
+  <data key="d13"></data>
+</edge>
+<edge source="质量保证体系" target="记录">
+  <data key="d7">1.0</data>
+  <data key="d8">质量保证体系确保每批药品的生产和质量控制记录可追溯。</data>
+  <data key="d9">确保可追溯</data>
+  <data key="d10">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305094</data>
+  <data key="d13"></data>
+</edge>
+<edge source="质量保证体系" target="中国GMP(2010年修订版)">
+  <data key="d7">1.0</data>
+  <data key="d8">中国GMP(2010年修订版)规定企业应当建立并实施质量保证体系。</data>
+  <data key="d9">法规要求</data>
+  <data key="d10">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305101</data>
+  <data key="d13"></data>
+</edge>
+<edge source="质量保证体系" target="质量标准">
+  <data key="d7">1.0</data>
+  <data key="d8">质量保证体系确保药品按照质量标准进行生产和控制。</data>
+  <data key="d9">依据标准</data>
+  <data key="d10">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305105</data>
+  <data key="d13"></data>
+</edge>
+<edge source="质量保证体系" target="工艺规程">
+  <data key="d7">1.0</data>
+  <data key="d8">质量保证体系确保药品按照批准的工艺规程进行生产和控制。</data>
+  <data key="d9">依据规程</data>
+  <data key="d10">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305106</data>
+  <data key="d13"></data>
+</edge>
+<edge source="质量控制" target="组织机构">
+  <data key="d7">1.0</data>
+  <data key="d8">质量控制包括相应的组织机构。</data>
+  <data key="d9">包括组成</data>
+  <data key="d10">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305086</data>
+  <data key="d13"></data>
+</edge>
+<edge source="质量控制" target="文件系统">
+  <data key="d7">1.0</data>
+  <data key="d8">质量控制包括相应的文件系统。</data>
+  <data key="d9">包括组成</data>
+  <data key="d10">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305087</data>
+  <data key="d13"></data>
+</edge>
+<edge source="质量控制" target="取样检验">
+  <data key="d7">1.0</data>
+  <data key="d8">质量控制包括取样、检验等活动。</data>
+  <data key="d9">包括活动</data>
+  <data key="d10">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305088</data>
+  <data key="d13"></data>
+</edge>
+<edge source="质量控制" target="物料">
+  <data key="d7">1.0</data>
+  <data key="d8">质量控制确保物料在放行前完成必要的检验。</data>
+  <data key="d9">确保检验</data>
+  <data key="d10">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305090</data>
+  <data key="d13"></data>
+</edge>
+<edge source="质量控制" target="产品">
+  <data key="d7">1.0</data>
+  <data key="d8">质量控制确保产品在放行前完成必要的检验。</data>
+  <data key="d9">确保检验</data>
+  <data key="d10">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305093</data>
+  <data key="d13"></data>
+</edge>
+<edge source="质量控制" target="中国GMP(2010年修订版)">
+  <data key="d7">1.0</data>
+  <data key="d8">中国GMP(2010年修订版)规定了质量控制的组织机构、文件系统及检验要求。</data>
+  <data key="d9">法规要求</data>
+  <data key="d10">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305103</data>
+  <data key="d13"></data>
+</edge>
+<edge source="企业" target="人员">
+  <data key="d7">1.0</data>
+  <data key="d8">企业应当配备足够的具有相应资质的人员。</data>
+  <data key="d9">配备资源</data>
+  <data key="d10">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305089</data>
+  <data key="d13"></data>
+</edge>
+<edge source="企业" target="厂房设施设备">
+  <data key="d7">1.0</data>
+  <data key="d8">企业应当配备足够的厂房、设施和设备。</data>
+  <data key="d9">配备资源</data>
+  <data key="d10">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305091</data>
+  <data key="d13"></data>
+</edge>
+<edge source="企业" target="生产工艺">
+  <data key="d7">1.0</data>
+  <data key="d8">企业应当制定生产工艺。</data>
+  <data key="d9">制定创建</data>
+  <data key="d10">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305094</data>
+  <data key="d13"></data>
+</edge>
+<edge source="企业" target="中文说明书">
+  <data key="d7">1.0</data>
+  <data key="d8">企业应当使用清晰准确的中文说明书。</data>
+  <data key="d9">使用包含</data>
+  <data key="d10">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305095</data>
+  <data key="d13"></data>
+</edge>
+<edge source="企业" target="记录">
+  <data key="d7">1.0</data>
+  <data key="d8">生产全过程有手工或仪器的记录。</data>
+  <data key="d9">拥有记录</data>
+  <data key="d10">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305096</data>
+  <data key="d13"></data>
+</edge>
+<edge source="企业" target="批产品">
+  <data key="d7">1.0</data>
+  <data key="d8">企业能够追溯批产品的完整生产历史。</data>
+  <data key="d9">能够追溯</data>
+  <data key="d10">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305096</data>
+  <data key="d13"></data>
+</edge>
+<edge source="企业" target="产品发运">
+  <data key="d7">1.0</data>
+  <data key="d8">产品的发运能够最大限度地降低质量风险。</data>
+  <data key="d9">降低风险</data>
+  <data key="d10">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305098</data>
+  <data key="d13"></data>
+</edge>
+<edge source="企业" target="召回系统">
+  <data key="d7">1.0</data>
+  <data key="d8">企业应当建立召回系统，能够召回任何一批已发运的产品。</data>
+  <data key="d9">建立系统</data>
+  <data key="d10">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305098</data>
+  <data key="d13"></data>
+</edge>
+<edge source="企业" target="投诉">
+  <data key="d7">1.0</data>
+  <data key="d8">企业应当审查上市产品的投诉，调查原因并采取措施。</data>
+  <data key="d9">审查调查</data>
+  <data key="d10">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305099</data>
+  <data key="d13"></data>
+</edge>
+<edge source="企业" target="偏差处理程序">
+  <data key="d7">1.0</data>
+  <data key="d8">企业应当建立偏差处理程序。</data>
+  <data key="d9">建立程序</data>
+  <data key="d10">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305100</data>
+  <data key="d13"></data>
+</edge>
+<edge source="企业" target="变更控制系统">
+  <data key="d7">1.0</data>
+  <data key="d8">企业应当建立变更控制系统。</data>
+  <data key="d9">建立系统</data>
+  <data key="d10">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305100</data>
+  <data key="d13"></data>
+</edge>
+<edge source="企业" target="CAPA系统">
+  <data key="d7">1.0</data>
+  <data key="d8">企业应当建立CAPA系统。</data>
+  <data key="d9">建立系统</data>
+  <data key="d10">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305101</data>
+  <data key="d13"></data>
+</edge>
+<edge source="企业" target="供应商评估和批准程序">
+  <data key="d7">1.0</data>
+  <data key="d8">企业应当建立供应商评估和批准程序。</data>
+  <data key="d9">建立程序</data>
+  <data key="d10">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305102</data>
+  <data key="d13"></data>
+</edge>
+<edge source="企业" target="自检">
+  <data key="d7">1.0</data>
+  <data key="d8">企业应当定期进行自检。</data>
+  <data key="d9">定期进行</data>
+  <data key="d10">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305104</data>
+  <data key="d13"></data>
+</edge>
+<edge source="高层管理人员" target="资源">
+  <data key="d7">1.0</data>
+  <data key="d8">高层管理人员应当确保实现质量目标所必需的资源。</data>
+  <data key="d9">确保提供</data>
+  <data key="d10">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305090</data>
+  <data key="d13"></data>
+</edge>
+<edge source="高层管理人员" target="质量目标">
+  <data key="d7">1.0</data>
+  <data key="d8">高层管理人员应当确保实现质量目标。</data>
+  <data key="d9">确保实现</data>
+  <data key="d10">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305104</data>
+  <data key="d13"></data>
+</edge>
+<edge source="质量管理部门" target="质量活动">
+  <data key="d7">1.0</data>
+  <data key="d8">质量管理部门应当参与所有与质量有关的活动。</data>
+  <data key="d9">参与活动</data>
+  <data key="d10">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305091</data>
+  <data key="d13"></data>
+</edge>
+<edge source="偏差处理程序" target="偏差">
+  <data key="d7">1.0</data>
+  <data key="d8">偏差处理程序用于记录、说明和调查偏差。</data>
+  <data key="d9">处理管理</data>
+  <data key="d10">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305095</data>
+  <data key="d13"></data>
+</edge>
+<edge source="偏差处理程序" target="重大偏差">
+  <data key="d7">1.0</data>
+  <data key="d8">偏差处理程序对重大偏差进行调查。</data>
+  <data key="d9">调查处理</data>
+  <data key="d10">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305096</data>
+  <data key="d13"></data>
+</edge>
+<edge source="变更控制系统" target="变更">
+  <data key="d7">1.0</data>
+  <data key="d8">变更控制系统对可能影响产品质量的变更进行评估和管理。</data>
+  <data key="d9">评估管理</data>
+  <data key="d10">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305096</data>
+  <data key="d13"></data>
+</edge>
+<edge source="CAPA系统" target="已发现不符合项">
+  <data key="d7">1.0</data>
+  <data key="d8">CAPA系统的纠正措施应当消除已发现的不符合项的原因。</data>
+  <data key="d9">消除原因</data>
+  <data key="d10">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305103</data>
+  <data key="d13"></data>
+</edge>
+<edge source="CAPA系统" target="潜在不符合项">
+  <data key="d7">1.0</data>
+  <data key="d8">CAPA系统的预防措施应当消除潜在不符合项的原因。</data>
+  <data key="d9">消除原因</data>
+  <data key="d10">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305106</data>
+  <data key="d13"></data>
+</edge>
+<edge source="CAPA系统" target="不符合项">
+  <data key="d7">1.0</data>
+  <data key="d8">CAPA系统的纠正措施消除已发现不符合项的原因，预防措施消除潜在不符合项的原因。</data>
+  <data key="d9">消除原因</data>
+  <data key="d10">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305107</data>
+  <data key="d13"></data>
+</edge>
+<edge source="供应商评估和批准程序" target="原材料">
+  <data key="d7">1.0</data>
+  <data key="d8">供应商评估和批准程序确保原材料从认可的供应商处采购。</data>
+  <data key="d9">确保采购</data>
+  <data key="d10">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305100</data>
+  <data key="d13"></data>
+</edge>
+<edge source="自检" target="GMP实施">
+  <data key="d7">1.0</data>
+  <data key="d8">自检用于监控GMP的实施情况。</data>
+  <data key="d9">监控实施</data>
+  <data key="d10">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305100</data>
+  <data key="d13"></data>
+</edge>
+<edge source="自检" target="纠正预防措施">
+  <data key="d7">1.0</data>
+  <data key="d8">自检提出必要的纠正和预防措施。</data>
+  <data key="d9">提出措施</data>
+  <data key="d10">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305102</data>
+  <data key="d13"></data>
+</edge>
+<edge source="生产工艺" target="验证">
+  <data key="d7">1.0</data>
+  <data key="d8">生产工艺及其重大变更均经过验证。</data>
+  <data key="d9">经过验证</data>
+  <data key="d10">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305093</data>
+  <data key="d13"></data>
+</edge>
+<edge source="操作人员" target="培训">
+  <data key="d7">1.0</data>
+  <data key="d8">操作人员经过培训以确保正确执行生产操作。</data>
+  <data key="d9">经过培训</data>
+  <data key="d10">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305094</data>
+  <data key="d13"></data>
+</edge>
+<edge source="批产品" target="召回系统">
+  <data key="d7">1.0</data>
+  <data key="d8">召回系统能够召回任何一批已发运的产品。</data>
+  <data key="d9">召回产品</data>
+  <data key="d10">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305103</data>
+  <data key="d13"></data>
+</edge>
+<edge source="中国GMP(2010年修订版)" target="GMP">
+  <data key="d7">1.0</data>
+  <data key="d8">中国GMP(2010年修订版)是中国实施GMP的具体法规依据。</data>
+  <data key="d9">法规依据</data>
+  <data key="d10">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305105</data>
+  <data key="d13"></data>
+</edge>
+<edge source="质量目标" target="资源">
+  <data key="d7">1.0</data>
+  <data key="d8">实现质量目标需要必需的资源。</data>
+  <data key="d9">需要资源</data>
+  <data key="d10">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305105</data>
+  <data key="d13"></data>
+</edge>
+<edge source="偏差" target="调查">
+  <data key="d7">1.0</data>
+  <data key="d8">偏差均经过调查。</data>
+  <data key="d9">经过调查</data>
+  <data key="d10">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305095</data>
+  <data key="d13"></data>
+</edge>
+<edge source="变更" target="评估批准">
+  <data key="d7">1.0</data>
+  <data key="d8">变更实施前应当经过评估、批准。</data>
+  <data key="d9">经过评估</data>
+  <data key="d10">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305098</data>
+  <data key="d13"></data>
+</edge>
+<edge source="变更" target="评价">
+  <data key="d7">1.0</data>
+  <data key="d8">变更实施后应当进行评价，确认变更达到了预期目标。</data>
+  <data key="d9">进行评价</data>
+  <data key="d10">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305099</data>
+  <data key="d13"></data>
+</edge>
+<edge source="GMP" target="Pharmaceutical Quality System">
+  <data key="d7">1.0</data>
+  <data key="d8">The Pharmaceutical Quality System must contain GMP requirements as a core component.</data>
+  <data key="d9">regulatory compliance,requirement inclusion</data>
+  <data key="d10">chunk-f5b35ed187d30c5517f660031690eb31</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305359</data>
+  <data key="d13"></data>
+</edge>
+<edge source="质量风险" target="产品发运">
+  <data key="d7">1.0</data>
+  <data key="d8">产品的发运能够最大限度地降低质量风险。</data>
+  <data key="d9">降低风险</data>
+  <data key="d10">chunk-2949dafb1d421a228f88f13753dc4e0c</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305105</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Document Management System" target="Document">
+  <data key="d7">1.0</data>
+  <data key="d8">The Document Management System is established to manage the entire lifecycle of documents, including their drafting, revision, and approval.</data>
+  <data key="d9">control,management</data>
+  <data key="d10">chunk-afbbb826e07cbd2aa694c0ded935e688</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305187</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Document" target="Batch Production Record">
+  <data key="d7">1.0</data>
+  <data key="d8">Documents, as a broad category, encompass specific types such as the Batch Production Record.</data>
+  <data key="d9">encompass,include</data>
+  <data key="d10">chunk-afbbb826e07cbd2aa694c0ded935e688</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305188</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Document" target="Batch Inspection Record">
+  <data key="d7">1.0</data>
+  <data key="d8">Documents, as a broad category, encompass specific types such as the Batch Inspection Record.</data>
+  <data key="d9">encompass,include</data>
+  <data key="d10">chunk-afbbb826e07cbd2aa694c0ded935e688</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305189</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Document" target="Quality Assurance System">
+  <data key="d7">1.0</data>
+  <data key="d8">Documents are described as a fundamental element of the Quality Assurance System.</data>
+  <data key="d9">foundation,fundamental element</data>
+  <data key="d10">chunk-afbbb826e07cbd2aa694c0ded935e688</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305190</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Document" target="Production Formula">
+  <data key="d7">1.0</data>
+  <data key="d8">Documents, as a category, encompass production formulas among other content types.</data>
+  <data key="d9">encompass,include</data>
+  <data key="d10">chunk-afbbb826e07cbd2aa694c0ded935e688</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305192</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Document" target="Process Procedure">
+  <data key="d7">1.0</data>
+  <data key="d8">Documents, as a category, encompass process procedures among other content types.</data>
+  <data key="d9">encompass,include</data>
+  <data key="d10">chunk-afbbb826e07cbd2aa694c0ded935e688</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305193</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Batch Production Record" target="Production Department">
+  <data key="d7">1.0</data>
+  <data key="d8">The Production Department is responsible for filling out the Batch Production Record.</data>
+  <data key="d9">create,fill out</data>
+  <data key="d10">chunk-afbbb826e07cbd2aa694c0ded935e688</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305189</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Batch Production Record" target="Quality Control Department">
+  <data key="d7">1.0</data>
+  <data key="d8">The Quality Control Department is responsible for reviewing the Batch Production Record.</data>
+  <data key="d9">oversight,review</data>
+  <data key="d10">chunk-afbbb826e07cbd2aa694c0ded935e688</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305192</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Batch Production Record" target="Drug">
+  <data key="d7">1.0</data>
+  <data key="d8">Each batch of Drug must have an accompanying Batch Production Record.</data>
+  <data key="d9">accompany,require</data>
+  <data key="d10">chunk-afbbb826e07cbd2aa694c0ded935e688</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305193</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Batch Production Record" target="Production Formula">
+  <data key="d7">1.0</data>
+  <data key="d8">The Batch Production Record must be created based on the approved current production formula.</data>
+  <data key="d9">based on,derived from</data>
+  <data key="d10">chunk-afbbb826e07cbd2aa694c0ded935e688</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305194</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Batch Production Record" target="Process Procedure">
+  <data key="d7">1.0</data>
+  <data key="d8">The Batch Production Record must be created based on the approved current process procedure.</data>
+  <data key="d9">based on,derived from</data>
+  <data key="d10">chunk-afbbb826e07cbd2aa694c0ded935e688</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305194</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Batch Production Record" target="Key Process Parameters">
+  <data key="d7">1.0</data>
+  <data key="d8">The Batch Production Record must contain actual records of key process parameters.</data>
+  <data key="d9">contain,record</data>
+  <data key="d10">chunk-afbbb826e07cbd2aa694c0ded935e688</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305195</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Batch Production Record" target="Material Balance Calculation">
+  <data key="d7">1.0</data>
+  <data key="d8">The Batch Production Record must contain material balance calculations.</data>
+  <data key="d9">contain,record</data>
+  <data key="d10">chunk-afbbb826e07cbd2aa694c0ded935e688</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305195</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Batch Production Record" target="Deviation Investigation Record">
+  <data key="d7">1.0</data>
+  <data key="d8">The Batch Production Record must contain deviation explanations and investigation records.</data>
+  <data key="d9">contain,record</data>
+  <data key="d10">chunk-afbbb826e07cbd2aa694c0ded935e688</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305195</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Batch Inspection Record" target="Quality Control Department">
+  <data key="d7">1.0</data>
+  <data key="d8">The Quality Control Department is responsible for reviewing the Batch Inspection Record.</data>
+  <data key="d9">oversight,review</data>
+  <data key="d10">chunk-afbbb826e07cbd2aa694c0ded935e688</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305190</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Batch Inspection Record" target="Drug">
+  <data key="d7">1.0</data>
+  <data key="d8">Each batch of Drug must have an accompanying Batch Inspection Record.</data>
+  <data key="d9">accompany,require</data>
+  <data key="d10">chunk-afbbb826e07cbd2aa694c0ded935e688</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305192</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Production Department" target="Quality Control Department">
+  <data key="d7">1.0</data>
+  <data key="d8">The Quality Control Department must be independent from the Production Department to ensure unbiased quality oversight.</data>
+  <data key="d9">organizational independence</data>
+  <data key="d10">chunk-f02f1d47c5603a456144bcf4cd0849d4</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305269</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Quality Control Department" target="Quality Control">
+  <data key="d7">1.0</data>
+  <data key="d8">The Quality Control Department is the primary organizational unit responsible for executing quality control activities.</data>
+  <data key="d9">functional responsibility</data>
+  <data key="d10">chunk-f02f1d47c5603a456144bcf4cd0849d4</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305270</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Quality Control Department" target="China GMP (2010 Revision)">
+  <data key="d7">1.0</data>
+  <data key="d8">China GMP (2010 Revision) defines the independence and responsibilities of the Quality Control Department.</data>
+  <data key="d9">regulatory requirement</data>
+  <data key="d10">chunk-f02f1d47c5603a456144bcf4cd0849d4</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305270</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Quality Control Department" target="Clean Room">
+  <data key="d7">1.0</data>
+  <data key="d8">The Quality Control Department is responsible for monitoring microbial and particulate levels in Clean Rooms.</data>
+  <data key="d9">environmental monitoring</data>
+  <data key="d10">chunk-f02f1d47c5603a456144bcf4cd0849d4</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305272</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Quality Control Department" target="Quality Control Laboratory">
+  <data key="d7">1.0</data>
+  <data key="d8">The Quality Control Department is responsible for establishing management procedures for the Quality Control Laboratory.</data>
+  <data key="d9">operational management</data>
+  <data key="d10">chunk-f02f1d47c5603a456144bcf4cd0849d4</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305273</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Quality Control Department" target="Internal Control Standards">
+  <data key="d7">1.0</data>
+  <data key="d8">The Quality Control Department is responsible for establishing and revising internal control standards for raw materials, intermediates, and finished products.</data>
+  <data key="d9">regulatory compliance,standard development</data>
+  <data key="d10">chunk-f02f1d47c5603a456144bcf4cd0849d4</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305274</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Quality Control Department" target="Sampling Procedures">
+  <data key="d7">1.0</data>
+  <data key="d8">The Quality Control Department is responsible for developing sampling procedures.</data>
+  <data key="d9">procedure development,quality control</data>
+  <data key="d10">chunk-f02f1d47c5603a456144bcf4cd0849d4</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305276</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Quality Control Department" target="Testing Equipment">
+  <data key="d7">1.0</data>
+  <data key="d8">The Quality Control Department is responsible for establishing management procedures for testing equipment, instruments, reagents, and related materials.</data>
+  <data key="d9">equipment management,laboratory operations</data>
+  <data key="d10">chunk-f02f1d47c5603a456144bcf4cd0849d4</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305278</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Quality Control Department" target="Raw Materials">
+  <data key="d7">1.0</data>
+  <data key="d8">The Quality Control Department performs sampling, testing, retention, and quality stability evaluation on raw materials.</data>
+  <data key="d9">quality evaluation,sampling,testing</data>
+  <data key="d10">chunk-f02f1d47c5603a456144bcf4cd0849d4</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305280</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Quality Control Department" target="Intermediates">
+  <data key="d7">1.0</data>
+  <data key="d8">The Quality Control Department performs sampling, testing, retention, and quality stability evaluation on intermediates.</data>
+  <data key="d9">quality evaluation,sampling,testing</data>
+  <data key="d10">chunk-f02f1d47c5603a456144bcf4cd0849d4</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305282</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Quality Control Department" target="Finished Products">
+  <data key="d7">1.0</data>
+  <data key="d8">The Quality Control Department performs sampling, testing, retention, and quality stability evaluation on finished products and issues testing reports.</data>
+  <data key="d9">quality evaluation,sampling,testing</data>
+  <data key="d10">chunk-f02f1d47c5603a456144bcf4cd0849d4</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305284</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Quality Control Department" target="Testing Reports">
+  <data key="d7">1.0</data>
+  <data key="d8">The Quality Control Department issues testing reports after performing sampling, testing, and retention activities.</data>
+  <data key="d9">documentation,quality verification</data>
+  <data key="d10">chunk-f02f1d47c5603a456144bcf4cd0849d4</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305286</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Data" target="Electronic Record">
+  <data key="d7">1.0</data>
+  <data key="d8">Electronic Records are a medium for containing and managing Data, which must adhere to specific integrity and traceability rules.</data>
+  <data key="d9">contain,manage</data>
+  <data key="d10">chunk-afbbb826e07cbd2aa694c0ded935e688</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305190</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Electronic Record" target="Authorized Personnel">
+  <data key="d7">1.0</data>
+  <data key="d8">Only Authorized Personnel are permitted to enter or modify data within Electronic Records.</data>
+  <data key="d9">access control,authorization</data>
+  <data key="d10">chunk-afbbb826e07cbd2aa694c0ded935e688</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305189</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Drug" target="Shelf Life">
+  <data key="d7">1.0</data>
+  <data key="d8">The Shelf Life of a Drug determines the minimum retention period for its batch records.</data>
+  <data key="d9">determine,retention period</data>
+  <data key="d10">chunk-afbbb826e07cbd2aa694c0ded935e688</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305188</data>
+  <data key="d13"></data>
+</edge>
+<edge source="China GMP (2010 Revision)" target="Deviation Handling Procedure">
+  <data key="d7">1.0</data>
+  <data key="d8">China GMP (2010 Revision) specifies the required content of the Deviation Handling Procedure.</data>
+  <data key="d9">regulatory requirement</data>
+  <data key="d10">chunk-f02f1d47c5603a456144bcf4cd0849d4</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305272</data>
+  <data key="d13"></data>
+</edge>
+<edge source="China GMP (2010 Revision)" target="Change Control Procedure">
+  <data key="d7">1.0</data>
+  <data key="d8">China GMP (2010 Revision) specifies the required content of the Change Control Procedure.</data>
+  <data key="d9">regulatory requirement</data>
+  <data key="d10">chunk-f02f1d47c5603a456144bcf4cd0849d4</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305273</data>
+  <data key="d13"></data>
+</edge>
+<edge source="China GMP (2010 Revision)" target="CAPA Procedure">
+  <data key="d7">1.0</data>
+  <data key="d8">China GMP (2010 Revision) specifies the required content of the Corrective and Preventive Actions Procedure.</data>
+  <data key="d9">regulatory requirement</data>
+  <data key="d10">chunk-f02f1d47c5603a456144bcf4cd0849d4</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305274</data>
+  <data key="d13"></data>
+</edge>
+<edge source="China GMP (2010 Revision)" target="Complaint Handling Procedure">
+  <data key="d7">1.0</data>
+  <data key="d8">China GMP (2010 Revision) specifies the required content of the Complaint Handling Procedure.</data>
+  <data key="d9">regulatory requirement</data>
+  <data key="d10">chunk-f02f1d47c5603a456144bcf4cd0849d4</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305276</data>
+  <data key="d13"></data>
+</edge>
+<edge source="China GMP (2010 Revision)" target="Recall Procedure">
+  <data key="d7">1.0</data>
+  <data key="d8">China GMP (2010 Revision) specifies the required content of the Recall Procedure.</data>
+  <data key="d9">regulatory requirement</data>
+  <data key="d10">chunk-f02f1d47c5603a456144bcf4cd0849d4</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305278</data>
+  <data key="d13"></data>
+</edge>
+<edge source="China GMP (2010 Revision)" target="Self-Inspection Procedure">
+  <data key="d7">1.0</data>
+  <data key="d8">China GMP (2010 Revision) specifies the required content of the Self-Inspection Procedure.</data>
+  <data key="d9">regulatory requirement</data>
+  <data key="d10">chunk-f02f1d47c5603a456144bcf4cd0849d4</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305280</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Quality Control" target="Quality Assurance">
+  <data key="d7">1.0</data>
+  <data key="d8">Quality Control and Quality Assurance are complementary concepts covered together in Chapter 10 of China GMP, with quality control being a component of the broader quality assurance system.</data>
+  <data key="d9">complementary functions</data>
+  <data key="d10">chunk-f02f1d47c5603a456144bcf4cd0849d4</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305270</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Deviation Handling Procedure" target="CAPA Procedure">
+  <data key="d7">1.0</data>
+  <data key="d8">The Deviation Handling Procedure includes the development and implementation of corrective and preventive measures, which are also central to the CAPA Procedure.</data>
+  <data key="d9">corrective action,preventive action</data>
+  <data key="d10">chunk-f02f1d47c5603a456144bcf4cd0849d4</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305276</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Deviation Handling Procedure" target="Deviation Investigation">
+  <data key="d7">1.0</data>
+  <data key="d8">The Deviation Handling Procedure includes deviation investigation as a core component involving description, root cause analysis, and impact assessment.</data>
+  <data key="d9">investigation process,quality assessment</data>
+  <data key="d10">chunk-f02f1d47c5603a456144bcf4cd0849d4</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305280</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Deviation Handling Procedure" target="Corrective And Preventive Actions">
+  <data key="d7">1.0</data>
+  <data key="d8">The Deviation Handling Procedure includes the development and implementation of corrective and preventive actions as part of the deviation resolution process.</data>
+  <data key="d9">corrective measures,preventive measures</data>
+  <data key="d10">chunk-f02f1d47c5603a456144bcf4cd0849d4</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305282</data>
+  <data key="d13"></data>
+</edge>
+<edge source="CAPA Procedure" target="Self-Inspection Procedure">
+  <data key="d7">1.0</data>
+  <data key="d8">The Self-Inspection Procedure includes tracking of corrective and preventive actions, linking it to the CAPA Procedure.</data>
+  <data key="d9">continuous improvement,follow-up</data>
+  <data key="d10">chunk-f02f1d47c5603a456144bcf4cd0849d4</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305278</data>
+  <data key="d13"></data>
+</edge>
+<edge source="CAPA Procedure" target="Root Cause Analysis">
+  <data key="d7">1.0</data>
+  <data key="d8">Root Cause Analysis is a required step in the CAPA Procedure to identify the fundamental cause before developing corrective and preventive measures.</data>
+  <data key="d9">cause identification,corrective action basis</data>
+  <data key="d10">chunk-f02f1d47c5603a456144bcf4cd0849d4</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305280</data>
+  <data key="d13"></data>
+</edge>
+<edge source="CAPA Procedure" target="Corrective And Preventive Actions">
+  <data key="d7">1.0</data>
+  <data key="d8">The CAPA Procedure governs the systematic development, implementation, and effectiveness verification of corrective and preventive actions.</data>
+  <data key="d9">effectiveness verification,systematic implementation</data>
+  <data key="d10">chunk-f02f1d47c5603a456144bcf4cd0849d4</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305284</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Deviation Investigation" target="Root Cause Analysis">
+  <data key="d7">1.0</data>
+  <data key="d8">Root Cause Analysis is a key element of Deviation Investigation used to identify the fundamental cause of deviations.</data>
+  <data key="d9">cause identification,systematic analysis</data>
+  <data key="d10">chunk-f02f1d47c5603a456144bcf4cd0849d4</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305282</data>
+  <data key="d13"></data>
+</edge>
+<edge source="ICH Q10" target="Pharmaceutical Quality System">
+  <data key="d7">1.0</data>
+  <data key="d8">ICH Q10 is the guideline that describes the Pharmaceutical Quality System (PQS).</data>
+  <data key="d9">framework description,guideline</data>
+  <data key="d10">chunk-f5b35ed187d30c5517f660031690eb31</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305357</data>
+  <data key="d13"></data>
+</edge>
+<edge source="ICH Q10" target="ICH Q8">
+  <data key="d7">1.0</data>
+  <data key="d8">ICH Q10 is based on and references ICH Q8 (pharmaceutical development) as one of its foundational guidelines.</data>
+  <data key="d9">foundational reference,guideline basis</data>
+  <data key="d10">chunk-f5b35ed187d30c5517f660031690eb31</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305357</data>
+  <data key="d13"></data>
+</edge>
+<edge source="ICH Q10" target="ICH Q9">
+  <data key="d7">1.0</data>
+  <data key="d8">ICH Q10 is based on and references ICH Q9 (quality risk management) as one of its foundational guidelines.</data>
+  <data key="d9">foundational reference,guideline basis</data>
+  <data key="d10">chunk-f5b35ed187d30c5517f660031690eb31</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305359</data>
+  <data key="d13"></data>
+</edge>
+<edge source="ICH Q9" target="Quality Risk Management">
+  <data key="d7">1.0</data>
+  <data key="d8">ICH Q9 is the guideline that defines and describes the quality risk management process for pharmaceutical products.</data>
+  <data key="d9">guideline definition,regulatory framework</data>
+  <data key="d10">chunk-6ec2e5ac9373134e60f22a76aa5fcf8b</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305442</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Pharmaceutical Quality System" target="Senior Management">
+  <data key="d7">1.0</data>
+  <data key="d8">Senior Management holds ultimate responsibility for the Pharmaceutical Quality System, including establishing quality objectives, ensuring resources, and organizational structure.</data>
+  <data key="d9">accountability,governance</data>
+  <data key="d10">chunk-f5b35ed187d30c5517f660031690eb31</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305357</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Pharmaceutical Quality System" target="Quality Risk Management">
+  <data key="d7">1.0</data>
+  <data key="d8">The Pharmaceutical Quality System integrates quality risk management as a key element.</data>
+  <data key="d9">integration,risk-based approach</data>
+  <data key="d10">chunk-f5b35ed187d30c5517f660031690eb31</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305360</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Pharmaceutical Quality System" target="Knowledge Management">
+  <data key="d7">1.0</data>
+  <data key="d8">The Pharmaceutical Quality System promotes knowledge management to improve processes and products.</data>
+  <data key="d9">knowledge utilization,process improvement</data>
+  <data key="d10">chunk-f5b35ed187d30c5517f660031690eb31</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305361</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Pharmaceutical Quality System" target="Continuous Improvement">
+  <data key="d7">1.0</data>
+  <data key="d8">The Pharmaceutical Quality System achieves and supports continuous improvement as a fundamental goal.</data>
+  <data key="d9">ongoing enhancement,quality culture</data>
+  <data key="d10">chunk-f5b35ed187d30c5517f660031690eb31</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305361</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Pharmaceutical Quality System" target="Process Performance and Product Quality Monitoring">
+  <data key="d7">1.0</data>
+  <data key="d8">Process Performance and Product Quality Monitoring is a key element of the Pharmaceutical Quality System for tracking and evaluating manufacturing performance.</data>
+  <data key="d9">monitoring,quality assurance</data>
+  <data key="d10">chunk-f5b35ed187d30c5517f660031690eb31</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305362</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Pharmaceutical Quality System" target="CAPA">
+  <data key="d7">1.0</data>
+  <data key="d8">CAPA is a key element of the Pharmaceutical Quality System for addressing deviations and preventing their recurrence.</data>
+  <data key="d9">corrective action,deviation management</data>
+  <data key="d10">chunk-f5b35ed187d30c5517f660031690eb31</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305363</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Pharmaceutical Quality System" target="Change Management">
+  <data key="d7">1.0</data>
+  <data key="d8">Change Management is a key element of the Pharmaceutical Quality System for evaluating and controlling changes that may affect product quality.</data>
+  <data key="d9">change control,quality impact assessment</data>
+  <data key="d10">chunk-f5b35ed187d30c5517f660031690eb31</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305364</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Pharmaceutical Quality System" target="Periodic Review of PQS">
+  <data key="d7">1.0</data>
+  <data key="d8">The Periodic Review evaluates the effectiveness of the Pharmaceutical Quality System, covering process performance, product quality, and CAPA.</data>
+  <data key="d9">effectiveness evaluation,system review</data>
+  <data key="d10">chunk-f5b35ed187d30c5517f660031690eb31</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305366</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Quality Risk Management" target="Risk Assessment">
+  <data key="d7">1.0</data>
+  <data key="d8">Risk assessment is a core component of the quality risk management process.</data>
+  <data key="d9">process component,systematic framework</data>
+  <data key="d10">chunk-6ec2e5ac9373134e60f22a76aa5fcf8b</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305447</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Quality Risk Management" target="Risk Control">
+  <data key="d7">1.0</data>
+  <data key="d8">Risk control is a core component of the quality risk management process.</data>
+  <data key="d9">process component,systematic framework</data>
+  <data key="d10">chunk-6ec2e5ac9373134e60f22a76aa5fcf8b</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305447</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Quality Risk Management" target="Risk Review">
+  <data key="d7">1.0</data>
+  <data key="d8">Risk review is a core component of the quality risk management process.</data>
+  <data key="d9">process component,systematic framework</data>
+  <data key="d10">chunk-6ec2e5ac9373134e60f22a76aa5fcf8b</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305448</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Quality Risk Management" target="FMEA">
+  <data key="d7">1.0</data>
+  <data key="d8">FMEA is one of the commonly used tools within the quality risk management framework.</data>
+  <data key="d9">analytical method,tool application</data>
+  <data key="d10">chunk-6ec2e5ac9373134e60f22a76aa5fcf8b</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305448</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Quality Risk Management" target="FTA">
+  <data key="d7">1.0</data>
+  <data key="d8">FTA is one of the commonly used tools within the quality risk management framework.</data>
+  <data key="d9">analytical method,tool application</data>
+  <data key="d10">chunk-6ec2e5ac9373134e60f22a76aa5fcf8b</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305449</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Quality Risk Management" target="HACCP">
+  <data key="d7">1.0</data>
+  <data key="d8">HACCP is one of the commonly used tools within the quality risk management framework.</data>
+  <data key="d9">analytical method,tool application</data>
+  <data key="d10">chunk-6ec2e5ac9373134e60f22a76aa5fcf8b</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305450</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Quality Risk Management" target="HAZOP">
+  <data key="d7">1.0</data>
+  <data key="d8">HAZOP is one of the commonly used tools within the quality risk management framework.</data>
+  <data key="d9">analytical method,tool application</data>
+  <data key="d10">chunk-6ec2e5ac9373134e60f22a76aa5fcf8b</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305450</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Quality Risk Management" target="PHA">
+  <data key="d7">1.0</data>
+  <data key="d8">PHA is one of the commonly used tools within the quality risk management framework.</data>
+  <data key="d9">analytical method,tool application</data>
+  <data key="d10">chunk-6ec2e5ac9373134e60f22a76aa5fcf8b</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305451</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Quality Risk Management" target="Risk Ranking And Filtering">
+  <data key="d7">1.0</data>
+  <data key="d8">Risk ranking and filtering is one of the commonly used tools within the quality risk management framework.</data>
+  <data key="d9">analytical method,tool application</data>
+  <data key="d10">chunk-6ec2e5ac9373134e60f22a76aa5fcf8b</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305452</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Quality Risk Management" target="Production Process Control">
+  <data key="d7">1.0</data>
+  <data key="d8">Quality risk management can be applied to production process control to manage risks in pharmaceutical manufacturing.</data>
+  <data key="d9">application,process management</data>
+  <data key="d10">chunk-6ec2e5ac9373134e60f22a76aa5fcf8b</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305453</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Quality Risk Management" target="Change Management">
+  <data key="d7">1.0</data>
+  <data key="d8">Quality risk management can be applied to change management to evaluate and control risks associated with process or system changes.</data>
+  <data key="d9">application,change evaluation</data>
+  <data key="d10">chunk-6ec2e5ac9373134e60f22a76aa5fcf8b</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305454</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Quality Risk Management" target="Deviation Handling">
+  <data key="d7">1.0</data>
+  <data key="d8">Quality risk management can be applied to deviation handling to assess and manage risks arising from process deviations.</data>
+  <data key="d9">application,deviation assessment</data>
+  <data key="d10">chunk-6ec2e5ac9373134e60f22a76aa5fcf8b</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305454</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Quality Risk Management" target="Supplier Management">
+  <data key="d7">1.0</data>
+  <data key="d8">Quality risk management can be applied to supplier management to evaluate and control risks related to suppliers.</data>
+  <data key="d9">application,supply chain risk</data>
+  <data key="d10">chunk-6ec2e5ac9373134e60f22a76aa5fcf8b</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305455</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Quality Risk Management" target="Facility And Equipment Design">
+  <data key="d7">1.0</data>
+  <data key="d8">Quality risk management can be applied to facility and equipment design to identify and mitigate design-related risks.</data>
+  <data key="d9">application,design risk mitigation</data>
+  <data key="d10">chunk-6ec2e5ac9373134e60f22a76aa5fcf8b</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305456</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Quality Risk Management" target="Validation And Confirmation">
+  <data key="d7">1.0</data>
+  <data key="d8">Quality risk management can be applied to validation and confirmation to ensure processes and systems meet quality requirements.</data>
+  <data key="d9">application,quality assurance</data>
+  <data key="d10">chunk-6ec2e5ac9373134e60f22a76aa5fcf8b</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305457</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Quality Risk Management" target="Document Management">
+  <data key="d7">1.0</data>
+  <data key="d8">Quality risk management can be applied to document management to manage risks associated with pharmaceutical documentation.</data>
+  <data key="d9">application,documentation control</data>
+  <data key="d10">chunk-6ec2e5ac9373134e60f22a76aa5fcf8b</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305458</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Knowledge Management" target="Product Quality">
+  <data key="d7">1.0</data>
+  <data key="d8">Knowledge Management uses collected and analyzed data to improve pharmaceutical processes and ultimately product quality.</data>
+  <data key="d9">knowledge application,quality improvement</data>
+  <data key="d10">chunk-f5b35ed187d30c5517f660031690eb31</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305363</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Knowledge Management" target="CAPA">
+  <data key="d7">1.0</data>
+  <data key="d8">The CAPA system should be combined with the knowledge management system to share findings and prevent recurrence of issues.</data>
+  <data key="d9">information sharing,system integration</data>
+  <data key="d10">chunk-f5b35ed187d30c5517f660031690eb31</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305364</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Process Performance and Product Quality Monitoring" target="Process Performance Evaluation">
+  <data key="d7">1.0</data>
+  <data key="d8">Process Performance Evaluation is conducted periodically as part of the Process Performance and Product Quality Monitoring system.</data>
+  <data key="d9">performance tracking,periodic assessment</data>
+  <data key="d10">chunk-f5b35ed187d30c5517f660031690eb31</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305364</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Process Performance and Product Quality Monitoring" target="Product Quality Review">
+  <data key="d7">1.0</data>
+  <data key="d8">Product Quality Review is implemented as part of the Process Performance and Product Quality Monitoring system.</data>
+  <data key="d9">periodic review,quality assessment</data>
+  <data key="d10">chunk-f5b35ed187d30c5517f660031690eb31</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305366</data>
+  <data key="d13"></data>
+</edge>
+<edge source="CAPA" target="Root Cause Investigation">
+  <data key="d7">1.0</data>
+  <data key="d8">The CAPA system uses root cause investigation methods to determine the underlying causes of deviations and quality issues.</data>
+  <data key="d9">deviation analysis,investigation method</data>
+  <data key="d10">chunk-f5b35ed187d30c5517f660031690eb31</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305366</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Change Management" target="Product Quality">
+  <data key="d7">1.0</data>
+  <data key="d8">The Change Management system evaluates the impact of changes on product quality to ensure quality is maintained.</data>
+  <data key="d9">impact assessment,quality protection</data>
+  <data key="d10">chunk-f5b35ed187d30c5517f660031690eb31</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305366</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Continuous Improvement" target="Periodic Review of PQS">
+  <data key="d7">1.0</data>
+  <data key="d8">The results of the Periodic Review of PQS are used to drive continuous improvement within the pharmaceutical quality system.</data>
+  <data key="d9">data-driven improvement,feedback loop</data>
+  <data key="d10">chunk-f5b35ed187d30c5517f660031690eb31</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305369</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Senior Management" target="Quality Objectives">
+  <data key="d7">1.0</data>
+  <data key="d8">Senior Management is responsible for establishing clear quality objectives as part of their duties for the Pharmaceutical Quality System.</data>
+  <data key="d9">establishment,governance</data>
+  <data key="d10">chunk-f5b35ed187d30c5517f660031690eb31</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305361</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Risk Assessment" target="Risk Identification">
+  <data key="d7">1.0</data>
+  <data key="d8">Risk identification is the first step within the risk assessment process.</data>
+  <data key="d9">sequential step,subprocess</data>
+  <data key="d10">chunk-6ec2e5ac9373134e60f22a76aa5fcf8b</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305442</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Risk Assessment" target="Risk Analysis">
+  <data key="d7">1.0</data>
+  <data key="d8">Risk analysis is the second step within the risk assessment process, estimating identified risks.</data>
+  <data key="d9">sequential step,subprocess</data>
+  <data key="d10">chunk-6ec2e5ac9373134e60f22a76aa5fcf8b</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305444</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Risk Assessment" target="Risk Evaluation">
+  <data key="d7">1.0</data>
+  <data key="d8">Risk evaluation is the third step within the risk assessment process, comparing risks against criteria.</data>
+  <data key="d9">sequential step,subprocess</data>
+  <data key="d10">chunk-6ec2e5ac9373134e60f22a76aa5fcf8b</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305445</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Risk Control" target="Risk Reduction">
+  <data key="d7">1.0</data>
+  <data key="d8">Risk reduction is a component of risk control involving measures to lower risk levels.</data>
+  <data key="d9">mitigation action,subprocess</data>
+  <data key="d10">chunk-6ec2e5ac9373134e60f22a76aa5fcf8b</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305442</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Risk Control" target="Risk Acceptance">
+  <data key="d7">1.0</data>
+  <data key="d8">Risk acceptance is a component of risk control involving the decision to accept residual risk.</data>
+  <data key="d9">decision making,subprocess</data>
+  <data key="d10">chunk-6ec2e5ac9373134e60f22a76aa5fcf8b</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305444</data>
+  <data key="d13"></data>
+</edge>
+<edge source="Risk Identification" target="Risk Analysis">
+  <data key="d7">1.0</data>
+  <data key="d8">Risk analysis estimates the risks that have been identified through risk identification.</data>
+  <data key="d9">data flow,sequential dependency</data>
+  <data key="d10">chunk-6ec2e5ac9373134e60f22a76aa5fcf8b</data>
+  <data key="d11">unknown_source</data>
+  <data key="d12">1778305445</data>
+  <data key="d13"></data>
+</edge>
+</graph></graphml>
