@@ -236,6 +236,16 @@ async def delete_document(document_id: int, db: AsyncSession = Depends(get_db)):
     if not document:
         raise HTTPException(status_code=404, detail="文档不存在")
 
+    # Check for related findings before deleting
+    from app.models.finding import Finding
+    findings_result = await db.execute(select(Finding).where(Finding.document_id == document_id))
+    related_findings = findings_result.scalars().all()
+    if related_findings:
+        raise HTTPException(
+            status_code=400,
+            detail=f"文档被 {len(related_findings)} 条审计发现引用，请先删除相关审计任务"
+        )
+
     if document.file_path:
         upload_dir = os.path.abspath(_get_upload_dir())
         file_abs = os.path.abspath(document.file_path)
