@@ -139,9 +139,9 @@ async def build_index(force_rebuild: bool = False):
     if not INPUT_DIR.is_dir():
         raise FileNotFoundError(f"Input directory not found: {INPUT_DIR}")
 
-    txt_files = sorted(INPUT_DIR.glob("*.txt"))
+    txt_files = sorted(list(INPUT_DIR.glob("*.txt")) + list(INPUT_DIR.glob("*.md")))
     if not txt_files:
-        raise FileNotFoundError(f"No .txt files found in {INPUT_DIR}")
+        raise FileNotFoundError(f"No .txt or .md files found in {INPUT_DIR}")
 
     if force_rebuild:
         logger.info("Force rebuild: clearing existing index at %s", WORKING_DIR)

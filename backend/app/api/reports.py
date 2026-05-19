@@ -1,4 +1,6 @@
 import html as html_module
+from datetime import timezone
+
 import markdown
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import HTMLResponse
@@ -39,7 +41,7 @@ async def list_reports(
                 "task_id": report.task_id,
                 "report_type": report.report_type.value,
                 "title": report.title,
-                "created_at": report.created_at,
+                "created_at": report.created_at.replace(tzinfo=timezone.utc).isoformat() if report.created_at else None,
                 "report_metadata": report.report_metadata,
             }
             for report in reports
@@ -119,7 +121,7 @@ async def get_report(
         "report_type": report.report_type.value,
         "title": report.title,
         "content": report.content,
-        "created_at": report.created_at,
+        "created_at": report.created_at.replace(tzinfo=timezone.utc).isoformat() if report.created_at else None,
         "report_metadata": report.report_metadata,
     }
 
@@ -134,6 +136,7 @@ async def export_report_html(
         raise HTTPException(status_code=404, detail="Report not found")
 
     safe_title = html_module.escape(report.title or "Untitled")
+    created_display = report.created_at.replace(tzinfo=timezone.utc).isoformat() if report.created_at else ""
     html_body = markdown.markdown(report.content or "", extensions=["tables", "fenced_code"])
     html = f"""<!DOCTYPE html>
 <html lang="zh-CN">
@@ -155,7 +158,7 @@ async def export_report_html(
 </head>
 <body>
 <h1>{safe_title}</h1>
-<div class="meta">类型: {report.report_type.value} | 生成时间: {report.created_at}</div>
+<div class="meta">类型: {report.report_type.value} | 生成时间: {created_display}</div>
 {html_body}
 </body>
 </html>"""

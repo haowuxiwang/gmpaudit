@@ -29,8 +29,10 @@ async def list_alerts(status: str = None, page: int = 1, page_size: int = 20, db
     return {
         "items": [{
             "id": a.id, "finding_id": a.finding_id, "alert_level": a.alert_level.value,
-            "status": a.status.value, "created_at": a.created_at,
-            "resolved_at": a.resolved_at, "resolved_by": a.resolved_by,
+            "status": a.status.value,
+            "created_at": a.created_at.replace(tzinfo=timezone.utc).isoformat() if a.created_at else None,
+            "resolved_at": a.resolved_at.replace(tzinfo=timezone.utc).isoformat() if a.resolved_at else None,
+            "resolved_by": a.resolved_by,
             "finding_title": a.finding.title if a.finding else None,
             "finding_description": a.finding.description if a.finding else None,
             "finding_severity": a.finding.severity.value if a.finding else None,

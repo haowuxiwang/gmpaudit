@@ -3,6 +3,7 @@ import os
 import shutil
 import tempfile
 import uuid
+from datetime import timezone
 from typing import List
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile
@@ -167,8 +168,8 @@ async def list_documents(page: int = 1, page_size: int = 20, db: AsyncSession = 
                 "filename": document.filename,
                 "file_type": document.file_type,
                 "file_size": document.file_size,
-                "upload_time": document.upload_time,
-                "created_at": document.upload_time,
+                "upload_time": document.upload_time.replace(tzinfo=timezone.utc).isoformat() if document.upload_time else None,
+                "created_at": document.upload_time.replace(tzinfo=timezone.utc).isoformat() if document.upload_time else None,
                 "process_status": document.process_status.value,
             }
             for document in documents
@@ -191,8 +192,8 @@ async def get_document(document_id: int, db: AsyncSession = Depends(get_db)):
         "filename": document.filename,
         "file_type": document.file_type,
         "file_size": document.file_size,
-        "upload_time": document.upload_time,
-        "created_at": document.upload_time,
+        "upload_time": document.upload_time.replace(tzinfo=timezone.utc).isoformat() if document.upload_time else None,
+        "created_at": document.upload_time.replace(tzinfo=timezone.utc).isoformat() if document.upload_time else None,
         "process_status": document.process_status.value,
         "content_text": document.content_text,
     }

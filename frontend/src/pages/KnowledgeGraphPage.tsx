@@ -66,12 +66,17 @@ const KnowledgeGraphPage: React.FC = () => {
         kgApi.getDocuments(),
       ]);
 
-      if (statusResult.status === 'fulfilled') setStatus(statusResult.value);
+      if (statusResult.status === 'fulfilled') {
+        setStatus(statusResult.value);
+        if (statusResult.value.built) {
+          void loadGraphData();
+        }
+      }
       if (docsResult.status === 'fulfilled') setDocuments(docsResult.value.documents || []);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [loadGraphData]);
 
   const loadGraphData = useCallback(async () => {
     setGraphLoading(true);
@@ -88,8 +93,6 @@ const KnowledgeGraphPage: React.FC = () => {
   useEffect(() => {
     void loadData();
   }, [loadData]);
-
-  // Graph data loads on demand (user clicks button), not on page init
 
   useEffect(() => {
     if (!building) return;

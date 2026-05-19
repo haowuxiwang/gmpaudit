@@ -1,5 +1,6 @@
 import asyncio
 import json
+from datetime import timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
@@ -216,7 +217,7 @@ async def get_task_findings(
             "location": finding.location,
             "regulation_ref": finding.regulation_ref,
             "document_id": finding.document_id,
-            "created_at": finding.created_at,
+            "created_at": finding.created_at.replace(tzinfo=timezone.utc).isoformat() if finding.created_at else None,
         }
         for finding in findings
     ]
