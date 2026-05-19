@@ -197,6 +197,59 @@ npm run dev        # Electron 开发模式
 
 完整配置请参考 `config/.env.example`。
 
+## 打包分发
+
+### 打包步骤
+
+```bash
+# Windows - 一键打包
+scripts\build_exe.bat
+```
+
+打包流程：
+1. 构建前端（`npm run build`）
+2. 复制前端静态文件到后端
+3. 安装 PyInstaller
+4. 执行打包（输出到 `dist\AuditBee\`）
+
+### 分发包结构
+
+```
+dist\AuditBee\
+├── AuditBee.exe          # 主程序
+├── config\
+│   ├── .env              # 用户配置（从 .env.example 复制）
+│   └── .env.example      # 配置模板
+├── data\                 # 运行时数据（空目录）
+│   ├── database\
+│   ├── documents\
+│   ├── processed\
+│   ├── reports\
+│   └── logs\
+├── graphrag_index\       # 知识图谱索引（预构建）
+├── agent\                # Agent 系统
+├── tools\ffmpeg\         # FFmpeg 工具
+└── scripts\download_model.py  # 模型下载脚本
+```
+
+### 首次运行
+
+1. 编辑 `config\.env`，添加至少一个 LLM 提供商的 API 密钥
+2. 运行 `AuditBee.exe`
+3. 系统会自动下载 Embedding 模型（约 1.3GB，首次运行需要）
+4. 访问 http://localhost:8000
+
+### 出厂重置
+
+```bash
+# Windows
+scripts\factory_reset.bat
+```
+
+重置内容：
+- 清空数据库、日志、文档、报告、配置
+- 保留知识图谱索引、Embedding 模型、FFmpeg 工具
+
 ## 许可证
 
 MIT License

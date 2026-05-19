@@ -54,6 +54,16 @@ if errorlevel 1 (
 )
 
 echo.
+echo [5/5] 创建运行时目录结构...
+mkdir dist\AuditBee\data\database 2>nul
+mkdir dist\AuditBee\data\documents 2>nul
+mkdir dist\AuditBee\data\processed 2>nul
+mkdir dist\AuditBee\data\reports 2>nul
+mkdir dist\AuditBee\data\logs 2>nul
+copy config\.env.example dist\AuditBee\config\.env >nul
+echo   Done.
+
+echo.
 echo ========================================
 echo 打包完成！
 echo 输出目录: dist\AuditBee\
@@ -61,7 +71,8 @@ echo ========================================
 echo.
 echo 使用方法:
 echo 1. 将 dist\AuditBee 目录复制到目标机器
-echo 2. 运行 AuditBee.exe
-echo 3. 首次运行会自动下载 embedding 模型（约1.3GB）
+echo 2. 编辑 config\.env 添加 API 密钥
+echo 3. 运行 AuditBee.exe
+echo 4. 首次运行会自动下载 embedding 模型（约1.3GB）
 echo.
 pause

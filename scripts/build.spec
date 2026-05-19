@@ -20,6 +20,7 @@ a = Analysis(
         (os.path.join(PROJECT_ROOT, 'agent'), 'agent'),
         (os.path.join(PROJECT_ROOT, 'scripts', 'download_model.py'), 'scripts'),
         (os.path.join(PROJECT_ROOT, 'tools', 'ffmpeg'), 'tools/ffmpeg'),
+        (os.path.join(PROJECT_ROOT, 'graphrag_index'), 'graphrag_index'),
     ],
     hiddenimports=[
         'uvicorn.logging',

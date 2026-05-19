@@ -2,6 +2,31 @@
 
 All notable changes to AuditBee will be documented in this file.
 
+## [1.0.1] - 2026-05-19
+
+### Bug Fixes
+
+- **Timezone display**: All API datetime responses now include UTC timezone suffix (+00:00), fixing 8-hour display offset in frontend
+- **Knowledge graph page**: Fixed TDZ compile error caused by useCallback declaration order
+- **Risk alerts**: Create alerts in `awaiting_review` path (was skipped by early return)
+- **Audit findings**: Lowered `validate_findings` description length threshold from 10 to 2 characters
+- **Dashboard responsive**: Use Ant Design responsive breakpoints instead of fixed column widths
+- **Config float handling**: `_apply_setting()` now correctly handles float types (e.g., TEMPERATURE)
+- **Config Path import**: Fixed `NameError: name 'Path' is not defined` in `_update_env_file()`
+- **Asyncio import**: Moved asyncio import to file-level in main.py
+- **LLM engine close**: Protected `close()` method from single adapter failure
+- **SSE hook**: Fixed race condition by closing existing EventSource before creating new one
+- **JSON parser**: Added trailing comma handling for LLM outputs
+
+### Improvements
+
+- **Build spec**: Added hiddenimports for markdown, pymupdf, mammoth, rapidocr, httpx, json_repair
+- **Config example**: Added missing `_MODEL` entries for all 8 LLM providers
+- **Knowledge graph**: Auto-load graph visualization when index is built
+- **Build index**: Now indexes both `.txt` and `.md` files
+- **Factory reset script**: New `scripts/factory_reset.bat` to clean runtime data while preserving knowledge graph
+- **Build script**: Creates runtime directory structure after packaging
+
 ## [1.0.0] - 2026-05-19
 
 ### Security Fixes (Phase 1)
