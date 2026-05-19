@@ -73,7 +73,10 @@ async def _apply_setting(key: str, value: str):
     old_val = getattr(settings, attr, None)
     # Cast to correct type
     if isinstance(getattr(settings, attr, None), int):
-        value = int(value)
+        try:
+            value = int(value)
+        except ValueError:
+            raise HTTPException(status_code=422, detail=f"配置项 {key} 需要整数值，收到: {value}")
     setattr(settings, attr, value)
     logger.info("Config updated: %s (was=%s)", attr, old_val)
 

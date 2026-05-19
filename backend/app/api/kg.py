@@ -275,6 +275,10 @@ async def upload_document(
     if not file.filename:
         raise HTTPException(status_code=400, detail="文件名不能为空")
 
+    # Security check: ensure filename doesn't contain path traversal
+    if ".." in file.filename or "/" in file.filename or "\\" in file.filename:
+        raise HTTPException(status_code=400, detail="无效的文件名")
+
     # Validate file extension
     allowed_extensions = {".txt", ".md", ".pdf", ".docx"}
     convertible_extensions = {".pdf", ".docx"}

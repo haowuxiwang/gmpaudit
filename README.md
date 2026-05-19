@@ -5,13 +5,18 @@
 ## 核心特性
 
 - **多 Agent 审计流程**：LangGraph Supervisor 模式，法规专家 → 风险评估 → 报告撰写，确定性路由保障可靠性
+- **实时 SSE 流式推送**：EventBus 内存总线 + Server-Sent Events，Agent 执行进度和思考过程实时推送到前端
+- **Agent 思考面板**：实时展示各 Agent 节点的执行状态和 LLM 输出，支持折叠/展开和打字机动画
+- **任务取消**：支持取消运行中的审计任务，安全中断 asyncio 执行链
 - **法规知识图谱**：LightRAG 构建 GMP/ICH 法规知识库，本地 Embedding + 语义检索 + 硬编码备用库双重保障
 - **批量文档处理**：支持 PDF、Word、纯文本格式，PyMuPDF + RapidOCR 双引擎
 - **多 LLM 提供商**：统一适配器模式支持 DeepSeek、Qwen、GLM、SiliconFlow、OpenRouter、Mimo、Anthropic 共 8 个提供商
 - **结构化报告**：自动生成 Markdown 格式专业审计报告，按严重程度分组
 - **风险可视化**：ECharts 仪表盘展示风险分布和审计趋势
 - **飞书通知**：Webhook Bot 群通知（HMAC-SHA256 签名卡片）
+- **浏览器通知**：任务完成/失败时自动推送浏览器通知
 - **容错降级设计**：LightRAG → 硬编码法规库、LLM → 模板报告、PDF → OCR 多级降级
+- **安全加固**：Electron contextIsolation、路径穿越防护、XSS 转义、Config 输入校验
 
 ## 技术栈
 
@@ -94,14 +99,22 @@ Agent 系统 (LangGraph)
 | POST | `/api/audit/tasks` | 创建审计任务 |
 | GET | `/api/audit/tasks` | 获取审计任务列表（分页） |
 | POST | `/api/audit/tasks/{id}/run` | 运行审计任务 |
+| POST | `/api/audit/tasks/{id}/cancel` | 取消运行中的任务 |
+| POST | `/api/audit/tasks/{id}/approve` | 批准待审核任务 |
+| POST | `/api/audit/tasks/{id}/reject` | 驳回待审核任务 |
+| GET | `/api/audit/tasks/{id}/stream` | SSE 实时推送任务事件 |
+| GET | `/api/audit/tasks/stream` | SSE 全局任务状态监控 |
 | GET | `/api/audit/tasks/{id}/findings` | 获取审计发现 |
 | GET | `/api/audit/dashboard` | 仪表盘统计 |
 | POST | `/api/agent-audit/run` | 运行 Agent 审计（单文档） |
 | GET | `/api/reports/` | 获取审计报告（分页） |
+| GET | `/api/reports/{id}/export/html` | 导出 HTML 格式报告 |
 | POST | `/api/reports/generate/{task_id}` | 生成审计报告 |
 | GET | `/api/alerts/` | 获取风险警报（分页） |
 | GET | `/api/config/` | 获取系统配置 |
+| PUT | `/api/config/{key}` | 更新单个配置项 |
 | POST | `/api/config/batch` | 批量更新配置 |
+| POST | `/api/config/test-llm` | 测试 LLM 连通性 |
 | GET | `/api/kg/status` | 知识图谱索引状态 |
 | POST | `/api/kg/build` | 触发索引构建 |
 | POST | `/api/kg/query` | 查询知识图谱 |
@@ -126,15 +139,19 @@ gmpaudit/
 │       ├── api/       # API 路由 (documents, audit, reports, config, alerts, agent_audit, kg)
 │       ├── core/      # 配置、数据库
 │       ├── models/    # 数据库模型 (6张表)
-│       └── services/  # LLM 引擎、文档处理、任务运行器、通知
+│       └── services/  # LLM 引擎、文档处理、任务运行器、EventBus、通知
 ├── frontend/          # React 前端 (Electron 桌面应用)
+│   ├── electron/      # Electron 主进程 + preload.js
 │   └── src/
 │       ├── pages/     # 8个页面: Dashboard, Documents, AuditTasks, Reports, Settings, Alerts, KnowledgeGraph, NotFound
-│       ├── components/# 公共组件: Header, Sidebar, ErrorBoundary
+│       ├── components/# 公共组件: Header, Sidebar, ErrorBoundary, AgentFlowChart, AgentThinkingPanel, FindingDetailCard
+│       ├── hooks/     # 自定义 Hooks: useSSE, useTaskSSE
 │       └── services/  # API 调用封装 (axios)
 ├── config/            # .env 配置文件
 ├── data/              # 运行时数据 (文档、报告、数据库)
-└── scripts/           # 启动脚本 (start.bat, start.sh)
+├── model/             # 预下载的 Embedding 模型 (BAAI/bge-large-zh-v1.5)
+├── tools/             # 捆绑工具 (ffmpeg)
+└── scripts/           # 启动脚本 (start.bat, start.sh) + 构建脚本 (build_exe.bat, build.spec)
 ```
 
 ## 开发指南

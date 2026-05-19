@@ -89,11 +89,7 @@ const KnowledgeGraphPage: React.FC = () => {
     void loadData();
   }, [loadData]);
 
-  useEffect(() => {
-    if (status?.built) {
-      void loadGraphData();
-    }
-  }, [loadGraphData, status?.built]);
+  // Graph data loads on demand (user clicks button), not on page init
 
   useEffect(() => {
     if (!building) return;
@@ -106,7 +102,6 @@ const KnowledgeGraphPage: React.FC = () => {
           setBuilding(false);
           message.success('知识图谱构建完成');
           void loadData();
-          void loadGraphData();
           if (pollRef.current) {
             clearInterval(pollRef.current);
             pollRef.current = null;
@@ -115,7 +110,7 @@ const KnowledgeGraphPage: React.FC = () => {
       } catch {
         setBuilding(false);
       }
-    }, 4000);
+    }, 8000);
 
     return () => {
       if (pollRef.current) {
@@ -123,7 +118,7 @@ const KnowledgeGraphPage: React.FC = () => {
         pollRef.current = null;
       }
     };
-  }, [building, loadData, loadGraphData]);
+  }, [building, loadData]);
 
   const handleBuild = async (force = false) => {
     try {
@@ -437,7 +432,14 @@ const KnowledgeGraphPage: React.FC = () => {
             />
           </div>
         ) : (
-          <Empty description="暂无图谱数据" />
+          <div style={{ height: 520, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16 }}>
+            <Empty description={status?.built ? '点击加载图谱可视化' : '请先构建知识图谱'} />
+            {status?.built && (
+              <Button type="primary" icon={<BranchesOutlined />} onClick={() => void loadGraphData()}>
+                加载图谱
+              </Button>
+            )}
+          </div>
         )}
       </Card>
 

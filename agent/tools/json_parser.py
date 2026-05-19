@@ -1,7 +1,10 @@
 """Shared JSON parsing utilities for LLM output."""
 
 import json
+import logging
 import re
+
+logger = logging.getLogger(__name__)
 
 
 def parse_llm_json(content: str) -> list[dict]:
@@ -25,4 +28,5 @@ def parse_llm_json(content: str) -> list[dict]:
             except json.JSONDecodeError:
                 continue
 
+    logger.warning("Failed to parse JSON from LLM output (length=%d): %.200s", len(content), content)
     return []

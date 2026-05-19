@@ -59,6 +59,8 @@ export const auditApi = {
     api.post(`/audit/tasks/${id}/approve`, { comment }) as Promise<{ status: string; task_id: number }>,
   rejectTask: (id: number, comment: string) =>
     api.post(`/audit/tasks/${id}/reject`, { comment }) as Promise<{ status: string; task_id: number }>,
+  cancelTask: (id: number) =>
+    api.post(`/audit/tasks/${id}/cancel`) as Promise<{ status: string; task_id: number }>,
   getDashboard: () => api.get('/audit/dashboard') as Promise<DashboardData>,
 };
 

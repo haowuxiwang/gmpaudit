@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Button,
   Card,
@@ -25,13 +25,16 @@ import {
   FileSearchOutlined,
   PlayCircleOutlined,
   PlusOutlined,
+  StopOutlined,
   UploadOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { auditApi, documentApi } from '../services/api';
 import type { AuditTask, Document, Finding } from '../types/api';
+import { useTaskSSE } from '../hooks/useTaskSSE';
 import AgentFlowChart from '../components/AgentFlowChart';
+import AgentThinkingPanel from '../components/AgentThinkingPanel';
 import FindingDetailCard from '../components/FindingDetailCard';
 import {
   STATUS_COLORS,
@@ -52,6 +55,7 @@ const STATUS_FILTER_OPTIONS = [
   { value: 'running', label: '进行中' },
   { value: 'completed', label: '已完成' },
   { value: 'failed', label: '失败' },
+  { value: 'cancelled', label: '已取消' },
 ];
 
 const TYPE_FILTER_OPTIONS = [
@@ -66,13 +70,13 @@ const STATUS_DOT_COLORS: Record<string, string> = {
   rejected: '#ff4d4f',
   completed: THEME.success,
   failed: THEME.error,
+  cancelled: '#9CA3AF',
 };
 
 const AuditTasksPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const [form] = Form.useForm();
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [tasks, setTasks] = useState<AuditTask[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -85,8 +89,20 @@ const AuditTasksPage: React.FC = () => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
+  const [elapsed, setElapsed] = useState('');
 
   const taskIdParam = searchParams.get('task_id');
+
+  const hasRunning = useMemo(
+    () => tasks.some((task) => task.status === 'running' || task.stage === 'queued'),
+    [tasks],
+  );
+
+  const selectedTaskIsRunning = selectedTask?.status === 'running' || selectedTask?.stage === 'queued';
+  const { events: sseEvents, thinkingEvents, currentStage, status: sseStatus } = useTaskSSE(
+    selectedTaskId,
+    selectedTaskIsRunning,
+  );
 
   const syncSelectedTask = useCallback((items: AuditTask[], preferredId?: number | null) => {
     const preferred = preferredId ?? selectedTaskId;
@@ -144,8 +160,7 @@ const AuditTasksPage: React.FC = () => {
   useEffect(() => {
     const taskId = Number(taskIdParam);
     void loadTasks(true, Number.isFinite(taskId) && taskId > 0 ? taskId : null);
-    void loadDocuments();
-  }, [loadDocuments, loadTasks, taskIdParam]);
+  }, [loadTasks, taskIdParam]);
 
   useEffect(() => {
     if (!selectedTaskId) {
@@ -155,32 +170,76 @@ const AuditTasksPage: React.FC = () => {
     void loadTaskDetails(selectedTaskId);
   }, [loadTaskDetails, selectedTaskId]);
 
+  // Merge SSE events into selectedTask display
   useEffect(() => {
-    const hasRunning = tasks.some((task) => task.status === 'running' || task.stage === 'queued');
-    if (!hasRunning) {
-      if (pollRef.current) {
-        clearInterval(pollRef.current);
-        pollRef.current = null;
-      }
+    if (!selectedTask) return;
+    setSelectedTask(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        stage: currentStage || prev.stage,
+        events: sseEvents.length > 0 ? sseEvents : prev.events,
+      };
+    });
+  }, [sseEvents, currentStage, selectedTask?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // On SSE "done", do one final refresh
+  useEffect(() => {
+    if (sseStatus === 'completed' || sseStatus === 'failed' || sseStatus === 'awaiting_review') {
+      void loadTasks(false, selectedTaskId);
+      if (selectedTaskId) void loadTaskDetails(selectedTaskId);
+    }
+  }, [sseStatus, selectedTaskId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Lightweight list poll (30s) to catch tasks from other entry points
+  useEffect(() => {
+    if (!hasRunning) return;
+
+    const interval = setInterval(() => {
+      void loadTasks(false, selectedTaskId);
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [hasRunning, loadTasks, selectedTaskId]);
+
+  // Elapsed time timer
+  useEffect(() => {
+    if (!selectedTask || selectedTask.status !== 'running' || !selectedTask.started_at) {
+      setElapsed('');
       return;
     }
-
-    if (!pollRef.current) {
-      pollRef.current = setInterval(() => {
-        void loadTasks(false, selectedTaskId);
-        if (selectedTaskId) {
-          void loadTaskDetails(selectedTaskId);
-        }
-      }, 4000);
-    }
-
-    return () => {
-      if (pollRef.current) {
-        clearInterval(pollRef.current);
-        pollRef.current = null;
-      }
+    const updateElapsed = () => {
+      const start = new Date(selectedTask.started_at!).getTime();
+      const diff = Math.floor((Date.now() - start) / 1000);
+      setElapsed(`已运行 ${Math.floor(diff / 60)}m ${diff % 60}s`);
     };
-  }, [loadTaskDetails, loadTasks, selectedTaskId, tasks]);
+    updateElapsed();
+    const interval = setInterval(updateElapsed, 1000);
+    return () => clearInterval(interval);
+  }, [selectedTask?.id, selectedTask?.status, selectedTask?.started_at]);
+
+  // Completion notification
+  useEffect(() => {
+    if (sseStatus === 'completed' || sseStatus === 'failed' || sseStatus === 'awaiting_review') {
+      if ('Notification' in window && Notification.permission === 'default') {
+        void Notification.requestPermission();
+      }
+      if ('Notification' in window && Notification.permission === 'granted') {
+        const statusText = sseStatus === 'completed' ? '已完成'
+          : sseStatus === 'failed' ? '失败' : '待审核';
+        new Notification('AuditBee 任务完成', {
+          body: `${selectedTask?.task_name || '审计任务'} - ${statusText}`,
+        });
+      }
+    }
+  }, [sseStatus]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Pre-request notification permission when tasks are running
+  useEffect(() => {
+    if (hasRunning && 'Notification' in window && Notification.permission === 'default') {
+      void Notification.requestPermission();
+    }
+  }, [hasRunning]);
 
   const handleCreate = async (values: { task_name: string; task_type: string; document_ids: number[] }) => {
     try {
@@ -206,6 +265,17 @@ const AuditTasksPage: React.FC = () => {
       await loadTaskDetails(taskId);
     } catch {
       message.error('提交审计任务失败');
+    }
+  };
+
+  const handleCancel = async (taskId: number) => {
+    try {
+      await auditApi.cancelTask(taskId);
+      message.success('任务已取消');
+      await loadTasks(false, selectedTaskId);
+      if (selectedTaskId) await loadTaskDetails(selectedTaskId);
+    } catch {
+      message.error('取消任务失败');
     }
   };
 
@@ -241,7 +311,7 @@ const AuditTasksPage: React.FC = () => {
         styles={{ body: { padding: '12px 20px' } }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setShowModal(true)}>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => { setShowModal(true); void loadDocuments(); }}>
             新建任务
           </Button>
           <Select
@@ -366,6 +436,17 @@ const AuditTasksPage: React.FC = () => {
                         报告
                       </Button>
                     )}
+                    {task.status === 'running' && (
+                      <Button
+                        type="link"
+                        size="small"
+                        danger
+                        icon={<StopOutlined />}
+                        onClick={() => void handleCancel(task.id)}
+                      >
+                        取消
+                      </Button>
+                    )}
                   </Space>
                 </div>
               );
@@ -406,6 +487,7 @@ const AuditTasksPage: React.FC = () => {
                     {STAGE_LABELS[selectedTask.stage] || selectedTask.stage}
                   </Tag>
                 )}
+                {elapsed && <Text type="secondary" style={{ fontSize: 12 }}>{elapsed}</Text>}
               </Space>
               <Progress
                 percent={selectedTask.progress || 0}
@@ -421,8 +503,20 @@ const AuditTasksPage: React.FC = () => {
                 currentStage={selectedTask.stage || 'pending'}
                 completedStages={selectedTask.events?.map(e => e.stage) || []}
                 failedStage={selectedTask.status === 'failed' ? selectedTask.stage : undefined}
+                onNodeClick={(stage) => {
+                  // Future: scroll timeline to events for this stage
+                }}
               />
             ) : null}
+
+            {/* Agent Thinking Panel */}
+            {selectedTask.status === 'running' && (
+              <AgentThinkingPanel
+                thinkingEvents={thinkingEvents}
+                currentStage={currentStage}
+                isRunning={selectedTask.status === 'running'}
+              />
+            )}
 
             {/* Timeline */}
             {selectedTask.events && selectedTask.events.length > 0 && (
@@ -590,6 +684,31 @@ const AuditTasksPage: React.FC = () => {
                 {selectedTask.report_id && (
                   <Button icon={<FileSearchOutlined />} onClick={() => navigate(`/reports?task_id=${selectedTask.id}`)}>
                     查看报告
+                  </Button>
+                )}
+                {selectedTask.status === 'running' && (
+                  <Button
+                    danger
+                    icon={<StopOutlined />}
+                    onClick={() => {
+                      Modal.confirm({
+                        title: '取消任务',
+                        content: '确定要取消正在运行的任务吗？',
+                        okText: '确定取消',
+                        okButtonProps: { danger: true },
+                        onOk: async () => {
+                          try {
+                            await auditApi.cancelTask(selectedTask.id);
+                            message.success('任务已取消');
+                            void loadTasks(false, selectedTaskId);
+                          } catch {
+                            message.error('取消任务失败');
+                          }
+                        },
+                      });
+                    }}
+                  >
+                    取消任务
                   </Button>
                 )}
                 <Button

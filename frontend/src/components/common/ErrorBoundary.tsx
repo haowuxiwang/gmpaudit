@@ -19,6 +19,10 @@ class ErrorBoundary extends React.Component<Props, State> {
     return { hasError: true };
   }
 
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('ErrorBoundary caught:', error, errorInfo);
+  }
+
   handleReset = () => {
     this.setState({ hasError: false });
     window.location.href = '/';

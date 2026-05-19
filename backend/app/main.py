@@ -13,6 +13,7 @@ from app.core.database import Base, engine
 from app.core.config import settings
 from app.core.database import async_session
 from app.services.task_runner import get_task_runner_factory
+from app.services.event_bus import EventBus
 
 
 def _configure_logging() -> None:
@@ -132,9 +133,11 @@ async def startup():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     if not hasattr(app.state, "task_runner_factory"):
+        app.state.event_bus = EventBus()
         app.state.task_runner_factory = get_task_runner_factory(
             session_factory=async_session,
             max_concurrency=settings.MAX_CONCURRENT_TASKS,
+            event_bus=app.state.event_bus,
         )
     await startup()
     await app.state.task_runner_factory().startup_recover()
@@ -153,9 +156,13 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# CORS origins from environment variable, default to localhost dev ports
+cors_origins = os.environ.get("CORS_ORIGINS", "http://localhost:3000,http://localhost:3001,http://localhost:3002")
+origins = [origin.strip() for origin in cors_origins.split(",") if origin.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001", "http://localhost:3002"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

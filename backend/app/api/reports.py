@@ -1,3 +1,4 @@
+import html as html_module
 import markdown
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import HTMLResponse
@@ -129,12 +130,13 @@ async def export_report_html(
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
 
+    safe_title = html_module.escape(report.title or "Untitled")
     html_body = markdown.markdown(report.content or "", extensions=["tables", "fenced_code"])
     html = f"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<title>{report.title}</title>
+<title>{safe_title}</title>
 <style>
   body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; color: #1a1a1a; line-height: 1.6; }}
   h1 {{ color: #D97757; border-bottom: 2px solid #E8E5E0; padding-bottom: 8px; }}
@@ -149,7 +151,7 @@ async def export_report_html(
 </style>
 </head>
 <body>
-<h1>{report.title}</h1>
+<h1>{safe_title}</h1>
 <div class="meta">类型: {report.report_type.value} | 生成时间: {report.created_at}</div>
 {html_body}
 </body>

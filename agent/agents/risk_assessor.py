@@ -39,9 +39,12 @@ async def risk_assessor_node(state: AuditState) -> dict:
 
     Uses LLM to identify findings, then calculates risk score.
     """
-    doc_content = state.get("document_content", "")[:3000]
+    full_content = state.get("document_content", "")
     doc_type = state.get("document_type", "unknown")
     regulations = state.get("matched_regulations", [])
+    if len(full_content) > 3000:
+        logger.warning("Document content truncated from %d to 3000 chars for %s", len(full_content), state.get("document_name", "unknown"))
+    doc_content = full_content[:3000]
     logger.info(f"Risk Assessor: doc_type={doc_type}, regulations={len(regulations)}")
 
     # Format regulation context for the prompt

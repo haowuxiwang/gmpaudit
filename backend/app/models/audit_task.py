@@ -8,6 +8,7 @@ class TaskStatus(enum.Enum):
     RUNNING = "running"
     AWAITING_REVIEW = "awaiting_review"
     REJECTED = "rejected"
+    CANCELLED = "cancelled"
     COMPLETED = "completed"
     FAILED = "failed"
 

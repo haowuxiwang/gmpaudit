@@ -3,6 +3,7 @@ export const STATUS_COLORS: Record<string, string> = {
   running: 'processing',
   completed: 'success',
   failed: 'error',
+  cancelled: 'warning',
 };
 
 export const STATUS_LABELS: Record<string, string> = {
@@ -10,6 +11,7 @@ export const STATUS_LABELS: Record<string, string> = {
   running: '进行中',
   completed: '已完成',
   failed: '失败',
+  cancelled: '已取消',
 };
 
 export const STAGE_LABELS: Record<string, string> = {
@@ -22,6 +24,7 @@ export const STAGE_LABELS: Record<string, string> = {
   report: '报告生成',
   completed: '已完成',
   failed: '执行失败',
+  cancelled: '已取消',
 };
 
 export const STAGE_COLORS: Record<string, string> = {
@@ -34,6 +37,7 @@ export const STAGE_COLORS: Record<string, string> = {
   report: '#10B981',
   completed: '#10B981',
   failed: '#DC2626',
+  cancelled: '#9CA3AF',
 };
 
 export const TASK_TYPE_LABELS: Record<string, string> = {

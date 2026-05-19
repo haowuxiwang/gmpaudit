@@ -58,6 +58,7 @@ async def report_writer_node(state: AuditState) -> dict:
     findings_text = _format_findings(findings)
 
     # Call LLM to generate the report
+    used_fallback = False
     try:
         llm = get_llm(provider=None, temperature=0.3)
         prompt_template = _load_prompt()
@@ -74,11 +75,13 @@ async def report_writer_node(state: AuditState) -> dict:
         report_md = response.content
     except Exception as e:
         logger.warning(f"Report Writer LLM call failed, using fallback: {e}")
+        used_fallback = True
         # Fallback: generate a basic report without LLM
-        report_md = _generate_fallback_report(
+        fallback_md = _generate_fallback_report(
             doc_name, doc_type, risk_score, risk_level,
             regulation_summary, findings,
         )
+        report_md = "> **Warning**: This report was generated using fallback logic because the LLM service was unavailable.\n\n" + fallback_md
 
     # Save report to file
     safe_name = Path(doc_name).stem
@@ -107,7 +110,11 @@ async def report_writer_node(state: AuditState) -> dict:
         "report_path": str(report_path),
         "report_generated": True,
         "status": "completed",
-        "messages": [f"Report Writer: report saved to {report_path}"],
+        "report_source": "fallback" if used_fallback else "llm",
+        "messages": [
+            f"Report Writer: report saved to {report_path}",
+            *([] if not used_fallback else ["Report Writer: LLM unavailable, generated fallback report"]),
+        ],
     }
 
 

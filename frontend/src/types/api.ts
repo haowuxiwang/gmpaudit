@@ -22,6 +22,18 @@ export interface TaskEvent {
   message: string;
 }
 
+export interface AgentThinkingEvent {
+  node: string;
+  stage?: string;
+  status: 'started' | 'completed';
+  message: string;
+}
+
+export interface LLMTokenEvent {
+  node: string;
+  token: string;
+}
+
 export interface TaskDocumentStatus {
   document_id: number;
   filename: string;
@@ -35,7 +47,7 @@ export interface AuditTask {
   id: number;
   task_name: string;
   task_type: string;
-  status: 'pending' | 'running' | 'awaiting_review' | 'rejected' | 'completed' | 'failed';
+  status: 'pending' | 'running' | 'awaiting_review' | 'rejected' | 'cancelled' | 'completed' | 'failed';
   progress: number;
   stage?: string;
   document_ids?: number[];

@@ -26,8 +26,11 @@ async def regulation_expert_node(state: AuditState) -> dict:
     Uses LightRAG knowledge graph, falls back to hardcoded regulation DB.
     Then uses LLM to summarize relevance.
     """
-    doc_content = state.get("document_content", "")[:3000]
+    full_content = state.get("document_content", "")
     doc_type = state.get("document_type", "unknown")
+    if len(full_content) > 3000:
+        logger.warning("Document content truncated from %d to 3000 chars for %s", len(full_content), state.get("document_name", "unknown"))
+    doc_content = full_content[:3000]
     logger.info(f"Regulation Expert: analyzing doc_type={doc_type}, content_len={len(doc_content)}")
 
     # Step 1: Search regulation database

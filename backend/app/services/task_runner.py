@@ -2,7 +2,10 @@ import asyncio
 import logging
 from collections.abc import Callable
 from datetime import datetime, timezone
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from app.services.event_bus import EventBus
 
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -180,11 +183,30 @@ def choose_report_content(
 
 
 class TaskRunner:
-    def __init__(self, session_factory: async_sessionmaker[AsyncSession], max_concurrency: int = 2):
+    def __init__(self, session_factory: async_sessionmaker[AsyncSession], max_concurrency: int = 2, event_bus: "EventBus | None" = None):
         self._session_factory = session_factory
         self._max_concurrency = max_concurrency
         self._semaphore = asyncio.Semaphore(max_concurrency)
         self._active: dict[int, asyncio.Task] = {}
+        self._event_bus = event_bus
+
+    async def _publish(self, task_id: int, event: dict[str, Any]) -> None:
+        """Publish event to the in-memory event bus (non-blocking)."""
+        if self._event_bus:
+            await self._event_bus.publish(task_id, event)
+
+    async def _publish_done(self, task_id: int, status: str) -> None:
+        """Publish terminal event to the in-memory event bus."""
+        if self._event_bus:
+            await self._event_bus.publish_done(task_id, status)
+
+    async def _publish_progress(self, task_id: int, percent: int, stage: str) -> None:
+        """Publish progress event to the in-memory event bus."""
+        if self._event_bus:
+            await self._event_bus.publish(task_id, {
+                "type": "progress",
+                "data": {"percent": percent, "stage": stage},
+            })
 
     async def startup_recover(self) -> None:
         async with self._session_factory() as db:
@@ -212,6 +234,14 @@ class TaskRunner:
         task = asyncio.create_task(self._run(task_id))
         self._active[task_id] = task
         task.add_done_callback(lambda _: self._active.pop(task_id, None))
+        return True
+
+    async def cancel(self, task_id: int) -> bool:
+        """Cancel a running task."""
+        active = self._active.get(task_id)
+        if active is None or active.done():
+            return False
+        active.cancel()
         return True
 
     async def shutdown(self, timeout: float = 30.0) -> None:
@@ -242,9 +272,24 @@ class TaskRunner:
                 set_stage(task, "running")
                 append_event(task, "Task execution started", stage="running")
                 await db.commit()
+                await self._publish(task_id, {"type": "event", "data": {"time": datetime.now(timezone.utc).isoformat(), "stage": "running", "level": "info", "message": "Task execution started"}})
 
             try:
                 await self._execute_task(task_id)
+            except asyncio.CancelledError:
+                logger.info("Task %s was cancelled", task_id)
+                async with self._session_factory() as db:
+                    result = await db.execute(select(AuditTask).where(AuditTask.id == task_id))
+                    task = result.scalar_one_or_none()
+                    if task:
+                        task.status = TaskStatus.CANCELLED
+                        task.completed_at = datetime.now(timezone.utc)
+                        task.error_message = "Task cancelled"
+                        set_stage(task, "cancelled")
+                        append_event(task, "Task cancelled by user", stage="cancelled", level="warning")
+                        await db.commit()
+                        await self._publish(task.id, {"type": "event", "data": {"time": datetime.now(timezone.utc).isoformat(), "stage": "cancelled", "level": "warning", "message": "Task cancelled by user"}})
+                        await self._publish_done(task.id, "cancelled")
             except Exception as exc:
                 logger.exception("Task %s failed", task_id)
                 async with self._session_factory() as db:
@@ -272,10 +317,9 @@ class TaskRunner:
             if any(doc.process_status != DocumentStatus.PROCESSED for doc in documents):
                 raise RuntimeError("All documents must be processed before audit")
 
-            await db.execute(delete(RiskAlert).where(RiskAlert.finding_id.in_(select(Finding.id).where(Finding.task_id == task.id))))
-            await db.execute(delete(Finding).where(Finding.task_id == task.id))
-            await db.execute(delete(Report).where(Report.task_id == task.id))
-            await db.commit()
+            # Backup existing data before re-run (B6: data loss protection)
+            old_finding_ids = [f.id for f in (await db.execute(select(Finding.id).where(Finding.task_id == task.id))).scalars().all()]
+            old_report_ids = [r.id for r in (await db.execute(select(Report.id).where(Report.task_id == task.id))).scalars().all()]
 
             graph = build_audit_graph()
             timeout_seconds = 300
@@ -292,6 +336,8 @@ class TaskRunner:
                 task.progress = percent_start
                 append_event(task, f"Processing document {document.filename}", stage="parsing")
                 await db.commit()
+                await self._publish(task_id, {"type": "event", "data": {"time": datetime.now(timezone.utc).isoformat(), "stage": "parsing", "level": "info", "message": f"Processing document {document.filename}"}})
+                await self._publish_progress(task_id, percent_start, "parsing")
 
                 initial_state = build_initial_state(
                     document_path=document.file_path,
@@ -300,7 +346,54 @@ class TaskRunner:
                     document_content=document.content_text or "",
                     document_name=document.filename,
                 )
-                result_state = await asyncio.wait_for(graph.ainvoke(initial_state), timeout=timeout_seconds)
+
+                # Stream agent thinking events via astream_events
+                NODE_STAGE_MAP = {
+                    "parse_doc": "parsing",
+                    "regulation_expert": "regulation",
+                    "risk_assessor": "risk",
+                    "report_writer": "report",
+                }
+
+                async def _stream_graph():
+                    result = None
+                    async for event in graph.astream_events(initial_state, version="v2"):
+                        kind = event.get("event", "")
+                        node_name = event.get("name", "")
+
+                        if kind == "on_chain_start" and node_name in NODE_STAGE_MAP:
+                            await self._publish(task_id, {
+                                "type": "agent_thinking",
+                                "data": {
+                                    "stage": NODE_STAGE_MAP[node_name],
+                                    "node": node_name,
+                                    "status": "started",
+                                    "message": f"Agent {node_name} started",
+                                },
+                            })
+
+                        elif kind == "on_chain_end" and node_name in NODE_STAGE_MAP:
+                            output = event.get("data", {}).get("output", {})
+                            if isinstance(output, dict):
+                                # Publish last few messages as thinking output
+                                for msg in (output.get("messages", []) or [])[-3:]:
+                                    content = getattr(msg, "content", str(msg))
+                                    if content:
+                                        await self._publish(task_id, {
+                                            "type": "agent_thinking",
+                                            "data": {
+                                                "node": node_name,
+                                                "status": "completed",
+                                                "message": str(content)[:500],
+                                            },
+                                        })
+                                # Capture final state from report_writer
+                                if node_name == "report_writer" or output.get("report_generated"):
+                                    result = output
+
+                    return result
+
+                result_state = await asyncio.wait_for(_stream_graph(), timeout=timeout_seconds)
 
                 doc_findings = result_state.get("findings", [])
                 for finding in doc_findings:
@@ -325,11 +418,31 @@ class TaskRunner:
                 set_execution_meta(task, meta)
                 append_event(task, f"Completed document {document.filename}", stage="regulation")
                 await db.commit()
+                await self._publish(task_id, {"type": "event", "data": {"time": datetime.now(timezone.utc).isoformat(), "stage": "regulation", "level": "info", "message": f"Completed document {document.filename}"}})
+                await self._publish_progress(task_id, percent_end, "regulation")
+
+            # Validate findings before persisting
+            all_finding_dicts = [f for f, _ in findings_to_save]
+            valid_finding_dicts = validate_findings(all_finding_dicts)
+            valid_set = {id(f) for f in valid_finding_dicts}
+            dropped_count = len(findings_to_save) - len(valid_finding_dicts)
+            if dropped_count > 0:
+                append_event(task, f"Filtered {dropped_count} invalid findings (missing title/description)", stage="risk", level="warning")
+                await self._publish(task_id, {"type": "event", "data": {"time": datetime.now(timezone.utc).isoformat(), "stage": "risk", "level": "warning", "message": f"Filtered {dropped_count} invalid findings"}})
+
+            # Delete old data only after new audit succeeded (B6: data loss protection)
+            if old_finding_ids:
+                await db.execute(delete(RiskAlert).where(RiskAlert.finding_id.in_(old_finding_ids)))
+                await db.execute(delete(Finding).where(Finding.id.in_(old_finding_ids)))
+            if old_report_ids:
+                await db.execute(delete(Report).where(Report.id.in_(old_report_ids)))
+            await db.commit()
 
             persisted_findings: list[dict[str, Any]] = []
             for finding_data, document_id in findings_to_save:
-                persisted_findings.append(finding_data)
-                db.add(normalize_finding(finding_data, task.id, document_id))
+                if id(finding_data) in valid_set:
+                    persisted_findings.append(finding_data)
+                    db.add(normalize_finding(finding_data, task.id, document_id))
 
             report_markdown, report_metadata = choose_report_content(
                 task.task_name,
@@ -339,6 +452,8 @@ class TaskRunner:
             )
             append_event(task, "Generating audit report", stage="report")
             await db.commit()
+            await self._publish(task_id, {"type": "event", "data": {"time": datetime.now(timezone.utc).isoformat(), "stage": "report", "level": "info", "message": "Generating audit report"}})
+            await self._publish_progress(task_id, 90, "report")
             report = Report(
                 task_id=task.id,
                 report_type=ReportType.FULL_REPORT,
@@ -364,6 +479,8 @@ class TaskRunner:
                 set_stage(task, "awaiting_review")
                 append_event(task, f"Task awaiting review: {high_risk_count} high-risk findings detected", stage="awaiting_review")
                 await db.commit()
+                await self._publish(task_id, {"type": "event", "data": {"time": datetime.now(timezone.utc).isoformat(), "stage": "awaiting_review", "level": "warning", "message": f"Task awaiting review: {high_risk_count} high-risk findings detected"}})
+                await self._publish_done(task_id, "awaiting_review")
                 await db.refresh(report)
                 await notify_audit_complete(task.task_name, len(persisted_findings), high_risk_count, medium_count, top_findings)
                 return
@@ -374,6 +491,9 @@ class TaskRunner:
             set_stage(task, "completed")
             append_event(task, "Task completed successfully", stage="completed")
             await db.commit()
+            await self._publish(task_id, {"type": "event", "data": {"time": datetime.now(timezone.utc).isoformat(), "stage": "completed", "level": "info", "message": "Task completed successfully"}})
+            await self._publish_progress(task_id, 100, "completed")
+            await self._publish_done(task_id, "completed")
             await db.refresh(report)
 
             result = await db.execute(select(Finding).where(Finding.task_id == task.id))
@@ -402,19 +522,22 @@ class TaskRunner:
         set_stage(task, "failed", error=error)
         append_event(task, error, stage="failed", level="error")
         await db.commit()
+        await self._publish(task.id, {"type": "event", "data": {"time": datetime.now(timezone.utc).isoformat(), "stage": "failed", "level": "error", "message": error}})
+        await self._publish_done(task.id, "failed")
         await notify_task_failed(task.task_name, error)
 
 
 def get_task_runner_factory(
     session_factory: async_sessionmaker[AsyncSession],
     max_concurrency: int,
+    event_bus: "EventBus | None" = None,
 ) -> Callable[[], TaskRunner]:
     runner: TaskRunner | None = None
 
     def factory() -> TaskRunner:
         nonlocal runner
         if runner is None:
-            runner = TaskRunner(session_factory=session_factory, max_concurrency=max_concurrency)
+            runner = TaskRunner(session_factory=session_factory, max_concurrency=max_concurrency, event_bus=event_bus)
         return runner
 
     return factory

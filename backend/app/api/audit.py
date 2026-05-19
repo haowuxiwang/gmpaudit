@@ -126,6 +126,24 @@ async def run_audit_task(
     return {"status": "pending", "task_id": task_id}
 
 
+@router.post("/tasks/{task_id}/cancel")
+async def cancel_audit_task(
+    task_id: int,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    task = (await db.execute(select(AuditTask).where(AuditTask.id == task_id))).scalar_one_or_none()
+    if task is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+    if task.status != TaskStatus.RUNNING:
+        raise HTTPException(status_code=400, detail="Task is not running")
+    runner = request.app.state.task_runner_factory()
+    cancelled = await runner.cancel(task_id)
+    if not cancelled:
+        raise HTTPException(status_code=400, detail="Task could not be cancelled")
+    return {"status": "cancelled", "task_id": task_id}
+
+
 @router.post("/tasks/{task_id}/approve")
 async def approve_task(
     task_id: int,
@@ -238,43 +256,57 @@ async def get_dashboard_stats(
 
 
 @router.get("/tasks/{task_id}/stream")
-async def stream_task_events(task_id: int, db: AsyncSession = Depends(get_db)):
+async def stream_task_events(task_id: int, request: Request, db: AsyncSession = Depends(get_db)):
     task = (await db.execute(select(AuditTask).where(AuditTask.id == task_id))).scalar_one_or_none()
     if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
 
+    event_bus = request.app.state.event_bus
+
     async def event_generator():
-        last_event_count = 0
-        while True:
-            async with get_db_session() as session:
-                result = await session.execute(select(AuditTask).where(AuditTask.id == task_id))
-                current_task = result.scalar_one_or_none()
-                if current_task is None:
-                    yield f"data: {json.dumps({'type': 'error', 'message': 'Task not found'})}\n\n"
+        # Send historical events snapshot for reconnecting clients
+        meta = task.config or {}
+        execution = meta.get("execution", {})
+        for event in execution.get("events", []):
+            yield f"data: {json.dumps({'type': 'event', 'data': event})}\n\n"
+
+        # If task already finished, send done and close
+        if task.status in (TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.REJECTED, TaskStatus.AWAITING_REVIEW):
+            yield f"data: {json.dumps({'type': 'done', 'status': task.status.value})}\n\n"
+            return
+
+        # Subscribe to live events
+        queue = await event_bus.subscribe(task_id)
+        try:
+            while True:
+                try:
+                    event = await asyncio.wait_for(queue.get(), timeout=30.0)
+                except asyncio.TimeoutError:
+                    yield ": keepalive\n\n"
+                    continue
+
+                if event is event_bus.DONE_SENTINEL:
                     break
 
-                meta = current_task.config or {}
-                execution = meta.get("execution", {})
-                events = execution.get("events", [])
-                new_events = events[last_event_count:]
-                for event in new_events:
-                    yield f"data: {json.dumps({'type': 'event', 'data': event})}\n\n"
-                last_event_count += len(new_events)
+                yield f"data: {json.dumps(event)}\n\n"
+        finally:
+            await event_bus.unsubscribe(task_id, queue)
 
-                if current_task.status in (TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.REJECTED, TaskStatus.AWAITING_REVIEW):
-                    yield f"data: {json.dumps({'type': 'done', 'status': current_task.status.value})}\n\n"
-                    break
-
-            await asyncio.sleep(1)
-
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @router.get("/tasks/stream")
-async def stream_all_tasks():
+async def stream_all_tasks(request: Request):
     async def event_generator():
         last_statuses = {}
         while True:
+            if await request.is_disconnected():
+                break
+
             async with get_db_session() as session:
                 result = await session.execute(select(AuditTask))
                 tasks = result.scalars().all()

@@ -30,7 +30,9 @@ GMP Compliance Audit System - AI-powered document analysis and compliance checki
 gmpaudit/
   config/           # .env, .env.example
   data/             # Runtime data (documents, database, reports, logs)
-  scripts/          # start.bat, start.sh
+  scripts/          # start.bat, start.sh, build_exe.bat, build.spec
+  model/            # Pre-downloaded embedding model (BAAI/bge-large-zh-v1.5)
+  tools/            # Bundled tools (ffmpeg)
   agent/            # LangGraph multi-agent system (PRIMARY audit engine)
     agents/         # Agent nodes: supervisor, regulation_expert, risk_assessor, report_writer
     parsers/        # Document parsers: pdf, docx, text
@@ -50,16 +52,19 @@ gmpaudit/
       api/          # Route handlers: documents, audit, reports, config, alerts, agent_audit, kg
       core/         # config.py (Settings), database.py (engine, session)
       models/       # SQLAlchemy models: document, audit_task, finding, report, risk_alert, configuration
-      services/     # Business logic: llm_engine, document_processor, audit_engine, notification, task_runner
+      services/     # Business logic: llm_engine, document_processor, audit_engine, event_bus, notification, task_runner
       utils/        # Helpers: agent_helpers, file_utils
     tests/          # pytest tests with conftest.py
   frontend/
+    electron/       # Electron main.ts + preload.js
     src/
       App.tsx       # Router setup, layout with lazy loading + ErrorBoundary
       pages/        # Dashboard, Documents, AuditTasks, Reports, Settings, Alerts, KnowledgeGraph, NotFound
-      components/   # common/Header, Sidebar, ErrorBoundary
+      components/   # common/Header, Sidebar, ErrorBoundary, AgentFlowChart, AgentThinkingPanel, FindingDetailCard
+      hooks/        # useSSE (generic SSE), useTaskSSE (domain hook for audit tasks)
       services/     # api.ts (axios instance + API functions)
       types/        # TypeScript type definitions (api.ts)
+      constants/    # audit.ts (status/stage maps), theme.ts
 ```
 
 ## Key Patterns
@@ -73,7 +78,21 @@ gmpaudit/
 - **Graceful degradation**: LLM failures do NOT cascade-terminate — each agent has fallback behavior
 - **LLM retry**: All LLM calls go through `call_llm_with_retry()` (1 retry, 2s delay)
 - **Supervisor guard**: Only terminates on errors before regulation check completes
+- **astream_events**: Uses `graph.astream_events(version="v2")` for node-level event streaming (replaces `ainvoke`)
 - Backend exposes agent via `POST /api/agent-audit/run` (background task)
+
+### SSE Streaming Pattern
+- **EventBus** (`backend/app/services/event_bus.py`): In-memory pub/sub with per-connection `asyncio.Queue` fan-out
+- TaskRunner publishes events via `_publish()` and `_publish_done()` helpers
+- SSE endpoint subscribes to EventBus, sends historical snapshot first, then live events
+- 30s keepalive via `asyncio.wait_for(queue.get(), timeout=30.0)`
+- Frontend `useTaskSSE` hook: connects to `/audit/tasks/{id}/stream`, handles `event`, `agent_thinking`, `progress`, `done` event types
+- Progress computed from both SSE `progress` events and stage-based fallback map
+
+### Task Cancellation
+- `TaskRunner.cancel(task_id)` calls `asyncio_task.cancel()` on the active task
+- `CancelledError` caught separately from `Exception` in `_run()` (Python 3.9+ `BaseException` hierarchy)
+- Status set to `CANCELLED` (new enum value), EventBus notified via `_publish_done(task_id, "cancelled")`
 
 ### Backend API Pattern
 - Routes use `APIRouter()` with dependency injection via `Depends(get_db)` for async DB sessions
@@ -93,6 +112,7 @@ gmpaudit/
 - Single axios instance in `services/api.ts` with base URL `http://localhost:8000/api`
 - Response interceptor unwraps `response.data` automatically
 - API functions grouped by domain: `documentApi`, `auditApi`, `reportApi`, `configApi`, `alertsApi`, `agentAuditApi`, `kgApi`
+- SSE via `useSSE` generic hook (EventSource + named event dispatch) and `useTaskSSE` domain hook
 
 ### Config Pattern
 - `backend/app/core/config.py`: `Settings` class (pydantic-settings, `frozen=False` for runtime updates, `extra="ignore"`)
@@ -140,7 +160,7 @@ No explicit linter or formatter config found. Follow existing code style:
 
 All defined in `config/.env` (see `config/.env.example`):
 - LLM Keys: `DEEPSEEK_API_KEY`, `QWEN_API_KEY`, `GLM_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `SILICONFLOW_API_KEY`, `OPENROUTER_API_KEY`, `MIMO_API_KEY`
-- LLM URLs: `DEEPSEEK_BASE_URL`, `OPENAI_BASE_URL`, `MIMO_BASE_URL` (all include `/v1`)
+- LLM URLs: `DEEPSEEK_BASE_URL`, `QWEN_BASE_URL`, `GLM_BASE_URL`, `OPENAI_BASE_URL`, `ANTHROPIC_BASE_URL`, `SILICONFLOW_BASE_URL`, `OPENROUTER_BASE_URL`, `MIMO_BASE_URL` (all include `/v1`)
 - **Agent:** `AGENT_LLM_PROVIDER` (default provider for agent pipeline, e.g. `mimo`)
 - Feishu: `FEISHU_WEBHOOK_URL`, `FEISHU_WEBHOOK_SECRET` (optional HMAC-SHA256 signing)
-- App: `LOG_LEVEL`, `MAX_CONCURRENT_TASKS`, `DOCUMENT_PROCESS_TIMEOUT`, `LLM_REQUEST_TIMEOUT`
+- App: `LOG_LEVEL`, `MAX_CONCURRENT_TASKS`, `DOCUMENT_PROCESS_TIMEOUT`, `LLM_REQUEST_TIMEOUT`, `CORS_ORIGINS`
