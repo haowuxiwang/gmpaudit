@@ -59,6 +59,18 @@ const KnowledgeGraphPage: React.FC = () => {
   const [uploading, setUploading] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const loadGraphData = useCallback(async () => {
+    setGraphLoading(true);
+    try {
+      const data = await kgApi.getGraphData();
+      setGraphData(data);
+    } catch {
+      setGraphData(null);
+    } finally {
+      setGraphLoading(false);
+    }
+  }, []);
+
   const loadData = useCallback(async () => {
     try {
       const [statusResult, docsResult] = await Promise.allSettled([
@@ -77,18 +89,6 @@ const KnowledgeGraphPage: React.FC = () => {
       setLoading(false);
     }
   }, [loadGraphData]);
-
-  const loadGraphData = useCallback(async () => {
-    setGraphLoading(true);
-    try {
-      const data = await kgApi.getGraphData();
-      setGraphData(data);
-    } catch {
-      setGraphData(null);
-    } finally {
-      setGraphLoading(false);
-    }
-  }, []);
 
   useEffect(() => {
     void loadData();

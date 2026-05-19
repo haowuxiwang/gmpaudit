@@ -96,7 +96,7 @@ const DashboardPage: React.FC = () => {
       title: '阶段',
       dataIndex: 'stage',
       key: 'stage',
-      width: 150,
+      responsive: ['md' as const],
       render: (stage?: string, record?: AuditTask) => (
         <Tag color={STATUS_COLORS[record?.status || 'pending'] || 'default'}>
           {STAGE_LABELS[stage || 'pending'] || stage || '待处理'}
@@ -107,7 +107,7 @@ const DashboardPage: React.FC = () => {
       title: '进度',
       dataIndex: 'progress',
       key: 'progress',
-      width: 180,
+      responsive: ['lg' as const],
       render: (value: number, record: AuditTask) => (
         <Progress
           percent={value || 0}
@@ -119,7 +119,6 @@ const DashboardPage: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      width: 130,
       render: (_: unknown, record: AuditTask) => (
         <Button type="link" onClick={() => navigate(`/audit?task_id=${record.id}`)}>
           进入工作台

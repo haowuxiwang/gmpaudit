@@ -486,6 +486,17 @@ class TaskRunner:
                 await self._publish(task_id, {"type": "event", "data": {"time": datetime.now(timezone.utc).isoformat(), "stage": "awaiting_review", "level": "warning", "message": f"Task awaiting review: {high_risk_count} high-risk findings detected"}})
                 await self._publish_done(task_id, "awaiting_review")
                 await db.refresh(report)
+
+                # Create RiskAlerts even in awaiting_review path
+                result = await db.execute(select(Finding).where(Finding.task_id == task.id))
+                saved_findings = result.scalars().all()
+                for finding in saved_findings:
+                    if finding.severity == SeverityLevel.HIGH:
+                        db.add(RiskAlert(finding_id=finding.id, alert_level=AlertLevel.CRITICAL))
+                    elif finding.severity == SeverityLevel.MEDIUM:
+                        db.add(RiskAlert(finding_id=finding.id, alert_level=AlertLevel.WARNING))
+                await db.commit()
+
                 try:
                     await notify_audit_complete(task.task_name, len(persisted_findings), high_risk_count, medium_count, top_findings)
                 except Exception:
@@ -563,10 +574,13 @@ def validate_findings(findings: list[dict]) -> list[dict]:
     validated = []
     for f in findings:
         if not f.get("title") or not f.get("description"):
+            logger.debug("Dropped finding: missing title or description")
             continue
         if f.get("title") == "Untitled finding":
+            logger.debug("Dropped finding:Untitled finding")
             continue
-        if len(f.get("description", "")) < 10:
+        if len(f.get("description", "").strip()) < 2:
+            logger.debug("Dropped finding: description too short: %s", f.get("title"))
             continue
         validated.append(f)
     return validated
