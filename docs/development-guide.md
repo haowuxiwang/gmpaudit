@@ -4,7 +4,7 @@
 
 AuditBee is an AI-powered GMP compliance audit assistant for pharmaceutical quality management personnel. It combines multi-agent orchestration with knowledge graph retrieval to automate document analysis, risk identification, and report generation.
 
-## Current Status (2026-05-18)
+## Current Status (2026-05-19)
 
 ### What Works
 - **Core pipeline**: End-to-end audit from document upload to structured report
@@ -18,6 +18,11 @@ AuditBee is an AI-powered GMP compliance audit assistant for pharmaceutical qual
 - **Config security**: API keys masked in GET responses (`_mask_value()`)
 - **Report export**: HTML export with print-friendly CSS (`GET /api/reports/{id}/export/html`)
 - **Alerts enrichment**: Risk alerts include finding title, description, severity via SQLAlchemy relationship
+- **SQLite WAL mode**: Concurrent read/write support with `PRAGMA journal_mode=WAL`
+- **SSE streaming**: Real-time task status updates via Server-Sent Events
+- **Human-in-the-loop**: Review gate for high-risk findings (AWAITING_REVIEW status)
+- **Agent flow visualization**: ECharts graph showing LangGraph pipeline stages
+- **PyInstaller packaging**: Single exe distribution via `scripts/build_exe.bat`
 
 ### Known Limitations
 - Agent executes linearly — no self-correcting loop when findings are empty
@@ -99,6 +104,53 @@ Every component has a fallback:
 - LLM fails → template-based report generation
 - PDF text extraction fails → OCR fallback
 
+### 5. SQLite WAL Mode
+SQLite uses Write-Ahead Logging for concurrent read/write access:
+```python
+@event.listens_for(engine.sync_engine, "connect")
+def _set_sqlite_pragma(dbapi_conn, connection_record):
+    cursor = dbapi_conn.cursor()
+    cursor.execute("PRAGMA journal_mode=WAL")
+    cursor.execute("PRAGMA busy_timeout=5000")
+    cursor.execute("PRAGMA synchronous=NORMAL")
+    cursor.execute("PRAGMA cache_size=-64000")
+```
+- `WAL`: Allows concurrent readers while writing
+- `busy_timeout=5000`: Wait 5s before SQLITE_BUSY error
+- `synchronous=NORMAL`: Balance durability/performance
+
+### 6. SSE (Server-Sent Events)
+Real-time task status streaming via SSE endpoints:
+- `GET /api/audit/tasks/{task_id}/stream` — Single task events
+- `GET /api/audit/tasks/stream` — All task status changes
+
+Frontend usage via `useSSE` hook:
+```typescript
+const { close } = useSSE({
+  url: `/api/audit/tasks/${taskId}/stream`,
+  onMessage: (data) => { /* handle event */ },
+  enabled: !!taskId,
+});
+```
+
+### 7. Human-in-the-Loop Review
+High-risk findings trigger a review gate:
+- Task status: `RUNNING → AWAITING_REVIEW → COMPLETED/REJECTED`
+- API: `POST /api/audit/tasks/{id}/approve` or `/reject`
+- Review comment stored in `audit_tasks.review_comment`
+- Auto-approve option: `task.auto_approve = True` skips gate
+
+### 8. PyInstaller Packaging
+Build single exe for distribution:
+```bash
+scripts/build_exe.bat  # Windows
+```
+Output: `dist/AuditBee/AuditBee.exe`
+- Frontend built and copied to `backend/static/`
+- Entry point: `backend/app/launcher.py`
+- Embeds Python runtime + all dependencies
+- First run downloads embedding model (~1.3GB)
+
 ## Technical Roadmap
 
 ### P0: Foundation (Done)
@@ -109,7 +161,11 @@ Every component has a fallback:
 - [x] API type alignment between frontend and backend
 - [x] Document processing fixes (antiword encoding, pymupdf version)
 - [x] Baseline commit and push
-- [ ] Fix frontend production build (`spawn EPERM` issue)
+- [x] SQLite WAL mode for concurrent access
+- [x] SSE streaming for real-time task updates
+- [x] Human-in-the-loop review mechanism
+- [x] Agent flow visualization
+- [x] PyInstaller packaging
 
 ### P1: Agent Intelligence
 - [ ] Quality-driven loop: retry when findings empty or regulations insufficient
@@ -120,11 +176,9 @@ Every component has a fallback:
 ### P2: Deployment & Integration
 - [ ] Docker Compose: backend/agent/frontend containers
 - [ ] MCP tool packaging: wrap regulation_db, risk_matrix as MCP servers
-- [ ] Electron packaging: working .exe/.dmg build
 - [ ] CI/CD pipeline: automated testing + build
 
 ### P3: Advanced Features
-- [ ] Human-in-the-loop: review node for high-risk findings
 - [ ] A2A protocol: interoperability with external QMS systems
 - [ ] Multi-site audit: support auditing multiple facilities
 - [ ] Audit history: track and compare audit results over time
