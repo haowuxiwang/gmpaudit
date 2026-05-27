@@ -24,8 +24,8 @@ class TestRegulationExpertNode:
         mock_module = MagicMock()
         mock_module.lightrag_search = mock_lightrag
         with patch.dict(sys.modules, {"agent.tools.lightrag_tool": mock_module}), \
-             patch("agent.agents.regulation_expert.get_llm", return_value=mock_llm), \
-             patch("agent.agents.regulation_expert._load_prompt", return_value=mock_prompt), \
+             patch("agent.agents.regulation_expert.get_llm_with_fallback", return_value=mock_llm), \
+             patch("agent.agents.regulation_expert.load_prompt", return_value=mock_prompt), \
              patch("agent.agents.regulation_expert._parse_llm_json", return_value=[{"title": "LLM result"}]):
             result = await regulation_expert_node(sample_state)
 
@@ -41,8 +41,8 @@ class TestRegulationExpertNode:
         # Make lightrag_tool import fail
         with patch.dict(sys.modules, {"agent.tools.lightrag_tool": None}), \
              patch("agent.agents.regulation_expert.search_regulations", return_value=sample_regulations), \
-             patch("agent.agents.regulation_expert.get_llm", return_value=mock_llm), \
-             patch("agent.agents.regulation_expert._load_prompt", return_value=mock_prompt), \
+             patch("agent.agents.regulation_expert.get_llm_with_fallback", return_value=mock_llm), \
+             patch("agent.agents.regulation_expert.load_prompt", return_value=mock_prompt), \
              patch("agent.agents.regulation_expert._parse_llm_json", return_value=[{"title": "LLM result"}]):
             result = await regulation_expert_node(sample_state)
 
@@ -58,8 +58,8 @@ class TestRegulationExpertNode:
 
         with patch.dict(sys.modules, {"agent.tools.lightrag_tool": None}), \
              patch("agent.agents.regulation_expert.search_regulations", return_value=sample_regulations), \
-             patch("agent.agents.regulation_expert.get_llm", return_value=mock_llm), \
-             patch("agent.agents.regulation_expert._load_prompt", return_value=mock_prompt), \
+             patch("agent.agents.regulation_expert.get_llm_with_fallback", return_value=mock_llm), \
+             patch("agent.agents.regulation_expert.load_prompt", return_value=mock_prompt), \
              patch("agent.agents.regulation_expert._parse_llm_json", return_value=llm_response):
             result = await regulation_expert_node(sample_state)
 
@@ -74,8 +74,8 @@ class TestRegulationExpertNode:
 
         with patch.dict(sys.modules, {"agent.tools.lightrag_tool": None}), \
              patch("agent.agents.regulation_expert.search_regulations", return_value=sample_regulations), \
-             patch("agent.agents.regulation_expert.get_llm", return_value=mock_llm), \
-             patch("agent.agents.regulation_expert._load_prompt", return_value=mock_prompt):
+             patch("agent.agents.regulation_expert.get_llm_with_fallback", return_value=mock_llm), \
+             patch("agent.agents.regulation_expert.load_prompt", return_value=mock_prompt):
             result = await regulation_expert_node(sample_state)
 
         assert result["regulation_checked"] is True
@@ -90,8 +90,8 @@ class TestRegulationExpertNode:
 
         with patch.dict(sys.modules, {"agent.tools.lightrag_tool": None}), \
              patch("agent.agents.regulation_expert.search_regulations", return_value=sample_regulations), \
-             patch("agent.agents.regulation_expert.get_llm", return_value=mock_llm), \
-             patch("agent.agents.regulation_expert._load_prompt", return_value=mock_prompt), \
+             patch("agent.agents.regulation_expert.get_llm_with_fallback", return_value=mock_llm), \
+             patch("agent.agents.regulation_expert.load_prompt", return_value=mock_prompt), \
              patch("agent.agents.regulation_expert._parse_llm_json", return_value=[]):
             result = await regulation_expert_node(sample_state)
 

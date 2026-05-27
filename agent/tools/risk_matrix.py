@@ -13,7 +13,7 @@ def calculate_risk_score(findings: list[dict]) -> tuple[int, str]:
     if not findings:
         return 0, "not_assessed"
 
-    high = sum(1 for f in findings if f.get("severity") == "high")
+    high = sum(1 for f in findings if f.get("severity") in ("high", "critical"))
     medium = sum(1 for f in findings if f.get("severity") == "medium")
     low = sum(1 for f in findings if f.get("severity") == "low")
 
@@ -31,37 +31,24 @@ def calculate_risk_score(findings: list[dict]) -> tuple[int, str]:
 
 
 def format_risk_summary(findings: list[dict]) -> str:
-    """Format findings into a readable summary.
-
-    Args:
-        findings: List of finding dicts
-
-    Returns:
-        Formatted summary string
-    """
+    """Format findings into a readable summary grouped by severity."""
     if not findings:
         return "No findings identified."
 
-    high = [f for f in findings if f.get("severity") == "high"]
+    high = [f for f in findings if f.get("severity") in ("high", "critical")]
     medium = [f for f in findings if f.get("severity") == "medium"]
     low = [f for f in findings if f.get("severity") == "low"]
 
-    parts = [f"Total findings: {len(findings)}"]
+    lines = [f"Total findings: {len(findings)}"]
+    for label, group in [("HIGH SEVERITY", high), ("MEDIUM SEVERITY", medium), ("LOW SEVERITY", low)]:
+        if group:
+            lines.append(f"\n{label} ({len(group)})")
+            for f in group:
+                title = f.get("title", "Untitled")
+                ftype = f.get("type", "N/A")
+                lines.append(f"  - [{ftype}] {title}")
+                evidence = f.get("evidence", "")
+                if evidence:
+                    lines.append(f"    Evidence: {evidence}")
 
-    if high:
-        parts.append(f"\n--- HIGH SEVERITY ({len(high)}) ---")
-        for f in high:
-            parts.append(f"  [{f.get('type', 'N/A')}] {f.get('title', 'Untitled')}")
-            parts.append(f"    Evidence: {f.get('evidence', 'N/A')}")
-
-    if medium:
-        parts.append(f"\n--- MEDIUM SEVERITY ({len(medium)}) ---")
-        for f in medium:
-            parts.append(f"  [{f.get('type', 'N/A')}] {f.get('title', 'Untitled')}")
-
-    if low:
-        parts.append(f"\n--- LOW SEVERITY ({len(low)}) ---")
-        for f in low:
-            parts.append(f"  [{f.get('type', 'N/A')}] {f.get('title', 'Untitled')}")
-
-    return "\n".join(parts)
+    return "\n".join(lines)

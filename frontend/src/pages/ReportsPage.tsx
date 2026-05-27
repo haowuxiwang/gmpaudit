@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Button, Card, Empty, Modal, Select, Space, Spin, Table, Tag, Typography, message } from 'antd';
-import { DownloadOutlined, FileTextOutlined, PrinterOutlined } from '@ant-design/icons';
+import { Alert, Button, Card, Empty, Modal, Select, Space, Spin, Table, Tag, Typography, message } from 'antd';
+import { DownloadOutlined, FileTextOutlined, PrinterOutlined, WarningOutlined } from '@ant-design/icons';
 import ReactMarkdown from 'react-markdown';
 import { useSearchParams } from 'react-router-dom';
 
-import { reportApi, API_BASE_URL } from '../services/api';
+import { reportApi } from '../services/api';
 import type { Report } from '../types/api';
 import { THEME } from '../constants/theme';
 
@@ -15,6 +15,18 @@ const REPORT_TYPE_LABELS: Record<string, string> = {
   summary: '摘要',
   audit_report: '审计报告',
 };
+
+const REPORT_SOURCE_CONFIG: Record<string, { label: string; color: string }> = {
+  llm: { label: 'AI 生成', color: 'green' },
+  agent_report_writer: { label: 'AI 生成', color: 'green' },
+  task_runner_aggregate: { label: '汇总报告', color: 'blue' },
+  fallback: { label: '降级报告', color: 'orange' },
+  partial_fallback: { label: '部分降级', color: 'orange' },
+};
+
+function isFallbackSource(source?: string): boolean {
+  return source === 'fallback' || source === 'partial_fallback';
+}
 
 const ReportsPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -75,17 +87,43 @@ const ReportsPage: React.FC = () => {
     message.success('导出成功');
   };
 
+  const handleExportPdf = async () => {
+    if (!detailContent?.id) return;
+    try {
+      message.loading({ content: '正在生成 PDF...', key: 'pdf' });
+      const blob = await reportApi.exportPdf(detailContent.id);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `${detailContent.title || '审计报告'}.pdf`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      URL.revokeObjectURL(url);
+      message.success({ content: 'PDF 导出成功', key: 'pdf' });
+    } catch {
+      message.error({ content: 'PDF 导出失败', key: 'pdf' });
+    }
+  };
+
   const columns = [
     {
       title: '报告',
       dataIndex: 'title',
       key: 'title',
-      render: (value: string, record: Report) => (
-        <Space direction="vertical" size={0}>
-          <Text strong>{value}</Text>
-          <Text type="secondary">{record.report_metadata?.report_source || '未知来源'}</Text>
-        </Space>
-      ),
+      render: (value: string, record: Report) => {
+        const source = record.report_metadata?.report_source;
+        const sourceConfig = REPORT_SOURCE_CONFIG[source || ''];
+        return (
+          <Space direction="vertical" size={0}>
+            <Space>
+              <Text strong>{value}</Text>
+              {isFallbackSource(source) && <Tag color="orange" icon={<WarningOutlined />}>降级</Tag>}
+            </Space>
+            <Text type="secondary">{sourceConfig?.label || source || '未知来源'}</Text>
+          </Space>
+        );
+      },
     },
     {
       title: '类型',
@@ -182,9 +220,9 @@ const ReportsPage: React.FC = () => {
               type="primary"
               icon={<PrinterOutlined />}
               disabled={!detailContent?.id}
-              onClick={() => window.open(`${API_BASE_URL}/reports/${detailContent?.id}/export/html`, '_blank')}
+              onClick={() => void handleExportPdf()}
             >
-              打印 / 导出 PDF
+              导出 PDF
             </Button>
           </Space>
         }
@@ -195,9 +233,22 @@ const ReportsPage: React.FC = () => {
           </div>
         ) : detailContent ? (
           <Space direction="vertical" size={16} style={{ width: '100%' }}>
+            {isFallbackSource(detailContent.report_metadata?.report_source) && (
+              <Alert
+                message="降级报告"
+                description="本报告由备用逻辑生成，未经 AI 模型分析。LLM 调用失败时系统自动生成基础报告以确保流程不中断。请检查 LLM 配置后重新运行审计。"
+                type="warning"
+                showIcon
+                icon={<WarningOutlined />}
+              />
+            )}
             <Space wrap>
               <Tag color="blue">{REPORT_TYPE_LABELS[detailContent.report_type] || detailContent.report_type}</Tag>
-              <Tag>{detailContent.report_metadata?.report_source || '未知来源'}</Tag>
+              {(() => {
+                const source = detailContent.report_metadata?.report_source;
+                const sourceConfig = REPORT_SOURCE_CONFIG[source || ''];
+                return <Tag color={sourceConfig?.color || 'default'}>{sourceConfig?.label || source || '未知来源'}</Tag>;
+              })()}
               <Tag>{detailContent.report_metadata?.report_mode || '未知模式'}</Tag>
             </Space>
             <div style={{ maxHeight: '60vh', overflow: 'auto' }}>

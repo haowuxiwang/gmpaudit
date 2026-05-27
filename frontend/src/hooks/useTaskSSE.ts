@@ -58,7 +58,11 @@ export function useTaskSSE(taskId: number | null, isActive: boolean): UseTaskSSE
         }
       },
       agent_thinking: (data: AgentThinkingEvent) => {
-        setThinkingEvents(prev => [...prev, data]);
+        const MAX_THINKING_EVENTS = 500;
+        setThinkingEvents(prev => {
+          const next = [...prev, data];
+          return next.length > MAX_THINKING_EVENTS ? next.slice(-MAX_THINKING_EVENTS) : next;
+        });
         if (data.stage && data.status === 'started') {
           setCurrentStage(data.stage);
         }
@@ -71,7 +75,7 @@ export function useTaskSSE(taskId: number | null, isActive: boolean): UseTaskSSE
       },
       done: (data: { status: string }) => {
         setStatus(data.status);
-        setProgress(100);
+        setProgress(data.status === 'completed' ? 100 : 90);
       },
     },
     onError: () => {

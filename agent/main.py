@@ -16,6 +16,13 @@ from pathlib import Path
 _project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(_project_root))
 
+# Load .env for standalone CLI mode
+try:
+    from dotenv import load_dotenv
+    load_dotenv(_project_root / "config" / ".env")
+except ImportError:
+    pass
+
 from agent.graph import build_audit_graph
 
 
@@ -30,54 +37,71 @@ async def run_audit(file_path: str, doc_type: str = "unknown", focus: str = "") 
     Returns:
         Final state dictionary
     """
-    graph = build_audit_graph()
+    from agent.trace import PipelineTrace, set_current_trace, clear_current_trace
 
-    initial_state = {
-        "document_name": file_path,
-        "document_path": file_path,
-        "document_type": doc_type,
-        "audit_focus": focus,
-        "document_content": "",
-        "next_agent": "",
-        "supervisor_reasoning": "",
-        "matched_regulations": [],
-        "regulation_summary": "",
-        "findings": [],
-        "risk_score": 0,
-        "risk_level": "",
-        "report_markdown": "",
-        "report_path": "",
-        "messages": [],
-        "iteration": 0,
-        "status": "running",
-        "regulation_checked": False,
-        "risk_assessed": False,
-        "report_generated": False,
-    }
+    trace = PipelineTrace(document_name=file_path)
+    set_current_trace(trace)
 
-    print(f"\n{'='*60}")
-    print(f"GMP Audit Agent - Starting")
-    print(f"File: {file_path}")
-    print(f"Type: {doc_type}")
-    if focus:
-        print(f"Focus: {focus}")
-    print(f"{'='*60}\n")
+    try:
+        graph = build_audit_graph()
 
-    final_state = await graph.ainvoke(initial_state)
+        initial_state = {
+            "document_name": file_path,
+            "document_path": file_path,
+            "document_type": doc_type,
+            "audit_focus": focus,
+            "document_content": "",
+            "next_agent": "",
+            "supervisor_reasoning": "",
+            "matched_regulations": [],
+            "regulation_summary": "",
+            "findings": [],
+            "risk_score": 0,
+            "risk_level": "",
+            "report_markdown": "",
+            "report_path": "",
+            "report_source": "",
+            "messages": [],
+            "iteration": 0,
+            "status": "running",
+            "regulation_checked": False,
+            "risk_assessed": False,
+            "report_generated": False,
+        }
 
-    # Print execution log
-    print(f"\n{'='*60}")
-    print("Execution Log:")
-    print(f"{'='*60}")
-    for msg in final_state.get("messages", []):
-        print(f"  > {msg}")
+        print(f"\n{'='*60}")
+        print(f"GMP Audit Agent - Starting")
+        print(f"File: {file_path}")
+        print(f"Type: {doc_type}")
+        if focus:
+            print(f"Focus: {focus}")
+        print(f"{'='*60}\n")
 
-    print(f"\n{'='*60}")
-    print(f"Status: {final_state.get('status', 'unknown')}")
-    print(f"Iterations: {final_state.get('iteration', 0)}")
-    print(f"{'='*60}\n")
+        final_state = await graph.ainvoke(initial_state)
 
-    return final_state
+        # Finalize trace
+        status = final_state.get("status", "unknown")
+        trace.finalize(status=status)
+        final_state["trace"] = trace.to_dict()
+
+        # Print execution log
+        print(f"\n{'='*60}")
+        print("Execution Log:")
+        print(f"{'='*60}")
+        for msg in final_state.get("messages", []):
+            print(f"  > {msg}")
+
+        print(f"\n{'='*60}")
+        print(f"Status: {status}")
+        print(f"Iterations: {final_state.get('iteration', 0)}")
+        print(f"{'='*60}\n")
+
+        # Print trace report
+        print(trace.summary_report())
+
+        return final_state
+    finally:
+        clear_current_trace()
 
 
 def main():

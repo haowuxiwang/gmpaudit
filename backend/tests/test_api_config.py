@@ -18,7 +18,7 @@ async def test_get_config_by_key_not_found(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_update_and_get_config(client: AsyncClient):
     # Update a config
-    response = await client.put("/api/config/test_key?value=test_value&description=测试配置")
+    response = await client.put("/api/config/test_key", json={"value": "test_value", "description": "测试配置"})
     assert response.status_code == 200
     assert response.json()["status"] == "success"
 
@@ -33,9 +33,9 @@ async def test_update_and_get_config(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_update_existing_config(client: AsyncClient):
     # Create
-    await client.put("/api/config/my_key?value=v1")
+    await client.put("/api/config/my_key", json={"value": "v1"})
     # Update
-    await client.put("/api/config/my_key?value=v2")
+    await client.put("/api/config/my_key", json={"value": "v2"})
     # Verify
     response = await client.get("/api/config/my_key")
     # Value is masked because key contains "key" and value is short

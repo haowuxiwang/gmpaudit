@@ -17,7 +17,7 @@ import type {
   ConfigMap,
 } from '../types/api';
 
-export const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000/api';
+export const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || '/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -39,7 +39,7 @@ export const documentApi = {
   uploadBatch: (files: File[]) => {
     const formData = new FormData();
     files.forEach((file) => formData.append('files', file));
-    return api.post('/documents/upload/batch', formData) as Promise<{ message: string }>;
+    return api.post('/documents/upload/batch', formData) as Promise<Document[]>;
   },
   list: (page = 1, pageSize = 20) =>
     api.get('/documents/', { params: { page, page_size: pageSize } }) as Promise<PaginatedResponse<Document>>,
@@ -49,7 +49,7 @@ export const documentApi = {
 
 export const auditApi = {
   createTask: (data: { task_name: string; task_type: string; document_ids: number[] }) =>
-    api.post('/audit/tasks', data) as Promise<AuditTask>,
+    api.post('/audit/tasks', data) as Promise<Pick<AuditTask, 'id' | 'task_name' | 'status'>>,
   listTasks: (status?: string) =>
     api.get('/audit/tasks', { params: { status } }) as Promise<PaginatedResponse<AuditTask>>,
   getTask: (id: number) => api.get(`/audit/tasks/${id}`) as Promise<AuditTask>,
@@ -73,10 +73,20 @@ export const reportApi = {
   list: (taskId?: number) =>
     api.get('/reports/', { params: { task_id: taskId } }) as Promise<PaginatedResponse<Report>>,
   get: (id: number) => api.get(`/reports/${id}`) as Promise<Report>,
+  exportPdf: (id: number) =>
+    api.get(`/reports/${id}/export/pdf`, { responseType: 'blob' }) as Promise<Blob>,
 };
+
+export interface LLMModel {
+  id: string;
+  name: string;
+  model: string;
+  available: boolean;
+}
 
 export const configApi = {
   getAll: () => api.get('/config/') as Promise<ConfigMap>,
+  getModels: () => api.get('/config/llm/models') as Promise<LLMModel[]>,
   batchUpdate: (configs: Record<string, string>) =>
     api.post('/config/batch', { configs }) as Promise<{ status: string; updated: number }>,
   testWebhook: () => api.post('/config/test-webhook') as Promise<{ success: boolean; error: string | null }>,

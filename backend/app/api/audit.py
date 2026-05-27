@@ -263,22 +263,30 @@ async def stream_task_events(task_id: int, request: Request, db: AsyncSession = 
         raise HTTPException(status_code=404, detail="Task not found")
 
     event_bus = request.app.state.event_bus
+    terminal_statuses = (TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.REJECTED, TaskStatus.AWAITING_REVIEW)
 
     async def event_generator():
-        # Send historical events snapshot for reconnecting clients
-        meta = task.config or {}
-        execution = meta.get("execution", {})
-        for event in execution.get("events", []):
-            yield f"data: {json.dumps({'type': 'event', 'data': event})}\n\n"
-
-        # If task already finished, send done and close
-        if task.status in (TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.REJECTED, TaskStatus.AWAITING_REVIEW):
-            yield f"data: {json.dumps({'type': 'done', 'status': task.status.value})}\n\n"
-            return
-
-        # Subscribe to live events
+        # Subscribe BEFORE checking status to avoid race condition
         queue = await event_bus.subscribe(task_id)
         try:
+            # Re-check status after subscribing to catch transitions that happened between request and subscribe
+            refreshed = (await db.execute(select(AuditTask).where(AuditTask.id == task_id))).scalar_one_or_none()
+            if refreshed is None:
+                yield f"event: done\ndata: {json.dumps({'type': 'done', 'status': 'failed'})}\n\n"
+                return
+
+            # Send historical events snapshot for reconnecting clients
+            meta = refreshed.config or {}
+            execution = meta.get("execution", {})
+            for event in execution.get("events", []):
+                yield f"event: event\ndata: {json.dumps({'type': 'event', 'data': event})}\n\n"
+
+            # If task already finished, send done and close
+            if refreshed.status in terminal_statuses:
+                yield f"event: done\ndata: {json.dumps({'type': 'done', 'status': refreshed.status.value})}\n\n"
+                return
+
+            # Live event loop
             while True:
                 try:
                     event = await asyncio.wait_for(queue.get(), timeout=30.0)
@@ -289,7 +297,9 @@ async def stream_task_events(task_id: int, request: Request, db: AsyncSession = 
                 if event is event_bus.DONE_SENTINEL:
                     break
 
-                yield f"data: {json.dumps(event)}\n\n"
+                # Use the event's type field as the SSE event name
+                event_type = event.get("type", "event")
+                yield f"event: {event_type}\ndata: {json.dumps(event)}\n\n"
         finally:
             await event_bus.unsubscribe(task_id, queue)
 

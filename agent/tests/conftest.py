@@ -1,6 +1,25 @@
 """Shared fixtures for agent tests."""
 
+import os
+import sys
+from pathlib import Path
+
 import pytest
+
+# Load .env for tests that need real LLM access
+_project_root = Path(__file__).parent.parent.parent
+_env_file = _project_root / "config" / ".env"
+if _env_file.exists():
+    try:
+        from dotenv import load_dotenv
+        load_dotenv(_env_file)
+    except ImportError:
+        # Fallback: manually parse .env
+        for line in _env_file.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                key, _, value = line.partition("=")
+                os.environ.setdefault(key.strip(), value.strip())
 
 
 @pytest.fixture

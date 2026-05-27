@@ -122,6 +122,13 @@ async def upload_documents_batch(files: List[UploadFile] = File(...), background
         if file_type == "unknown":
             continue
 
+        # Check file size
+        file.file.seek(0, 2)
+        size = file.file.tell()
+        file.file.seek(0)
+        if size > MAX_UPLOAD_SIZE:
+            raise HTTPException(status_code=413, detail=f"文件 {file.filename} 超过大小限制（最大 {MAX_UPLOAD_SIZE // 1024 // 1024}MB）")
+
         safe_filename = _generate_safe_filename(file.filename)
         file_path = os.path.join(upload_dir, safe_filename)
 

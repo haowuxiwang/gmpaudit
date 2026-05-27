@@ -12,12 +12,35 @@ import shutil
 import threading
 from pathlib import Path
 
+import httpx
+
 logger = logging.getLogger(__name__)
 
-PROJECT_ROOT = Path(__file__).parent.parent.parent
-INPUT_DIR = PROJECT_ROOT / "graphrag_index" / "input"
-WORKING_DIR = PROJECT_ROOT / "graphrag_index" / "lightrag_output"
-MODEL_DIR = Path(os.getenv("EMBEDDING_MODEL_PATH", str(PROJECT_ROOT / "model")))
+# Module-level httpx client for LLM calls (reused across LightRAG operations)
+_llm_client: httpx.AsyncClient | None = None
+_llm_client_lock = asyncio.Lock()
+
+
+async def _get_llm_client() -> httpx.AsyncClient:
+    """Get or create a singleton httpx.AsyncClient for LLM calls."""
+    global _llm_client
+    if _llm_client is None or _llm_client.is_closed:
+        async with _llm_client_lock:
+            if _llm_client is None or _llm_client.is_closed:
+                _llm_client = httpx.AsyncClient(timeout=180)
+    return _llm_client
+
+try:
+    from app.core import paths as _paths
+    INPUT_DIR = _paths.KG_INPUT_DIR
+    WORKING_DIR = _paths.KG_OUTPUT_DIR
+    MODEL_DIR = _paths.MODEL_DIR
+except ImportError:
+    # Standalone mode (agent CLI without backend)
+    _PROJECT_ROOT = Path(__file__).parent.parent.parent
+    INPUT_DIR = _PROJECT_ROOT / "data" / "kg_input"
+    WORKING_DIR = _PROJECT_ROOT / "data" / "kg_output"
+    MODEL_DIR = Path(os.getenv("EMBEDDING_MODEL_PATH", str(_PROJECT_ROOT / "model")))
 
 # Module-level singleton for embedding model
 _embedding_model = None
@@ -49,7 +72,6 @@ def _get_embedding_func():
 
 def _get_llm_func():
     """Create LLM function using the project's configured provider via OpenAI API."""
-    import httpx
 
     async def llm_complete(
         prompt: str,
@@ -57,7 +79,26 @@ def _get_llm_func():
         history_messages: list = None,
         **kwargs,
     ) -> str:
-        from agent.config import get_llm_config
+        from agent.config import get_llm_config, get_default_provider
+
+        # Anthropic uses a different API format — delegate to LangChain adapter
+        if get_default_provider() == "anthropic":
+            from agent.config import get_llm_with_fallback
+            from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
+            llm = get_llm_with_fallback(temperature=0.3)
+            lc_messages = []
+            if system_prompt:
+                lc_messages.append(SystemMessage(content=system_prompt))
+            if history_messages:
+                for m in history_messages:
+                    if m.get("role") == "user":
+                        lc_messages.append(HumanMessage(content=m["content"]))
+                    elif m.get("role") == "assistant":
+                        lc_messages.append(AIMessage(content=m["content"]))
+            lc_messages.append(HumanMessage(content=prompt))
+            resp = await llm.ainvoke(lc_messages)
+            return resp.content
+
         config = get_llm_config()
 
         messages = []
@@ -74,20 +115,20 @@ def _get_llm_func():
         base_url = config.get("base_url", "https://api.xiaomimimo.com/v1").rstrip("/")
         url = f"{base_url}/chat/completions"
 
-        async with httpx.AsyncClient(timeout=180) as client:
-            resp = await client.post(
-                url,
-                json={
-                    "model": config.get("model", "mimo-v2.5-pro"),
-                    "messages": messages,
-                    "temperature": 0.3,
-                    "max_tokens": kwargs.get("max_tokens", 4096),
-                },
-                headers=headers,
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            return data["choices"][0]["message"]["content"]
+        client = await _get_llm_client()
+        resp = await client.post(
+            url,
+            json={
+                "model": config.get("model", "mimo-v2.5-pro"),
+                "messages": messages,
+                "temperature": 0.3,
+                "max_tokens": kwargs.get("max_tokens", 4096),
+            },
+            headers=headers,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        return data["choices"][0]["message"]["content"]
 
     return llm_complete
 

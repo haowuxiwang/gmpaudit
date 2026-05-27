@@ -84,6 +84,7 @@ class DocumentProcessor:
         return await loop.run_in_executor(None, self._process_word_sync, file_path)
 
     def _process_word_legacy_sync(self, file_path: str) -> str:
+        # Strategy 1: antiword (fast, reliable when available)
         try:
             result = subprocess.run(
                 ["antiword", file_path],
@@ -91,9 +92,105 @@ class DocumentProcessor:
             )
             if result.returncode == 0 and (result.stdout or "").strip():
                 return result.stdout
-            raise RuntimeError(f"antiword failed: {result.stderr}")
+            logger.warning("antiword returned empty/failed output, trying fallback")
         except FileNotFoundError:
-            raise RuntimeError("antiword not installed, cannot process .doc files")
+            logger.info("antiword not available, using pure-Python .doc parser")
+        except Exception as e:
+            logger.warning(f"antiword error: {e}, trying fallback")
+
+        # Strategy 2: pure-Python olefile-based text extraction
+        return self._extract_doc_text_olefile(file_path)
+
+    def _extract_doc_text_olefile(self, file_path: str) -> str:
+        import struct
+
+        try:
+            import olefile
+        except ImportError:
+            raise RuntimeError("olefile not installed, cannot process .doc files")
+
+        try:
+            ole = olefile.OleFileIO(file_path)
+        except Exception as e:
+            # NotOleFileError inherits from OSError, distinguish it
+            if 'not an ole2' in str(e).lower() or 'not ole' in str(e).lower():
+                raise RuntimeError("Not a valid Word .doc file")
+            raise RuntimeError(f"Failed to open .doc file: {e}")
+
+        try:
+            if ole.exists('EncryptionInfo'):
+                raise RuntimeError("Document is password-protected")
+
+            if not ole.exists('WordDocument'):
+                raise RuntimeError("Not a valid Word .doc file")
+
+            word_stream = ole.openstream('WordDocument').read()
+
+            # FIB: Flags at offset 0x000A, bit 9 -> which table stream
+            flags = struct.unpack_from('<H', word_stream, 0x000A)[0]
+            table_name = '1Table' if (flags & 0x0200) else '0Table'
+
+            table_stream = ole.openstream(table_name).read()
+
+            # FIB: fcClx at 0x01A2, lcbClx at 0x01A6
+            fc_clx = struct.unpack_from('<I', word_stream, 0x01A2)[0]
+            lcb_clx = struct.unpack_from('<I', word_stream, 0x01A6)[0]
+
+            if lcb_clx == 0:
+                return ""
+
+            clx = table_stream[fc_clx:fc_clx + lcb_clx]
+
+            # Parse CLX: skip Grpprl entries (tag=0x01), find piece table (tag=0x02)
+            offset = 0
+            while offset < len(clx):
+                tag = clx[offset]
+                if tag == 0x01:
+                    cb = struct.unpack_from('<H', clx, offset + 1)[0]
+                    offset += 3 + cb
+                elif tag == 0x02:
+                    cb = struct.unpack_from('<I', clx, offset + 1)[0]
+                    piece_table_data = clx[offset + 5:offset + 5 + cb]
+                    break
+                else:
+                    raise RuntimeError(f"Unknown CLX tag: {tag}")
+            else:
+                return ""
+
+            # Piece table: (n+1) CPs (4 bytes each) + n PCDs (8 bytes each)
+            # n = (cb - 4) / 12
+            n = (len(piece_table_data) - 4) // 12
+            if n <= 0:
+                return ""
+
+            cps = []
+            for i in range(n + 1):
+                cps.append(struct.unpack_from('<I', piece_table_data, i * 4)[0])
+
+            pcd_offset = (n + 1) * 4
+            texts = []
+            for i in range(n):
+                pcd = struct.unpack_from('<H', piece_table_data, pcd_offset + i * 8)[0]
+                fc = struct.unpack_from('<I', piece_table_data, pcd_offset + i * 8 + 2)[0]
+
+                char_count = cps[i + 1] - cps[i]
+                if char_count <= 0:
+                    continue
+
+                # fc bit 30: 0=UTF-16LE, 1=compressed (single-byte)
+                is_compressed = bool(fc & 0x40000000)
+                real_fc = fc & 0x3FFFFFFF
+
+                if is_compressed:
+                    raw = word_stream[real_fc:real_fc + char_count]
+                    texts.append(raw.decode('latin-1'))
+                else:
+                    raw = word_stream[real_fc:real_fc + char_count * 2]
+                    texts.append(raw.decode('utf-16-le'))
+
+            return ''.join(texts)
+        finally:
+            ole.close()
 
     async def _process_word_legacy(self, file_path: str) -> str:
         loop = asyncio.get_running_loop()

@@ -19,9 +19,10 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-INDEX_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "graphrag_index"))
-INPUT_DIR = os.path.join(INDEX_ROOT, "input")
-OUTPUT_DIR = os.path.join(INDEX_ROOT, "lightrag_output")
+from app.core import paths
+
+INPUT_DIR = str(paths.KG_INPUT_DIR)
+OUTPUT_DIR = str(paths.KG_OUTPUT_DIR)
 
 # In-memory build status (fallback for when DB is not available)
 _build_status = {"building": False, "started_at": None, "error": None, "recent_logs": []}
@@ -57,16 +58,14 @@ def _append_build_log(message: str) -> None:
 
 def _get_index_info() -> dict:
     """Check if LightRAG index is built."""
-    if not os.path.isdir(OUTPUT_DIR):
+    graphml_path = os.path.join(OUTPUT_DIR, "graph_chunk_entity_relation.graphml")
+    if not os.path.isfile(graphml_path):
         return {"built": False, "file_count": 0, "last_modified": None}
 
     files = []
     for root, _, filenames in os.walk(OUTPUT_DIR):
         for f in filenames:
             files.append(os.path.join(root, f))
-
-    if not files:
-        return {"built": False, "file_count": 0, "last_modified": None}
 
     latest_mtime = max(os.path.getmtime(f) for f in files)
     return {

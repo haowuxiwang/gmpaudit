@@ -2,7 +2,6 @@
 
 import logging
 import sys
-from pathlib import Path
 
 from app.models.finding import Finding, FindingType, SeverityLevel
 
@@ -12,9 +11,12 @@ AGENT_AVAILABLE = False
 build_audit_graph = None
 
 try:
-    project_root = str(Path(__file__).parent.parent.parent.parent)
-    if project_root not in sys.path:
-        sys.path.insert(0, project_root)
+    from app.core import paths as _paths
+    # In frozen mode, agent is bundled inside _internal/ (sys._MEIPASS)
+    # In dev mode, agent is at project root
+    _search = str(_paths.BUNDLE_DIR) if _paths.FROZEN else str(_paths.APP_DIR)
+    if _search not in sys.path:
+        sys.path.insert(0, _search)
     from agent.graph import build_audit_graph
 
     AGENT_AVAILABLE = True

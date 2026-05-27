@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-GMP Compliance Audit System - AI-powered document analysis and compliance checking for pharmaceutical manufacturing. Uses LangGraph multi-agent workflow with LightRAG knowledge graph. Distributed as Electron desktop application.
+GMP Compliance Audit System - AI-powered document analysis and compliance checking for pharmaceutical manufacturing. Uses LangGraph multi-agent workflow with LightRAG knowledge graph. Distributed as PyInstaller desktop application with tkinter GUI launcher.
 
 ## Tech Stack
 
@@ -48,9 +48,11 @@ gmpaudit/
     settings.yaml   # GraphRAG config (legacy)
   backend/
     app/
-      main.py       # FastAPI app entry, CORS, lifespan (startup/shutdown)
+      launcher.py          # PyInstaller entry point, tkinter launcher integration, --no-launcher flag
+      main.py              # FastAPI app entry, CORS, lifespan (startup/shutdown)
+      tkinter_launcher.py  # Standalone tkinter GUI (no app.* imports, operates on .env directly)
       api/          # Route handlers: documents, audit, reports, config, alerts, agent_audit, kg
-      core/         # config.py (Settings), database.py (engine, session)
+      core/         # config.py (Settings), database.py (engine, session), paths.py (frozen/dev path resolution)
       models/       # SQLAlchemy models: document, audit_task, finding, report, risk_alert, configuration
       services/     # Business logic: llm_engine, document_processor, audit_engine, event_bus, notification, task_runner
       utils/        # Helpers: agent_helpers, file_utils
@@ -119,6 +121,26 @@ gmpaudit/
 - `.env` file loaded from `config/.env` (absolute path)
 - All config fields have defaults; secrets are `Optional[str] = None`
 
+### Path Resolution Pattern (`backend/app/core/paths.py`)
+- **`FROZEN`**: `True` when running as PyInstaller bundle
+- **`BUNDLE_DIR`** (`sys._MEIPASS`): Read-only resources bundled by PyInstaller (`_internal/`)
+- **`APP_DIR`**: Writable application directory — `exe_dir` (frozen) or project root (dev)
+- **`RESOURCE_BASE`**: `BUNDLE_DIR` (frozen) or `APP_DIR` (dev) — for read-only resource lookups
+- Derived paths: `CONFIG_DIR`, `AGENT_DIR`, `TOOLS_DIR` (read-only), `DATA_DIR`, `DB_DIR`, `LOG_DIR`, `REPORTS_DIR`, `KG_INPUT_DIR`, `KG_OUTPUT_DIR` (writable, always under `APP_DIR`)
+- **`MODEL_DIR`**: Defaults to `APP_DIR / "model"` (writable), overridable via `EMBEDDING_MODEL_PATH` env var
+- **`ENV_FILE`**: `APP_DIR / "config" / ".env"` (writable location for user config)
+- `ensure_writable_dirs()` creates all writable directories at startup
+
+### Launcher Pattern (`backend/app/tkinter_launcher.py`)
+- Standalone module — does NOT import from `app.core`, `app.services`, or any `app.*` module
+- Avoids circular imports and slow startup (tkinter window appears instantly)
+- Operates directly on `.env` file and HTTP requests (`urllib.request`)
+- Provider config (8 providers) is hardcoded — must be kept in sync with `agent/config.py`
+- `show_launcher() -> dict | None`: Blocks until user clicks "Start" or closes window
+- `write_env(path, updates)`: Line-level .env file updater (find `KEY=` and replace, or append)
+- Thread safety: All UI updates from background threads via `root.after(0, callback)`
+- `--no-launcher` flag in `launcher.py` skips GUI for headless/CI deployments
+
 ## Database Models
 
 | Model | Table | Key Fields |
@@ -135,6 +157,8 @@ gmpaudit/
 ```bash
 # Backend
 cd backend && python -m uvicorn app.main:app --reload    # Start dev server
+cd backend && python -m app.launcher                      # Start with tkinter GUI launcher
+cd backend && python -m app.launcher --no-launcher        # Start without GUI (headless)
 cd backend && pytest                                       # Run tests
 cd backend && pytest tests/test_documents.py               # Run single test file
 
@@ -148,6 +172,9 @@ cd frontend && npm run dev                                 # Start with Electron
 
 # Both
 scripts/start.sh    # or start.bat on Windows
+
+# Packaging
+scripts\build_exe.bat  # PyInstaller packaging → dist\AuditBee\
 ```
 
 ## Linting / Formatting
@@ -161,6 +188,9 @@ No explicit linter or formatter config found. Follow existing code style:
 All defined in `config/.env` (see `config/.env.example`):
 - LLM Keys: `DEEPSEEK_API_KEY`, `QWEN_API_KEY`, `GLM_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `SILICONFLOW_API_KEY`, `OPENROUTER_API_KEY`, `MIMO_API_KEY`
 - LLM URLs: `DEEPSEEK_BASE_URL`, `QWEN_BASE_URL`, `GLM_BASE_URL`, `OPENAI_BASE_URL`, `ANTHROPIC_BASE_URL`, `SILICONFLOW_BASE_URL`, `OPENROUTER_BASE_URL`, `MIMO_BASE_URL` (all include `/v1`)
+- LLM Models: `DEEPSEEK_MODEL`, `QWEN_MODEL`, `GLM_MODEL`, `OPENAI_MODEL`, `ANTHROPIC_MODEL`, `SILICONFLOW_MODEL`, `OPENROUTER_MODEL`, `MIMO_MODEL` (empty = use provider default)
 - **Agent:** `AGENT_LLM_PROVIDER` (default provider for agent pipeline, e.g. `mimo`)
 - Feishu: `FEISHU_WEBHOOK_URL`, `FEISHU_WEBHOOK_SECRET` (optional HMAC-SHA256 signing)
-- App: `LOG_LEVEL`, `MAX_CONCURRENT_TASKS`, `DOCUMENT_PROCESS_TIMEOUT`, `LLM_REQUEST_TIMEOUT`, `CORS_ORIGINS`
+- App: `APP_BASE_URL` (default `http://localhost:8000`), `LOG_LEVEL`, `MAX_CONCURRENT_TASKS`, `DOCUMENT_PROCESS_TIMEOUT`, `LLM_REQUEST_TIMEOUT`, `CORS_ORIGINS`
+- Agent tuning: `CHUNK_MAX_CHARS` (default 8000), `STUFF_LIMIT` (default 60000), `MAX_DOCUMENT_CHARS` (default 3000)
+- Embedding: `EMBEDDING_MODEL_PATH` (default `./model`)

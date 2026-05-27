@@ -62,17 +62,23 @@ export function useSSE({ url, onMessage, onEvent, onError, onOpen, enabled = tru
       }
     };
 
-    // Named event listeners
+    // Named event listeners — track for cleanup
+    const listeners: Array<[string, EventListener]> = [];
     if (onEventRef.current) {
       for (const [eventType, handler] of Object.entries(onEventRef.current)) {
-        source.addEventListener(eventType, ((event: MessageEvent) => {
+        const listener = ((event: MessageEvent) => {
           try {
-            const data = JSON.parse(event.data);
+            const raw = JSON.parse(event.data);
+            // Backend wraps events in {"type": "...", "data": {...}} envelope.
+            // Unwrap the inner data so handlers receive the payload directly.
+            const data = raw?.data ?? raw;
             handler(data);
           } catch (err) {
             console.warn(`SSE parse error for event "${eventType}":`, err);
           }
-        }) as EventListener);
+        }) as EventListener;
+        source.addEventListener(eventType, listener);
+        listeners.push([eventType, listener]);
       }
     }
 
@@ -81,7 +87,12 @@ export function useSSE({ url, onMessage, onEvent, onError, onOpen, enabled = tru
       onErrorRef.current?.(event);
     };
 
-    return close;
+    return () => {
+      for (const [eventType, listener] of listeners) {
+        source.removeEventListener(eventType, listener);
+      }
+      close();
+    };
   }, [url, enabled, close]);
 
   return { close, readyState };

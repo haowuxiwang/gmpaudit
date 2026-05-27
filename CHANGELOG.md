@@ -2,6 +2,61 @@
 
 All notable changes to AuditBee will be documented in this file.
 
+## [1.0.3] - 2026-05-21
+
+### Bug Fixes
+
+- **LightRAG transitive dependencies**: Added `nano_vectordb`, `aiohttp`, `networkx`, `pandas`, `pypinyin`, `tenacity`, `xlsxwriter` to `build.spec` `collect_all()`. Fixes LightRAG initialization failure in packaged exe.
+- **Pre-built knowledge graph index bundling**: Added `graphrag_index/lightrag_output` to `build.spec` datas + manual copy in `build_exe.bat`. Pre-built index now ships with the exe.
+- **KG index first-run seeding**: Added startup logic in `main.py` to copy bundled pre-built index to writable `KG_OUTPUT_DIR` on first run.
+- **asyncio.Lock race condition**: Fixed `lightrag_tool.py` creating `asyncio.Lock` lazily inside `get_lightrag()`, which allowed two concurrent coroutines to create separate locks. Now initialized at module level.
+- **risk_assessor silent failure**: Changed failed LLM call behavior from `risk_assessed=True, status="running"` to `risk_assessed=False, status="error"`, allowing supervisor to properly detect and stop the pipeline.
+- **supervisor error detection**: Expanded error detection from `status=="error" and not regulation_checked` to `status=="error"` at any stage, preventing silent continuation after failures.
+- **Dead code cleanup**: Removed unused `format_risk_summary()` function from `risk_matrix.py`.
+
+### Security
+
+- **CORS default**: Changed `CORS_ORIGINS` default from `*` to `http://localhost:3000,http://localhost:8000` in `.env.example`.
+- **Host binding**: Changed `--host` default from `0.0.0.0` to `127.0.0.1` in launcher.
+
+### Documentation
+
+- **Improvement roadmap**: Added `docs/roadmap.md` with P0-P3 improvement plan covering data closed loop, human-in-the-loop, performance optimization, GPU support, and Docker deployment.
+
+## [1.0.2] - 2026-05-20
+
+### Bug Fixes
+
+- **PDF export native dependency**: Replaced `weasyprint` (requires Pango/Cairo/GObject native libs) with `xhtml2pdf` (pure Python). PDF export now works on Windows without GTK runtime installation.
+- **RapidOCR ONNX model bundling**: Added `collect_data_files('rapidocr_onnxruntime')` to `build.spec` so PyInstaller bundles the 3 ONNX model files (~16MB) + config.yaml. Previously only Python code was collected via `hiddenimports`, leaving models unbundled.
+- **PyInstaller package collection**: Replaced `hiddenimports` with `collect_all()` for critical packages (bleach, reportlab, pydantic_settings, httpx, aiosqlite, xhtml2pdf, etc.) to ensure all submodules and data files are bundled. Fixes ImportError crashes on packaged exe startup.
+- **Embedding model directory**: `MODEL_DIR` now defaults to `APP_DIR / "model"` (writable) instead of `RESOURCE_BASE / "model"` (read-only `_internal/`). `download_model.py` now detects frozen mode and downloads to the exe directory.
+
+- **PyInstaller path resolution**: Created unified `backend/app/core/paths.py` module replacing all `__file__`-based path calculations across 10+ files. Fixes crash when running from extracted archive on another machine.
+- **Writable data directory**: Data files (database, logs, reports, documents) now correctly write to `exe_dir/data/` instead of `_internal/data/`, preventing failures in write-protected installations.
+- **asyncio.Lock lifecycle**: Fixed `lightrag_tool.py` creating `asyncio.Lock()` at import time, which caused `RuntimeError` when event loop changed.
+- **ENV_FILE writable location**: `.env` config file now stored at `exe_dir/config/.env` instead of read-only `_internal/config/.env`. UI configuration changes persist across restarts.
+- **os.getenv() missing .env values**: Added `load_dotenv()` in startup sequence so agent/Lightrag API keys are available via `os.getenv()` on first boot.
+- **KG input directory writable**: Knowledge graph input directory moved to `data/kg_input/` (writable). Bundled regulation files auto-copied on first run. Fixes `PermissionError` when uploading regulation documents.
+- **Agent prompt path robustness**: `report_writer.py`, `regulation_expert.py`, `risk_assessor.py` prompt loaders now use `AGENT_DIR` from paths module with `__file__` fallback.
+- **report_writer fallback path**: Fallback directory now points to project root `data/reports/` instead of read-only bundle path.
+- **Agent system frozen import**: `agent_helpers.py` now uses `BUNDLE_DIR` (`sys._MEIPASS`) for `sys.path` in frozen mode, fixing `ImportError` that made the entire agent audit system unavailable (503) in packaged builds.
+
+### Features
+
+- **Tkinter GUI launcher**: New `backend/app/tkinter_launcher.py` provides a first-run GUI window for LLM provider selection, API key input, connection testing, and optional embedding model download (~1.3 GB). Non-technical users no longer need to manually edit `.env` files.
+- **Launcher CLI flag**: `--no-launcher` flag to skip tkinter GUI for headless/automated deployments.
+- **PDF report export**: New `GET /api/reports/{id}/export/pdf` endpoint using xhtml2pdf. Reports page now has a direct PDF download button instead of browser print dialog.
+- **HTML/PDF XSS sanitization**: Markdown-generated HTML sanitized via `bleach.clean()` before rendering, stripping `<script>` and other dangerous tags.
+
+### Improvements
+
+- **LLM client caching**: `agent/config.py` now caches `ChatOpenAI` instances by `(provider, model, temperature, max_tokens)`, eliminating repeated TCP/TLS handshake overhead.
+- **Startup warmup**: Embedding model preloading and LightRAG initialization run in background thread at startup.
+- **Build config**: `graphrag_index/input/` bundled (source regulation files); stale output data excluded from bundle; `data/` directory structure created at exe level; `.env` auto-created from `.env.example` on first run. Added `docx`, `lxml`, `numpy`, `onnxruntime` to hiddenimports. Added `tkinter`, `_tkinter`, `tkinter.ttk` to hiddenimports for GUI launcher.
+- **Entry point**: PyInstaller entry point changed from `main.py` to `launcher.py` (CLI wrapper that optionally shows tkinter GUI before starting uvicorn).
+- **Test coverage**: Added `test_paths.py` (path module) and `test_api_reports_export.py` (PDF/HTML export). Total: 181 tests passing.
+
 ## [1.0.1] - 2026-05-19
 
 ### Bug Fixes

@@ -11,13 +11,13 @@ async def supervisor_node(state: AuditState) -> dict:
     iteration = state.get("iteration", 0) + 1
     logger.info("Supervisor: iteration=%s", iteration)
 
-    if state.get("status") == "error" and not state.get("regulation_checked"):
+    if state.get("status") == "error":
         return {
             "next_agent": "FINISH",
             "iteration": iteration,
             "status": "error",
-            "supervisor_reasoning": "Error before regulation check completed, stopping pipeline",
-            "messages": [f"Supervisor (iter {iteration}): early error state detected, stopping"],
+            "supervisor_reasoning": "Error detected in pipeline, stopping",
+            "messages": [f"Supervisor (iter {iteration}): error state detected, stopping"],
         }
 
     if iteration > 10:

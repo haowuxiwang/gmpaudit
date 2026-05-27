@@ -1,6 +1,8 @@
 import asyncio
 import logging
 import os
+import shutil
+import sys
 import threading
 from contextlib import asynccontextmanager
 from logging.handlers import RotatingFileHandler
@@ -13,6 +15,7 @@ from app.api import agent_audit, alerts, audit, config, documents, health, kg, r
 from app.core.database import Base, engine
 from app.core.config import settings
 from app.core.database import async_session
+from app.core import paths
 from app.services.task_runner import get_task_runner_factory
 from app.services.event_bus import EventBus
 
@@ -32,7 +35,7 @@ def _configure_logging() -> None:
     console_handler.setFormatter(formatter)
     root_logger.addHandler(console_handler)
 
-    log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "logs")
+    log_dir = str(paths.LOG_DIR)
     os.makedirs(log_dir, exist_ok=True)
     log_file = os.path.join(log_dir, "app.log")
 
@@ -55,24 +58,87 @@ def _configure_logging() -> None:
     root_logger._gmp_audit_configured = True
 
 
-async def startup():
-    from app.core.config import PROJECT_ROOT
+async def _seed_configurations():
+    """Sync .env values into configurations DB table on first run."""
+    import re
+    from sqlalchemy import select
+    from app.api.config import _LLM_KEY_MAP
+    from app.models.configuration import Configuration
 
+    _placeholder_re = re.compile(r'^your_.*_here$', re.IGNORECASE)
+
+    try:
+        async with async_session() as db:
+            for key, (attr, _) in _LLM_KEY_MAP.items():
+                val = getattr(settings, attr, None)
+                if val is None or str(val) == "":
+                    continue
+                # Skip placeholder values from .env.example
+                if _placeholder_re.match(str(val)):
+                    continue
+                result = await db.execute(
+                    select(Configuration).where(Configuration.config_key == key)
+                )
+                if result.scalar_one_or_none() is None:
+                    db.add(Configuration(
+                        config_key=key,
+                        config_value=str(val),
+                        config_type="string",
+                    ))
+            await db.commit()
+            logging.getLogger(__name__).info("Seeded configurations table from .env")
+    except Exception as e:
+        logging.getLogger(__name__).warning("Failed to seed configurations: %s", e)
+
+
+async def startup():
     _configure_logging()
 
     logger = logging.getLogger(__name__)
-    logger.info("AuditBee starting")
+    logger.info("AuditBee starting (frozen=%s, app_dir=%s)", paths.FROZEN, paths.APP_DIR)
+
+    # Ensure writable directories exist
+    paths.ensure_writable_dirs()
+
+    # Copy .env.example if .env doesn't exist
+    if not paths.ENV_FILE.exists():
+        example = paths.CONFIG_DIR / ".env.example"
+        if example.exists():
+            shutil.copy2(example, paths.ENV_FILE)
+            logger.info("Created .env from .env.example")
+
+    # Populate os.environ from .env so os.getenv() works for agent/Lightrag
+    from dotenv import load_dotenv
+    load_dotenv(paths.ENV_FILE, override=False)
+    logger.info("Loaded .env into os.environ")
+
+    # Seed KG_INPUT_DIR with bundled regulation files on first run
+    if paths._KG_INPUT_BUNDLED.is_dir():
+        existing = list(paths.KG_INPUT_DIR.glob("*.txt")) + list(paths.KG_INPUT_DIR.glob("*.md"))
+        if not existing:
+            for f in paths._KG_INPUT_BUNDLED.iterdir():
+                if f.is_file():
+                    shutil.copy2(f, paths.KG_INPUT_DIR / f.name)
+            logger.info("Seeded KG input from bundled regulations")
+
+    # Seed KG_OUTPUT_DIR with pre-built LightRAG index on first run
+    if paths._KG_OUTPUT_BUNDLED.is_dir():
+        existing = list(paths.KG_OUTPUT_DIR.glob("*.json")) + list(paths.KG_OUTPUT_DIR.glob("*.graphml"))
+        if not existing:
+            for f in paths._KG_OUTPUT_BUNDLED.iterdir():
+                if f.is_file():
+                    shutil.copy2(f, paths.KG_OUTPUT_DIR / f.name)
+            logger.info("Seeded KG output from bundled pre-built index")
 
     # Add bundled FFmpeg to PATH for torchcodec/sentence_transformers
-    ffmpeg_dir = os.path.join(PROJECT_ROOT, "tools", "ffmpeg")
+    ffmpeg_dir = str(paths.TOOLS_DIR / "ffmpeg")
     if os.path.isdir(ffmpeg_dir):
         current_path = os.environ.get("PATH", "")
         if ffmpeg_dir not in current_path:
             os.environ["PATH"] = ffmpeg_dir + os.pathsep + current_path
             logger.info("Added FFmpeg to PATH: %s", ffmpeg_dir)
 
-    for d in [settings.UPLOAD_DIR, settings.PROCESSED_DIR, settings.REPORTS_DIR,
-              os.path.join(PROJECT_ROOT, "data", "database")]:
+    for d in [settings.UPLOAD_DIR, settings.PROCESSED_DIR, settings.REPORTS_DIR, str(paths.DB_DIR)]:
         os.makedirs(d, exist_ok=True)
 
     async with engine.begin() as conn:
@@ -98,10 +164,20 @@ async def startup():
 
     logger.info("Database schema verified")
 
+    # Reset stale KG build status (in case of crash during previous build)
+    from sqlalchemy import text as _text
+    async with async_session() as _db:
+        await _db.execute(
+            _text("UPDATE configurations SET config_value = 'false' WHERE config_key = 'kg_build_status' AND config_value LIKE '%\"building\": true%'")
+        )
+        await _db.commit()
+
+    # Seed configurations table from .env so GET /config/ returns real values
+    await _seed_configurations()
+
     # Recover zombie tasks (RUNNING tasks from previous process)
     from datetime import datetime, timezone
     from sqlalchemy import select
-    from app.core.database import async_session
     from app.models.audit_task import AuditTask, TaskStatus
 
     async with async_session() as db:
@@ -174,13 +250,17 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="AuditBee",
     description="AI-powered GMP compliance audit system with multi-agent workflow.",
-    version="1.0.0",
+    version="1.0.2",
     lifespan=lifespan,
 )
 
-# CORS origins from environment variable, default to localhost dev ports
-cors_origins = os.environ.get("CORS_ORIGINS", "http://localhost:3000,http://localhost:3001,http://localhost:3002")
-origins = [origin.strip() for origin in cors_origins.split(",") if origin.strip()]
+# CORS: in frozen mode use wildcard (desktop app, same-origin served by FastAPI);
+# in dev mode restrict to localhost dev ports.
+if getattr(sys, 'frozen', False):
+    origins = ["*"]
+else:
+    cors_origins = os.environ.get("CORS_ORIGINS", "http://localhost:3000,http://localhost:3001,http://localhost:3002")
+    origins = [origin.strip() for origin in cors_origins.split(",") if origin.strip()]
 
 app.add_middleware(
     CORSMiddleware,
@@ -200,12 +280,6 @@ app.include_router(kg.router, prefix="/api/kg", tags=["knowledge-graph"])
 app.include_router(health.router, prefix="/api/health", tags=["health"])
 
 
-@app.get("/")
-async def root():
-    return {"message": "AuditBee API"}
-
-
 # Mount static files for frontend (PyInstaller packaging)
-static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
-if os.path.isdir(static_dir):
-    app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
+if paths.STATIC_DIR.is_dir():
+    app.mount("/", StaticFiles(directory=str(paths.STATIC_DIR), html=True), name="static")

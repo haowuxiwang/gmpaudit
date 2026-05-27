@@ -29,11 +29,6 @@ export interface AgentThinkingEvent {
   message: string;
 }
 
-export interface LLMTokenEvent {
-  node: string;
-  token: string;
-}
-
 export interface TaskDocumentStatus {
   document_id: number;
   filename: string;
@@ -62,6 +57,7 @@ export interface AuditTask {
   report_id?: number | null;
   events?: TaskEvent[];
   documents?: TaskDocumentStatus[];
+  trace?: unknown;
 }
 
 export interface Report {

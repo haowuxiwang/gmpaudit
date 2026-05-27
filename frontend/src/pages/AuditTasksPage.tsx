@@ -175,7 +175,9 @@ const AuditTasksPage: React.FC = () => {
       return {
         ...prev,
         stage: currentStage || prev.stage,
-        events: sseEvents.length > 0 ? sseEvents : prev.events,
+        events: sseEvents.length > 0
+          ? [...(prev.events || []), ...sseEvents].slice(-200)
+          : prev.events,
       };
     });
   }, [sseEvents, currentStage, selectedTask?.id]);

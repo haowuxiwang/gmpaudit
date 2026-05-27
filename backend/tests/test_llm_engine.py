@@ -205,14 +205,12 @@ async def test_engine_generate_report_success():
 
 def test_engine_get_available_providers():
     engine = LLMEngine()
-    # Clear existing adapters and add a mock one
-    engine.adapters.clear()
-    mock_adapter = MagicMock()
-    mock_adapter.model = "test-model"
-    engine.adapters["test_provider"] = mock_adapter
-
+    # All 8 providers from PROVIDER_REGISTRY should be returned
     providers = engine.get_available_providers()
-    assert len(providers) == 1
-    assert providers[0]["name"] == "test_provider"
-    assert providers[0]["model"] == "test-model"
-    assert providers[0]["available"] is True
+    assert len(providers) == 8
+    # Each provider should have required fields
+    for p in providers:
+        assert "name" in p
+        assert "model" in p
+        assert "available" in p
+        assert isinstance(p["available"], bool)

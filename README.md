@@ -11,7 +11,7 @@
 - **法规知识图谱**：LightRAG 构建 GMP/ICH 法规知识库，本地 Embedding + 语义检索 + 硬编码备用库双重保障
 - **批量文档处理**：支持 PDF、Word、纯文本格式，PyMuPDF + RapidOCR 双引擎
 - **多 LLM 提供商**：统一适配器模式支持 DeepSeek、Qwen、GLM、SiliconFlow、OpenRouter、Mimo、Anthropic 共 8 个提供商
-- **结构化报告**：自动生成 Markdown 格式专业审计报告，按严重程度分组
+- **结构化报告**：自动生成 Markdown 格式专业审计报告，按严重程度分组，支持一键导出 PDF
 - **风险可视化**：ECharts 仪表盘展示风险分布和审计趋势
 - **飞书通知**：Webhook Bot 群通知（HMAC-SHA256 签名卡片）
 - **浏览器通知**：任务完成/失败时自动推送浏览器通知
@@ -33,6 +33,7 @@
 | **Embedding** | 本地 BAAI/bge-large-zh-v1.5 (sentence-transformers) |
 | **文档处理** | PyMuPDF + python-docx + RapidOCR |
 | **LLM 调用** | langchain-openai / langchain-anthropic + httpx |
+| **启动器 GUI** | tkinter (Python 内置) |
 
 ## 快速开始
 
@@ -109,6 +110,7 @@ Agent 系统 (LangGraph)
 | POST | `/api/agent-audit/run` | 运行 Agent 审计（单文档） |
 | GET | `/api/reports/` | 获取审计报告（分页） |
 | GET | `/api/reports/{id}/export/html` | 导出 HTML 格式报告 |
+| GET | `/api/reports/{id}/export/pdf` | 导出 PDF 格式报告 |
 | POST | `/api/reports/generate/{task_id}` | 生成审计报告 |
 | GET | `/api/alerts/` | 获取风险警报（分页） |
 | GET | `/api/config/` | 获取系统配置 |
@@ -116,8 +118,13 @@ Agent 系统 (LangGraph)
 | POST | `/api/config/batch` | 批量更新配置 |
 | POST | `/api/config/test-llm` | 测试 LLM 连通性 |
 | GET | `/api/kg/status` | 知识图谱索引状态 |
+| GET | `/api/kg/graph` | 获取知识图谱可视化数据 |
 | POST | `/api/kg/build` | 触发索引构建 |
+| GET | `/api/kg/build-status` | 索引构建状态 |
 | POST | `/api/kg/query` | 查询知识图谱 |
+| GET | `/api/kg/documents` | 获取输入法规文档列表 |
+| POST | `/api/kg/documents/upload` | 上传法规文档 |
+| DELETE | `/api/kg/documents/{filename}` | 删除法规文档 |
 
 ## 目录结构
 
@@ -132,12 +139,15 @@ gmpaudit/
 │   ├── graph.py       # LangGraph StateGraph 定义
 │   └── state.py       # AuditState 共享状态
 ├── graphrag_index/    # 知识图谱索引
-│   ├── input/         # 法规文本文件 (5篇: GMP 3章 + ICH Q9/Q10)
+│   ├── input/         # 法规文本文件 (GMP 14章 + ICH Q9/Q10)
 │   └── lightrag_output/ # LightRAG 构建产物
 ├── backend/           # FastAPI 后端 (API 网关)
 │   └── app/
+│       ├── launcher.py      # PyInstaller 入口，tkinter 启动器集成
+│       ├── main.py          # FastAPI app 定义，CORS，lifespan
+│       ├── tkinter_launcher.py  # tkinter GUI 启动器 (独立模块)
 │       ├── api/       # API 路由 (documents, audit, reports, config, alerts, agent_audit, kg)
-│       ├── core/      # 配置、数据库
+│       ├── core/      # config.py, database.py, paths.py (frozen/dev 路径解析)
 │       ├── models/    # 数据库模型 (6张表)
 │       └── services/  # LLM 引擎、文档处理、任务运行器、EventBus、通知
 ├── frontend/          # React 前端 (Electron 桌面应用)
@@ -216,9 +226,9 @@ scripts\build_exe.bat
 
 ```
 dist\AuditBee\
-├── AuditBee.exe          # 主程序
+├── AuditBee.exe          # 主程序（双击启动，弹出 tkinter 启动器）
 ├── config\
-│   ├── .env              # 用户配置（从 .env.example 复制）
+│   ├── .env              # 用户配置（启动器自动写入）
 │   └── .env.example      # 配置模板
 ├── data\                 # 运行时数据（空目录）
 │   ├── database\
@@ -226,18 +236,32 @@ dist\AuditBee\
 │   ├── processed\
 │   ├── reports\
 │   └── logs\
+├── model\                # Embedding 模型（启动器中可选下载，~1.3GB）
 ├── graphrag_index\       # 知识图谱索引（预构建）
 ├── agent\                # Agent 系统
 ├── tools\ffmpeg\         # FFmpeg 工具
-└── scripts\download_model.py  # 模型下载脚本
+└── scripts\download_model.py  # 模型下载脚本（备用）
 ```
 
 ### 首次运行
 
-1. 编辑 `config\.env`，添加至少一个 LLM 提供商的 API 密钥
-2. 运行 `AuditBee.exe`
-3. 系统会自动下载 Embedding 模型（约 1.3GB，首次运行需要）
-4. 访问 http://localhost:8000
+1. 双击运行 `AuditBee.exe`
+2. 弹出 **tkinter 启动器** GUI 窗口：
+   - 选择 LLM 供应商（默认推荐 Mimo）
+   - 填入 API Key
+   - 点击"测试连接"验证密钥有效性
+   - （可选）点击"下载模型"下载 Embedding 模型（~1.3GB，知识图谱功能需要）
+3. 点击"启动 AuditBee"
+4. 浏览器自动打开 http://localhost:8000
+
+### 命令行参数
+
+```bash
+AuditBee.exe                        # 默认：显示 tkinter 启动器
+AuditBee.exe --no-launcher          # 跳过启动器，直接启动后端
+AuditBee.exe --no-launcher --port 9000  # 自定义端口
+AuditBee.exe --no-launcher --open-browser  # 自动打开浏览器
+```
 
 ### 出厂重置
 

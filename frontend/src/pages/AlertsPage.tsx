@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, Button, Card, Empty, Modal, Select, Space, Table, Tag, Typography, message } from 'antd';
+import { Alert, Button, Card, Col, Empty, Modal, Row, Select, Space, Statistic, Table, Tag, Typography, message } from 'antd';
 import { CheckCircleOutlined, EyeOutlined, IssuesCloseOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 
@@ -50,6 +50,9 @@ const AlertsPage: React.FC = () => {
   const [alerts, setAlerts] = useState<RiskAlert[]>([]);
   const [loading, setLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
+  const [bannerDismissed, setBannerDismissed] = useState(() => {
+    try { return localStorage.getItem('alerts-info-banner-dismissed') === 'true'; } catch { return false; }
+  });
 
   const loadAlerts = useCallback(async () => {
     try {
@@ -133,6 +136,7 @@ const AlertsPage: React.FC = () => {
       title: '严重程度',
       key: 'finding_severity',
       width: 100,
+      responsive: ['md'] as ('md')[],
       render: (_: unknown, record: RiskAlert) => (
         <Tag color={SEVERITY_COLORS[record.finding_severity || ''] || 'default'}>
           {SEVERITY_LABELS[record.finding_severity || ''] || record.finding_severity || '-'}
@@ -144,12 +148,14 @@ const AlertsPage: React.FC = () => {
       dataIndex: 'created_at',
       key: 'created_at',
       width: 180,
+      responsive: ['lg'] as ('lg')[],
       render: (value: string) => (value ? new Date(value).toLocaleString('zh-CN') : '-'),
     },
     {
       title: '操作',
       key: 'action',
       width: 200,
+      responsive: ['md'] as ('md')[],
       render: (_: unknown, record: RiskAlert) => (
         <Space>
           {record.task_id && (
@@ -191,12 +197,46 @@ const AlertsPage: React.FC = () => {
         </Paragraph>
       </Card>
 
-      <Alert
-        message="告警由审计任务完成后自动生成：高风险发现 → 严重告警，中风险发现 → 警告告警"
-        type="info"
-        showIcon
-        style={{ marginBottom: 16, borderRadius: 8 }}
-      />
+      {!bannerDismissed && (
+        <Alert
+          message="告警由审计任务完成后自动生成：高风险发现 → 严重告警，中风险发现 → 警告告警"
+          type="info"
+          showIcon
+          closable
+          onClose={() => { try { localStorage.setItem('alerts-info-banner-dismissed', 'true'); } catch {} setBannerDismissed(true); }}
+          style={{ marginBottom: 16, borderRadius: 8 }}
+        />
+      )}
+
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col xs={24} md={8}>
+          <Card bordered={false} style={{ borderRadius: 12 }}>
+            <Statistic
+              title="严重告警"
+              value={alerts.filter((a) => a.alert_level === 'critical').length}
+              valueStyle={{ color: '#f5222d' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} md={8}>
+          <Card bordered={false} style={{ borderRadius: 12 }}>
+            <Statistic
+              title="警告"
+              value={alerts.filter((a) => a.alert_level === 'warning').length}
+              valueStyle={{ color: '#fa8c16' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} md={8}>
+          <Card bordered={false} style={{ borderRadius: 12 }}>
+            <Statistic
+              title="信息"
+              value={alerts.filter((a) => a.alert_level === 'info').length}
+              valueStyle={{ color: '#1890ff' }}
+            />
+          </Card>
+        </Col>
+      </Row>
 
       <Card bordered={false} style={{ borderRadius: 12 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
@@ -206,7 +246,7 @@ const AlertsPage: React.FC = () => {
             placeholder="按状态筛选"
             value={statusFilter}
             onChange={(value) => setStatusFilter(value)}
-            style={{ width: 180 }}
+            style={{ width: '100%', maxWidth: 180 }}
             options={[
               { value: 'active', label: '活跃' },
               { value: 'acknowledged', label: '已确认' },
@@ -220,6 +260,7 @@ const AlertsPage: React.FC = () => {
           dataSource={alerts}
           loading={loading}
           rowKey="id"
+          scroll={{ x: true }}
           pagination={{ pageSize: 10 }}
           locale={{ emptyText: <Empty description="暂无告警" /> }}
         />

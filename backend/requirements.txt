@@ -10,8 +10,19 @@ httpx==0.26.0
 python-dotenv==1.0.1
 pydantic==2.6.1
 pydantic-settings==2.1.0
-pytest==8.0.0
-pytest-asyncio==0.23.4
-pytest-cov>=4.1.0
 markdown>=3.5.0
 markitdown[pdf]>=0.0.1
+xhtml2pdf>=0.2.11
+bleach>=6.0.0
+reportlab>=4.0.0
+
+# Agent system (LangGraph multi-agent pipeline)
+langgraph>=0.2.0
+langchain>=0.3.0
+langchain-openai>=0.2.0
+langchain-anthropic>=0.3.0
+lightrag-hku>=1.4.0
+sentence-transformers>=2.2.0
+python-docx>=1.1.0
+olefile>=0.47
+numpy>=1.24.0

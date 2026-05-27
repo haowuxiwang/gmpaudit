@@ -1,4 +1,6 @@
+import asyncio
 import logging
+import os
 from pathlib import Path
 from typing import Dict
 
@@ -58,19 +60,22 @@ _LLM_KEY_MAP = {
     "temperature": ("TEMPERATURE", None),
     "log_level": ("LOG_LEVEL", None),
     "max_concurrent_tasks": ("MAX_CONCURRENT_TASKS", None),
+    "agent_task_timeout": ("AGENT_TASK_TIMEOUT", None),
 }
 
 
 async def _apply_setting(key: str, value: str):
     """Update the settings singleton, sync to os.environ, persist to .env, and reload LLM adapter."""
-    import os
-    from pathlib import Path
     from app.core.config import settings
 
     mapping = _LLM_KEY_MAP.get(key)
     if not mapping:
         return
     attr, provider = mapping
+
+    # Validate: reject placeholder API keys, URLs, and model names
+    if ("api_key" in key or "base_url" in key or "model" in key) and isinstance(value, str) and value.startswith("your_"):
+        raise HTTPException(status_code=422, detail=f"{key} 为占位符值，请填写真实配置")
 
     # Update settings singleton
     old_val = getattr(settings, attr, None)
@@ -99,10 +104,20 @@ async def _apply_setting(key: str, value: str):
     if provider and ("api_key" in key or "base_url" in key or "model" in key):
         await _reload_llm_provider(provider)
 
+    # Clear agent LLM cache when provider selection changes
+    if key == "agent_llm_provider":
+        try:
+            from agent.config import clear_llm_cache
+            clear_llm_cache()
+            logger.info("Agent LLM cache cleared due to provider change to %s", value)
+        except ImportError:
+            pass
+
 
 def _update_env_file(attr: str, value: str):
     """Update a single key in config/.env file."""
-    env_path = Path(__file__).parent.parent.parent.parent / "config" / ".env"
+    from app.core.paths import ENV_FILE
+    env_path = ENV_FILE
     if not env_path.exists():
         return
     try:
@@ -121,8 +136,32 @@ def _update_env_file(attr: str, value: str):
         logger.warning("Failed to persist %s to .env: %s", attr, e)
 
 
+def _batch_update_env_file(updates: dict[str, str]):
+    """Batch update multiple keys in config/.env file in a single read/write."""
+    from app.core.paths import ENV_FILE
+    env_path = ENV_FILE
+    if not env_path.exists():
+        return
+    try:
+        lines = env_path.read_text(encoding="utf-8").splitlines()
+        updated_keys: set[str] = set()
+        for i, line in enumerate(lines):
+            stripped = line.strip()
+            if stripped and not stripped.startswith("#") and "=" in stripped:
+                key = stripped.split("=", 1)[0].strip()
+                if key in updates:
+                    lines[i] = f"{key}={updates[key]}"
+                    updated_keys.add(key)
+        for key, value in updates.items():
+            if key not in updated_keys:
+                lines.append(f"{key}={value}")
+        env_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    except Exception as e:
+        logger.warning("Failed to batch persist to .env: %s", e)
+
+
 async def _reload_llm_provider(provider: str):
-    """Reload a single LLM provider adapter."""
+    """Reload a single LLM provider adapter and clear agent-side cache."""
     from app.core.config import settings
     from app.services.llm_engine import get_llm_engine
 
@@ -133,8 +172,21 @@ async def _reload_llm_provider(provider: str):
     base_url = getattr(settings, url_attr, None)
     model_attr = f"{provider.upper()}_MODEL"
     model = getattr(settings, model_attr, None)
-    await engine.reload_provider(provider, api_key=api_key or "", base_url=base_url, model=model)
+    try:
+        await asyncio.wait_for(
+            engine.reload_provider(provider, api_key=api_key or "", base_url=base_url, model=model),
+            timeout=10,
+        )
+    except asyncio.TimeoutError:
+        logger.warning("LLM provider reload timed out for %s", provider)
     logger.info("Reloaded LLM provider: %s", provider)
+
+    # Clear agent-side LangChain LLM cache so next audit uses the new provider
+    try:
+        from agent.config import clear_llm_cache
+        clear_llm_cache(provider)
+    except ImportError:
+        pass
 
 @router.get("/")
 async def get_config(db: AsyncSession = Depends(get_db)):
@@ -145,20 +197,10 @@ async def get_config(db: AsyncSession = Depends(get_db)):
 @router.get("/llm/models")
 async def get_available_models():
     from app.services.llm_engine import get_llm_engine
+    from app.core.providers import get_provider_names
     engine = get_llm_engine()
     providers = engine.get_available_providers()
-
-    # Provider display names
-    names = {
-        "deepseek": "DeepSeek",
-        "qwen": "通义千问",
-        "glm": "智谱GLM",
-        "openai": "OpenAI",
-        "anthropic": "Anthropic/Claude",
-        "siliconflow": "SiliconFlow",
-        "openrouter": "OpenRouter",
-        "mimo": "Mimo/MiniMax",
-    }
+    names = get_provider_names()
 
     return [
         {
@@ -180,8 +222,15 @@ async def get_config_by_key(key: str, db: AsyncSession = Depends(get_db)):
     return {"key": config.config_key, "value": _mask_value(config.config_key, config.config_value), "type": config.config_type, "description": config.description}
 
 
+class ConfigUpdateRequest(BaseModel):
+    value: str
+    description: str | None = None
+
+
 @router.put("/{key}")
-async def update_config(key: str, value: str, description: str = None, db: AsyncSession = Depends(get_db)):
+async def update_config(key: str, req: ConfigUpdateRequest, db: AsyncSession = Depends(get_db)):
+    value = req.value
+    description = req.description
     result = await db.execute(select(Configuration).where(Configuration.config_key == key))
     config = result.scalar_one_or_none()
 
@@ -204,6 +253,7 @@ class BatchConfigRequest(BaseModel):
 
 @router.post("/batch")
 async def batch_update_config(request: BatchConfigRequest, db: AsyncSession = Depends(get_db)):
+    # 1. Batch update DB
     for key, value in request.configs.items():
         result = await db.execute(select(Configuration).where(Configuration.config_key == key))
         config = result.scalar_one_or_none()
@@ -212,8 +262,49 @@ async def batch_update_config(request: BatchConfigRequest, db: AsyncSession = De
         else:
             db.add(Configuration(config_key=key, config_value=value, config_type="string"))
     await db.commit()
+
+    # 2. Batch update os.environ + collect env file updates
+    env_updates = {}
+    providers_to_reload = set()
+    from app.core.config import settings
     for key, value in request.configs.items():
-        await _apply_setting(key, value)
+        if key not in _LLM_KEY_MAP:
+            logger.warning("Skipping unknown config key: %s", key)
+            continue
+        attr, provider = _LLM_KEY_MAP[key]
+        old_val = getattr(settings, attr, None)
+        if old_val is not None and str(old_val) == str(value):
+            continue
+        # Cast to correct type (mirrors _apply_setting logic)
+        if isinstance(old_val, int):
+            try:
+                value = int(value)
+            except ValueError:
+                logger.warning("Skipping %s: expected int, got %s", key, value)
+                continue
+        elif isinstance(old_val, float):
+            try:
+                value = float(value)
+            except ValueError:
+                logger.warning("Skipping %s: expected float, got %s", key, value)
+                continue
+        # Block placeholder API keys, URLs, and model names
+        if ("api_key" in key or "base_url" in key or "model" in key) and isinstance(value, str) and value.startswith("your_"):
+            raise HTTPException(status_code=422, detail=f"{key} 为占位符值，请填写真实配置")
+        setattr(settings, attr, value)
+        os.environ[attr] = str(value)
+        env_updates[attr] = str(value)
+        if provider and ("api_key" in key or "base_url" in key or "model" in key):
+            providers_to_reload.add(provider)
+
+    # 3. Single .env file write
+    if env_updates:
+        _batch_update_env_file(env_updates)
+
+    # 4. Reload LLM adapters (still sequential - needs to close old connections)
+    for provider in providers_to_reload:
+        await _reload_llm_provider(provider)
+
     return {"status": "success", "updated": len(request.configs)}
 
 
@@ -261,8 +352,10 @@ async def test_llm_connection(request: TestLLMRequest):
         return {"success": False, "error": f"不支持的 provider: {provider}", "latency_ms": 0}
 
     default_url, default_model = defaults[provider]
-    base_url = base_url or default_url
-    model = model or default_model
+    base_url = (base_url if base_url and not base_url.startswith("your_") else None) or default_url
+    model = (model if model and not model.startswith("your_") else None) or default_model
+
+    logger.info("Testing LLM connection: provider=%s, model=%s, base_url=%s", provider, model, base_url)
 
     if not api_key:
         return {"success": False, "error": "API Key 不能为空", "latency_ms": 0}

@@ -35,6 +35,8 @@ data/documents/*
 data/processed/*
 data/reports/*
 data/database/*
+data/kg_input/*
+data/kg_output/*
 !data/documents/.gitkeep
 !data/processed/.gitkeep
 !data/reports/.gitkeep
@@ -47,19 +49,30 @@ Thumbs.db
 # Build
 frontend/build/
 frontend/dist/
+backend/static/
+
+# Tools logs
+tools/日志.txt
 
 # Local model files (large, download separately)
 model/
 
-# GraphRAG build artifacts (保留 lightrag_output 作为预构建索引)
+# GraphRAG build artifacts
 graphrag_index/output/
 graphrag_index/logs/
 
 # Test artifacts
+test.db
 backend/test.db
 backend/.coverage
 backend/htmlcov/
 data/test_documents/
+
+# Playwright
+frontend/test-results/
+frontend/playwright-report/
+frontend/blob-report/
+frontend/.playwright/
 
 # Pip install artifacts (malformed command output)
 backend/=*

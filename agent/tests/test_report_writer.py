@@ -16,13 +16,13 @@ class TestFormatFindings:
 
     def test_empty_findings(self):
         """Empty list returns default message."""
-        assert _format_findings([]) == "No findings identified."
+        assert _format_findings([]) == "未发现审计问题。"
 
     def test_single_finding(self):
         """Single finding formatted correctly."""
         findings = [{"title": "Test", "severity": "high", "description": "Desc", "evidence": "Ev"}]
         result = _format_findings(findings)
-        assert "Finding 1" in result
+        assert "发现 1" in result
         assert "[HIGH]" in result
         assert "Test" in result
         assert "Desc" in result
@@ -35,15 +35,15 @@ class TestFormatFindings:
             {"title": "F2", "severity": "low", "description": "d2"},
         ]
         result = _format_findings(findings)
-        assert "Finding 1" in result
-        assert "Finding 2" in result
+        assert "发现 1" in result
+        assert "发现 2" in result
 
     def test_missing_fields_use_defaults(self):
         """Findings with missing fields use defaults."""
         findings = [{}]  # No severity, title, etc.
         result = _format_findings(findings)
         assert "[N/A]" in result
-        assert "Untitled" in result
+        assert "无标题" in result
 
     def test_optional_fields(self):
         """Optional fields included when present."""
@@ -64,13 +64,13 @@ class TestGenerateFallbackReport:
         report = _generate_fallback_report(
             "test.txt", "deviation", 55, "high", "Summary", sample_findings
         )
-        assert "# GMP Compliance Audit Report" in report
-        assert "## 1. Audit Overview" in report
-        assert "## 2. Regulation Basis" in report
-        assert "## 3. Audit Findings" in report
-        assert "## 4. Risk Assessment" in report
-        assert "## 5. Recommendations" in report
-        assert "## 6. Conclusion" in report
+        assert "# GMP 合规性审计报告" in report
+        assert "## 1. 审计概述" in report
+        assert "## 2. 法规依据" in report
+        assert "## 3. 审计发现" in report
+        assert "## 4. 风险评估" in report
+        assert "## 5. 改进建议" in report
+        assert "## 6. 结论" in report
 
     def test_report_contains_doc_info(self):
         """Report includes document name and type."""
@@ -87,14 +87,14 @@ class TestGenerateFallbackReport:
     def test_report_contains_severity_counts(self, sample_findings):
         """Report shows severity breakdown."""
         report = _generate_fallback_report("t", "t", 0, "", "", sample_findings)
-        assert "High severity: 1" in report
-        assert "Medium severity: 1" in report
-        assert "Low severity: 1" in report
+        assert "高风险: 1" in report
+        assert "中风险: 1" in report
+        assert "低风险: 1" in report
 
     def test_report_with_no_findings(self):
         """Report works with empty findings."""
         report = _generate_fallback_report("t", "t", 100, "low", "No regs", [])
-        assert "High severity: 0" in report
+        assert "高风险: 0" in report
         assert "No regs" in report
 
 
@@ -111,8 +111,8 @@ class TestReportWriterNode:
         mock_llm.ainvoke = AsyncMock(return_value=MagicMock(content="# Test Report"))
         mock_prompt = "Generate: {document_name}\n{findings_text}"
 
-        with patch("agent.agents.report_writer.get_llm", return_value=mock_llm), \
-             patch("agent.agents.report_writer._load_prompt", return_value=mock_prompt), \
+        with patch("agent.agents.report_writer.get_llm_with_fallback", return_value=mock_llm), \
+             patch("agent.agents.report_writer.load_prompt", return_value=mock_prompt), \
              patch("pathlib.Path.write_text"), \
              patch("pathlib.Path.mkdir"):
             result = await report_writer_node(sample_state)
@@ -130,14 +130,14 @@ class TestReportWriterNode:
         mock_llm.ainvoke = AsyncMock(side_effect=Exception("LLM timeout"))
         mock_prompt = "Generate: {document_name}\n{findings_text}"
 
-        with patch("agent.agents.report_writer.get_llm", return_value=mock_llm), \
-             patch("agent.agents.report_writer._load_prompt", return_value=mock_prompt), \
+        with patch("agent.agents.report_writer.get_llm_with_fallback", return_value=mock_llm), \
+             patch("agent.agents.report_writer.load_prompt", return_value=mock_prompt), \
              patch("pathlib.Path.write_text"), \
              patch("pathlib.Path.mkdir"):
             result = await report_writer_node(sample_state)
 
         assert result["report_generated"] is True
-        assert "GMP Compliance Audit Report" in result["report_markdown"]
+        assert "GMP 合规性审计报告" in result["report_markdown"]
 
     async def test_file_save_failure(self, sample_state):
         """File save fails but report content still returned."""
@@ -145,8 +145,8 @@ class TestReportWriterNode:
         mock_llm.ainvoke = AsyncMock(return_value=MagicMock(content="# Report"))
         mock_prompt = "Generate: {document_name}\n{findings_text}"
 
-        with patch("agent.agents.report_writer.get_llm", return_value=mock_llm), \
-             patch("agent.agents.report_writer._load_prompt", return_value=mock_prompt), \
+        with patch("agent.agents.report_writer.get_llm_with_fallback", return_value=mock_llm), \
+             patch("agent.agents.report_writer.load_prompt", return_value=mock_prompt), \
              patch("pathlib.Path.mkdir"), \
              patch("pathlib.Path.write_text", side_effect=PermissionError("No write access")):
             result = await report_writer_node(sample_state)
@@ -161,8 +161,8 @@ class TestReportWriterNode:
         mock_llm.ainvoke = AsyncMock(return_value=MagicMock(content="# Report"))
         mock_prompt = "Generate: {document_name}\n{findings_text}"
 
-        with patch("agent.agents.report_writer.get_llm", return_value=mock_llm), \
-             patch("agent.agents.report_writer._load_prompt", return_value=mock_prompt), \
+        with patch("agent.agents.report_writer.get_llm_with_fallback", return_value=mock_llm), \
+             patch("agent.agents.report_writer.load_prompt", return_value=mock_prompt), \
              patch("pathlib.Path.write_text"), \
              patch("pathlib.Path.mkdir"):
             result = await report_writer_node(sample_state)

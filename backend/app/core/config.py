@@ -3,17 +3,16 @@ from pydantic import ConfigDict
 from typing import Optional
 import os
 
-# 项目根目录: backend/ 的上级目录
-PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+from app.core import paths as _paths
 
 class Settings(BaseSettings):
     # 数据库配置
-    DATABASE_URL: str = f"sqlite+aiosqlite:///{os.path.join(PROJECT_ROOT, 'data', 'database', 'gmp_audit.db').replace(os.sep, '/')}"
+    DATABASE_URL: str = f"sqlite+aiosqlite:///{_paths.DB_DIR / 'gmp_audit.db'}".replace(os.sep, "/")
 
     # 文件存储配置
-    UPLOAD_DIR: str = os.path.join(PROJECT_ROOT, "data", "documents")
-    PROCESSED_DIR: str = os.path.join(PROJECT_ROOT, "data", "processed")
-    REPORTS_DIR: str = os.path.join(PROJECT_ROOT, "data", "reports")
+    UPLOAD_DIR: str = str(_paths.DOCS_DIR)
+    PROCESSED_DIR: str = str(_paths.PROCESSED_DIR)
+    REPORTS_DIR: str = str(_paths.REPORTS_DIR)
 
     # LLM配置 - 所有 OpenAI 兼容提供商使用统一的 base_url 格式（含 /v1）
     DEEPSEEK_API_KEY: Optional[str] = None
@@ -49,14 +48,16 @@ class Settings(BaseSettings):
     AGENT_LLM_PROVIDER: str = "mimo"
 
     # 应用配置
+    APP_BASE_URL: str = "http://localhost:8000"
     TEMPERATURE: float = 0.7
     LOG_LEVEL: str = "INFO"
     MAX_CONCURRENT_TASKS: int = 5
     DOCUMENT_PROCESS_TIMEOUT: int = 300
     LLM_REQUEST_TIMEOUT: int = 120
+    AGENT_TASK_TIMEOUT: int = 600
 
     model_config = ConfigDict(
-        env_file=os.path.join(PROJECT_ROOT, "config", ".env"),
+        env_file=str(_paths.ENV_FILE),
         env_file_encoding="utf-8",
         frozen=False,
         extra="ignore",

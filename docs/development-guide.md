@@ -4,7 +4,7 @@
 
 AuditBee is an AI-powered GMP compliance audit assistant for pharmaceutical quality management personnel. It combines multi-agent orchestration with knowledge graph retrieval to automate document analysis, risk identification, and report generation.
 
-## Current Status (2026-05-19)
+## Current Status (2026-05-22)
 
 ### What Works
 - **Core pipeline**: End-to-end audit from document upload to structured report
@@ -14,7 +14,7 @@ AuditBee is an AI-powered GMP compliance audit assistant for pharmaceutical qual
 - **Multi-LLM**: 8 providers supported via adapter pattern with hot-swap
 - **Notifications**: Feishu webhook with HMAC-SHA256 signed cards
 - **Document processing**: .pdf, .docx, .doc, .txt, .jpg/.png/.tiff (OCR via RapidOCR)
-- **Testing**: Backend 153 + Agent 73 = 226 tests, all green. TypeScript 0 errors.
+- **Testing**: Backend 181 + Agent 73 = 254 tests, all green. TypeScript 0 errors.
 - **Config security**: API keys masked in GET responses (`_mask_value()`)
 - **Report export**: HTML export with print-friendly CSS (`GET /api/reports/{id}/export/html`)
 - **Alerts enrichment**: Risk alerts include finding title, description, severity via SQLAlchemy relationship
@@ -27,7 +27,6 @@ AuditBee is an AI-powered GMP compliance audit assistant for pharmaceutical qual
 ### Known Limitations
 - Agent executes linearly — no self-correcting loop when findings are empty
 - Regulation fallback DB has only 10 entries
-- Document content truncated to 3000 chars for LLM analysis
 - No verification agent to challenge findings
 - Backend-Agent bridge uses `sys.path` injection
 
@@ -37,7 +36,7 @@ AuditBee is an AI-powered GMP compliance audit assistant for pharmaceutical qual
 - LLM calls have 1 retry with 2s delay for transient failures
 - Supervisor only terminates on early errors (before regulation check completes)
 - Report writer always produces output (LLM report or template fallback)
-- See ARCHITECTURE.md "Failure Handling Strategy" for full degradation matrix
+- Each agent has independent fallback behavior (see agent/agents/*.py for details)
 
 ### Frontend Patterns
 - Shared constants in `frontend/src/constants/audit.ts` (STATUS_LABELS, STAGE_LABELS, TASK_TYPE_LABELS, etc.)
@@ -75,7 +74,7 @@ scripts/start.sh  # or start.bat on Windows
 
 ### Running Tests
 ```bash
-cd backend && pytest                    # 153 tests
+cd backend && pytest                    # 181 tests
 cd agent && pytest                      # 73 tests
 cd frontend && npm test                 # Frontend tests
 cd frontend && npx tsc --noEmit         # TypeScript check
@@ -96,15 +95,35 @@ The supervisor node uses state flags, not LLM decisions, to route the pipeline. 
 ### 3. Layered Context
 - **Layer 1 (Persistent)**: Regulation standards in LightRAG index
 - **Layer 2 (Session)**: Current audit findings and risk assessment
-- **Layer 3 (Real-time)**: Document under review (truncated to 3000 chars)
+- **Layer 3 (Real-time)**: Document under review (full content via stuff/map_reduce strategy)
 
-### 4. Graceful Degradation
+### 4. Map-Reduce Document Processing
+Documents are analyzed using a dual strategy based on size:
+
+| Document Size | Strategy | LLM Calls | Description |
+|--------------|----------|-----------|-------------|
+| ≤ 60,000 chars | **Stuff** | 1 per agent | Full content fits in 128K context window |
+| > 60,000 chars | **Map-Reduce** | N+1 | N chunks + 1 aggregation pass |
+
+**Structure-aware chunking** (`agent/tools/document_chunker.py`):
+1. Split by Chinese/Markdown section headings (`一、`, `1.`, `第X章`, `#`)
+2. Oversized sections split by paragraphs
+3. Oversized paragraphs split by sentences
+4. Each chunk carries `section_path` metadata for traceability
+
+**Map-Reduce flow in agents**:
+- `regulation_expert`: per-chunk KG query → deduplicate regulations → LLM analysis
+- `risk_assessor`: per-chunk LLM analysis → deduplicate findings → risk score calculation
+
+Config: `CHUNK_MAX_CHARS` (default 8000), `STUFF_LIMIT` (default 60000), `MAX_DOCUMENT_CHARS` (default 3000)
+
+### 5. Graceful Degradation
 Every component has a fallback:
 - LightRAG unavailable → hardcoded regulation DB (10 entries)
 - LLM fails → template-based report generation
 - PDF text extraction fails → OCR fallback
 
-### 5. SQLite WAL Mode
+### 6. SQLite WAL Mode
 SQLite uses Write-Ahead Logging for concurrent read/write access:
 ```python
 @event.listens_for(engine.sync_engine, "connect")
@@ -119,7 +138,7 @@ def _set_sqlite_pragma(dbapi_conn, connection_record):
 - `busy_timeout=5000`: Wait 5s before SQLITE_BUSY error
 - `synchronous=NORMAL`: Balance durability/performance
 
-### 6. SSE (Server-Sent Events)
+### 7. SSE (Server-Sent Events)
 Real-time task status streaming via SSE endpoints:
 - `GET /api/audit/tasks/{task_id}/stream` — Single task events
 - `GET /api/audit/tasks/stream` — All task status changes
@@ -133,14 +152,14 @@ const { close } = useSSE({
 });
 ```
 
-### 7. Human-in-the-Loop Review
+### 8. Human-in-the-Loop Review
 High-risk findings trigger a review gate:
 - Task status: `RUNNING → AWAITING_REVIEW → COMPLETED/REJECTED`
 - API: `POST /api/audit/tasks/{id}/approve` or `/reject`
 - Review comment stored in `audit_tasks.review_comment`
 - Auto-approve option: `task.auto_approve = True` skips gate
 
-### 8. PyInstaller Packaging
+### 9. PyInstaller Packaging
 Build single exe for distribution:
 ```bash
 scripts/build_exe.bat  # Windows
@@ -171,7 +190,11 @@ Output: `dist/AuditBee/AuditBee.exe`
 - [ ] Quality-driven loop: retry when findings empty or regulations insufficient
 - [ ] Verification agent: challenge findings after report generation
 - [ ] Expand regulation DB: add FDA 21 CFR, EU GMP, WHO guidelines
-- [ ] Increase document content limit (3000 → 8000+ chars with context management)
+- [x] Increase document content limit — Map-Reduce with structure-aware chunking (stuff ≤60K / map_reduce >60K)
+- [x] LightRAG httpx client reuse (singleton)
+- [x] Prompt template caching (agent/tools/prompt_loader.py)
+- [x] Unified Provider Registry (backend/app/core/providers.py)
+- [x] Agent LLM cache clearing on provider switch
 
 ### P2: Deployment & Integration
 - [ ] Docker Compose: backend/agent/frontend containers

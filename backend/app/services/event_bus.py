@@ -98,7 +98,14 @@ class EventBus:
         async with self._lock:
             queues = list(self._subscribers.get(task_id, []))
         for q in queues:
+            # Never drop the sentinel — drain if full so the SSE loop terminates
+            if q.full():
+                while not q.empty():
+                    try:
+                        q.get_nowait()
+                    except asyncio.QueueEmpty:
+                        break
             try:
                 q.put_nowait(DONE_SENTINEL)
             except asyncio.QueueFull:
-                pass
+                logger.warning("SSE queue still full after drain for task %d", task_id)

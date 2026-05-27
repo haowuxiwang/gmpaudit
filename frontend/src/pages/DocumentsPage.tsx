@@ -85,9 +85,10 @@ const DocumentsPage: React.FC = () => {
       onSuccess?.(result);
       message.success('上传成功，正在处理中');
       void loadDocuments();
-    } catch (error) {
+    } catch (error: any) {
       onError?.(error as Error);
-      message.error('上传失败');
+      const detail = error?.response?.data?.detail || error?.message || '未知错误';
+      message.error(`上传失败: ${detail}`);
     } finally {
       setUploading(false);
     }

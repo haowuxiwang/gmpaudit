@@ -5,43 +5,55 @@ import {
   Button,
   Card,
   Collapse,
+  Col,
   Form,
   Input,
   InputNumber,
+  Row,
   Select,
   Space,
   Spin,
   Tabs,
   Tag,
+  Tooltip,
   Typography,
   message,
 } from 'antd';
-import { ApiOutlined, SaveOutlined, SendOutlined } from '@ant-design/icons';
+import {
+  ApiOutlined,
+  CheckCircleFilled,
+  SaveOutlined,
+  SendOutlined,
+  SettingOutlined,
+} from '@ant-design/icons';
 
-import { configApi } from '../services/api';
+import { configApi, LLMModel } from '../services/api';
 import type { ConfigMap } from '../types/api';
 import { THEME } from '../constants/theme';
 
 const { Title, Text, Paragraph } = Typography;
 
-interface ProviderConfig {
-  id: string;
-  name: string;
-  defaultModel: string;
-  defaultUrl: string;
-  keyPlaceholder: string;
-}
+const PROVIDER_DEFAULTS: Record<string, { defaultUrl: string; defaultModel: string; keyPlaceholder: string; color: string; icon: string }> = {
+  mimo: { defaultUrl: 'https://api.xiaomimimo.com/v1', defaultModel: 'mimo-v2.5-pro', keyPlaceholder: 'sk-...', color: '#FF6B35', icon: 'M' },
+  deepseek: { defaultUrl: 'https://api.deepseek.com/v1', defaultModel: 'deepseek-chat', keyPlaceholder: 'sk-...', color: '#4F46E5', icon: 'D' },
+  qwen: { defaultUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', defaultModel: 'qwen-plus', keyPlaceholder: 'sk-...', color: '#7C3AED', icon: 'Q' },
+  glm: { defaultUrl: 'https://open.bigmodel.cn/api/paas/v4', defaultModel: 'glm-4-flash', keyPlaceholder: 'token', color: '#059669', icon: 'G' },
+  siliconflow: { defaultUrl: 'https://api.siliconflow.cn/v1', defaultModel: 'deepseek-ai/DeepSeek-V3.2', keyPlaceholder: 'sk-...', color: '#0EA5E9', icon: 'S' },
+  openai: { defaultUrl: 'https://api.openai.com/v1', defaultModel: 'gpt-4o', keyPlaceholder: 'sk-...', color: '#10A37F', icon: 'O' },
+  anthropic: { defaultUrl: 'https://api.anthropic.com', defaultModel: 'claude-sonnet-4-20250514', keyPlaceholder: 'sk-ant-...', color: '#D97706', icon: 'A' },
+  openrouter: { defaultUrl: 'https://openrouter.ai/api/v1', defaultModel: 'deepseek/deepseek-chat', keyPlaceholder: 'sk-or-...', color: '#6366F1', icon: 'R' },
+};
 
-const PROVIDERS: ProviderConfig[] = [
-  { id: 'mimo', name: 'Mimo', defaultModel: 'mimo-v2.5-pro', defaultUrl: 'https://api.xiaomimimo.com/v1', keyPlaceholder: 'sk-...' },
-  { id: 'deepseek', name: 'DeepSeek', defaultModel: 'deepseek-chat', defaultUrl: 'https://api.deepseek.com/v1', keyPlaceholder: 'sk-...' },
-  { id: 'qwen', name: 'Qwen', defaultModel: 'qwen-plus', defaultUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', keyPlaceholder: 'sk-...' },
-  { id: 'glm', name: 'GLM', defaultModel: 'glm-4-flash', defaultUrl: 'https://open.bigmodel.cn/api/paas/v4', keyPlaceholder: 'token' },
-  { id: 'siliconflow', name: 'SiliconFlow', defaultModel: 'deepseek-ai/DeepSeek-V3.2', defaultUrl: 'https://api.siliconflow.cn/v1', keyPlaceholder: 'sk-...' },
-  { id: 'openai', name: 'OpenAI', defaultModel: 'gpt-4o', defaultUrl: 'https://api.openai.com/v1', keyPlaceholder: 'sk-...' },
-  { id: 'anthropic', name: 'Anthropic', defaultModel: 'claude-sonnet-4-20250514', defaultUrl: 'https://api.anthropic.com', keyPlaceholder: 'sk-ant-...' },
-  { id: 'openrouter', name: 'OpenRouter', defaultModel: 'deepseek/deepseek-chat', defaultUrl: 'https://openrouter.ai/api/v1', keyPlaceholder: 'sk-or-...' },
-];
+const PROVIDER_MODELS: Record<string, string[]> = {
+  mimo: ['mimo-v2.5-pro'],
+  deepseek: ['deepseek-chat', 'deepseek-reasoner'],
+  qwen: ['qwen-plus', 'qwen-turbo', 'qwen-max', 'qwen-long'],
+  glm: ['glm-4-flash', 'glm-4-plus', 'glm-4-long'],
+  siliconflow: ['deepseek-ai/DeepSeek-V3.2', 'Qwen/Qwen2.5-72B-Instruct', 'meta-llama/Meta-Llama-3.1-70B-Instruct'],
+  openai: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'o1-mini'],
+  anthropic: ['claude-sonnet-4-20250514', 'claude-haiku-4-5-20251001', 'claude-opus-4-20250514'],
+  openrouter: ['deepseek/deepseek-chat', 'anthropic/claude-sonnet-4', 'openai/gpt-4o'],
+};
 
 interface TestResult {
   provider: string;
@@ -59,21 +71,42 @@ const SettingsPage: React.FC = () => {
   const [testWebhookResult, setTestWebhookResult] = useState('');
   const [testingProvider, setTestingProvider] = useState<string | null>(null);
   const [providerTestResult, setProviderTestResult] = useState<TestResult | null>(null);
+  const [providers, setProviders] = useState<LLMModel[]>([]);
 
   useEffect(() => {
-    void loadConfig();
+    void loadData();
   }, []);
 
-  const loadConfig = async () => {
+  const loadData = async () => {
     try {
       setLoading(true);
-      const result: ConfigMap = await configApi.getAll();
+      const [models, result]: [LLMModel[], ConfigMap] = await Promise.all([
+        configApi.getModels(),
+        configApi.getAll(),
+      ]);
+
+      setProviders(models);
+
       const flat: Record<string, string> = {};
       if (result) {
         for (const [key, val] of Object.entries(result)) {
           flat[key] = val.value ?? '';
         }
       }
+
+      const isPlaceholder = (v: string) => !v || /^your_.*_here$/i.test(v);
+      for (const p of models) {
+        const defaults = PROVIDER_DEFAULTS[p.id] || {};
+        const modelKey = `${p.id}_model`;
+        const urlKey = `${p.id}_base_url`;
+        if (isPlaceholder(flat[modelKey] || '') && defaults.defaultModel) {
+          flat[modelKey] = defaults.defaultModel;
+        }
+        if (isPlaceholder(flat[urlKey] || '') && defaults.defaultUrl) {
+          flat[urlKey] = defaults.defaultUrl;
+        }
+      }
+
       setConfig(flat);
       setDraft(flat);
     } catch {
@@ -83,10 +116,29 @@ const SettingsPage: React.FC = () => {
     }
   };
 
-  const getVal = (key: string, fallback = '') => draft[key] || fallback;
+  const getVal = (key: string, fallback = '') => draft[key] ?? fallback;
 
   const setVal = (key: string, value: string) => {
     setDraft((prev) => ({ ...prev, [key]: value }));
+  };
+
+  // Track dirty keys per provider
+  const dirtyKeys = useMemo(() => {
+    const keys = new Set<string>();
+    for (const [key, value] of Object.entries(draft)) {
+      if (value !== (config[key] || '')) {
+        keys.add(key);
+      }
+    }
+    return keys;
+  }, [draft, config]);
+
+  const providerDirtyCount = (providerId: string) => {
+    let count = 0;
+    for (const key of Array.from(dirtyKeys)) {
+      if (key.startsWith(`${providerId}_`) || key === 'agent_llm_provider') count++;
+    }
+    return count;
   };
 
   const handleSave = async () => {
@@ -102,6 +154,15 @@ const SettingsPage: React.FC = () => {
       if (Object.keys(changes).length === 0) {
         message.info('无配置变更');
         return;
+      }
+
+      for (const [key, value] of Object.entries(changes)) {
+        if (key.includes('api_key') && value && value.startsWith('your_')) {
+          const providerName = key.replace('_api_key', '');
+          message.warning(`${providerName} 的 API Key 为占位符值，请填写真实密钥`);
+          setSaving(false);
+          return;
+        }
       }
 
       await configApi.batchUpdate(changes);
@@ -141,21 +202,22 @@ const SettingsPage: React.FC = () => {
     }
   };
 
-  const handleTestProvider = async (provider: ProviderConfig) => {
+  const handleTestProvider = async (provider: LLMModel) => {
     const apiKey = getVal(`${provider.id}_api_key`);
     if (!apiKey) {
       message.warning('请先输入 API Key');
       return;
     }
 
+    const defaults = PROVIDER_DEFAULTS[provider.id] || {};
     setTestingProvider(provider.id);
     setProviderTestResult(null);
     try {
       const raw = await configApi.testLLM({
         provider: provider.id,
         api_key: apiKey,
-        base_url: getVal(`${provider.id}_base_url`, provider.defaultUrl),
-        model: getVal(`${provider.id}_model`, provider.defaultModel),
+        base_url: getVal(`${provider.id}_base_url`, defaults.defaultUrl || ''),
+        model: getVal(`${provider.id}_model`, provider.model || defaults.defaultModel || ''),
       });
       const result: TestResult = { ...raw, provider: provider.id };
       setProviderTestResult(result);
@@ -173,17 +235,138 @@ const SettingsPage: React.FC = () => {
     }
   };
 
-  const isConfigured = (provider: ProviderConfig) => Boolean(getVal(`${provider.id}_api_key`));
+  const isConfigured = (provider: LLMModel) => {
+    const key = getVal(`${provider.id}_api_key`);
+    return Boolean(key) && !key.startsWith('your_');
+  };
   const defaultProvider = getVal('agent_llm_provider', 'mimo');
 
-  // Default active keys: configured providers + default provider
-  const activeKeys = useMemo(() => {
-    const keys = new Set<string>();
-    const dp = draft['agent_llm_provider'] || 'mimo';
-    if (dp) keys.add(dp);
-    PROVIDERS.forEach((p) => { if (draft[`${p.id}_api_key`]) keys.add(p.id); });
-    return Array.from(keys);
-  }, [draft]);
+  const renderProviderPanel = (provider: LLMModel) => {
+    const defaults = PROVIDER_DEFAULTS[provider.id] || {};
+    const configured = isConfigured(provider);
+    const isDefault = defaultProvider === provider.id;
+    const testResult = providerTestResult?.provider === provider.id ? providerTestResult : null;
+    const dirty = providerDirtyCount(provider.id) > 0;
+    const modelOptions = (PROVIDER_MODELS[provider.id] || []).map((m) => ({ value: m, label: m }));
+
+    return {
+      key: provider.id,
+      className: 'provider-panel',
+      label: (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', paddingRight: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <Badge dot={dirty} color="orange" offset={[-2, 2]}>
+              <div
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 8,
+                  background: `${defaults.color || THEME.primary}15`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 16,
+                  fontWeight: 700,
+                  color: defaults.color || THEME.primary,
+                }}
+              >
+                {defaults.icon || provider.id[0].toUpperCase()}
+              </div>
+            </Badge>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Text strong style={{ fontSize: 14 }}>{provider.name}</Text>
+                {isDefault && <Tag color="orange" style={{ margin: 0, fontSize: 11 }}>默认</Tag>}
+              </div>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                {configured ? `模型: ${getVal(`${provider.id}_model`, defaults.defaultModel)}` : '未配置'}
+              </Text>
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Tooltip title={configured ? '已配置' : '未配置'}>
+              <CheckCircleFilled style={{ fontSize: 16, color: configured ? THEME.success : THEME.pending }} />
+            </Tooltip>
+            {!isDefault && (
+              <Button
+                size="small"
+                type="link"
+                onClick={(e) => { e.stopPropagation(); setVal('agent_llm_provider', provider.id); }}
+                style={{ padding: 0, fontSize: 12 }}
+              >
+                设为默认
+              </Button>
+            )}
+          </div>
+        </div>
+      ),
+      children: (
+        <Form layout="vertical" size="small">
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item label={<Text type="secondary" style={{ fontSize: 12 }}>模型</Text>} style={{ marginBottom: 12 }}>
+                <Select
+                  showSearch
+                  allowClear
+                  value={getVal(`${provider.id}_model`, defaults.defaultModel || provider.model) || undefined}
+                  onChange={(value) => setVal(`${provider.id}_model`, value || '')}
+                  placeholder={defaults.defaultModel || provider.model}
+                  options={modelOptions}
+                  style={{ width: '100%' }}
+                  popupMatchSelectWidth={false}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item label={<Text type="secondary" style={{ fontSize: 12 }}>接口地址</Text>} style={{ marginBottom: 12 }}>
+                <Input
+                  value={getVal(`${provider.id}_base_url`, defaults.defaultUrl || '')}
+                  onChange={(e) => setVal(`${provider.id}_base_url`, e.target.value)}
+                  placeholder={defaults.defaultUrl || ''}
+                  style={{ borderRadius: 8 }}
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Form.Item label={<Text type="secondary" style={{ fontSize: 12 }}>API 密钥</Text>} style={{ marginBottom: 12 }}>
+            <Input.Password
+              value={getVal(`${provider.id}_api_key`)}
+              onChange={(e) => setVal(`${provider.id}_api_key`, e.target.value)}
+              placeholder={defaults.keyPlaceholder || 'sk-...'}
+              style={{ borderRadius: 8 }}
+            />
+          </Form.Item>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Button
+              size="small"
+              icon={<ApiOutlined />}
+              loading={testingProvider === provider.id}
+              onClick={() => void handleTestProvider(provider)}
+              style={{ borderRadius: 8 }}
+            >
+              测试连接
+            </Button>
+          </div>
+          {testResult && (
+            <Alert
+              type={testResult.success ? 'success' : 'error'}
+              showIcon
+              message={
+                <Text style={{ fontSize: 12 }}>
+                  {testResult.success
+                    ? `${testResult.model_used} - ${testResult.latency_ms}ms`
+                    : testResult.error}
+                </Text>
+              }
+              style={{ marginTop: 8, borderRadius: 8 }}
+            />
+          )}
+        </Form>
+      ),
+    };
+  };
+
+  const totalDirty = dirtyKeys.size;
 
   if (loading) {
     return <Spin size="large" style={{ display: 'block', margin: '100px auto' }} />;
@@ -211,7 +394,7 @@ const SettingsPage: React.FC = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <Title level={4} style={{ margin: 0 }}>配置管理</Title>
         <Button type="primary" icon={<SaveOutlined />} loading={saving} onClick={handleSave}>
-          保存配置
+          {totalDirty > 0 ? `保存配置 (${totalDirty})` : '保存配置'}
         </Button>
       </div>
 
@@ -223,78 +406,35 @@ const SettingsPage: React.FC = () => {
             label: '大模型配置',
             children: (
               <>
-                <Form layout="vertical" style={{ marginBottom: 16 }}>
-                  <Form.Item label="默认审计模型" style={{ maxWidth: 360 }}>
+                {/* Default provider selector */}
+                <Card
+                  bordered={false}
+                  style={{ borderRadius: 12, marginBottom: 16, background: THEME.bgWarm }}
+                  styles={{ body: { padding: '12px 20px' } }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <SettingOutlined style={{ color: THEME.primary, fontSize: 16 }} />
+                    <Text strong>默认审计模型</Text>
                     <Select
                       value={defaultProvider}
                       onChange={(value) => setVal('agent_llm_provider', value)}
-                      options={PROVIDERS.map((provider) => ({
-                        value: provider.id,
-                        label: `${provider.name}${isConfigured(provider) ? ' ✓' : ''}`,
+                      style={{ width: 200 }}
+                      options={providers.map((p) => ({
+                        value: p.id,
+                        label: `${p.name}${isConfigured(p) ? ' ✓' : ''}`,
                       }))}
                     />
-                  </Form.Item>
-                </Form>
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      审计任务将使用此模型进行分析
+                    </Text>
+                  </div>
+                </Card>
 
+                {/* Provider collapse panels */}
                 <Collapse
-                  activeKey={activeKeys}
-                  onChange={() => {}} // controlled
-                  items={PROVIDERS.map((provider) => ({
-                    key: provider.id,
-                    label: (
-                      <Space>
-                        <Badge status={isConfigured(provider) ? 'success' : 'default'} />
-                        <span>{provider.name}</span>
-                        {defaultProvider === provider.id && <Tag color="orange">默认</Tag>}
-                      </Space>
-                    ),
-                    children: (
-                      <Form layout="vertical">
-                        <Form.Item label="模型名称">
-                          <Input
-                            value={getVal(`${provider.id}_model`, provider.defaultModel)}
-                            onChange={(event) => setVal(`${provider.id}_model`, event.target.value)}
-                            placeholder={provider.defaultModel}
-                          />
-                        </Form.Item>
-                        <Form.Item label="接口地址">
-                          <Input
-                            value={getVal(`${provider.id}_base_url`, provider.defaultUrl)}
-                            onChange={(event) => setVal(`${provider.id}_base_url`, event.target.value)}
-                            placeholder={provider.defaultUrl}
-                          />
-                        </Form.Item>
-                        <Form.Item label="API 密钥">
-                          <Input.Password
-                            value={getVal(`${provider.id}_api_key`)}
-                            onChange={(event) => setVal(`${provider.id}_api_key`, event.target.value)}
-                            placeholder={provider.keyPlaceholder}
-                          />
-                        </Form.Item>
-                        <Form.Item>
-                          <Button
-                            icon={<ApiOutlined />}
-                            loading={testingProvider === provider.id}
-                            onClick={() => void handleTestProvider(provider)}
-                          >
-                            测试连接
-                          </Button>
-                        </Form.Item>
-                        {providerTestResult && providerTestResult.provider === provider.id && (
-                          <Alert
-                            type={providerTestResult.success ? 'success' : 'error'}
-                            showIcon
-                            message={
-                              providerTestResult.success
-                                ? `连接成功 — 模型: ${providerTestResult.model_used}, 延迟: ${providerTestResult.latency_ms}ms`
-                                : `连接失败: ${providerTestResult.error}`
-                            }
-                            style={{ marginTop: 8 }}
-                          />
-                        )}
-                      </Form>
-                    ),
-                  }))}
+                  defaultActiveKey={[defaultProvider]}
+                  items={providers.map(renderProviderPanel)}
+                  style={{ background: THEME.bgContainer, borderRadius: 12, border: `1px solid ${THEME.border}` }}
                 />
               </>
             ),

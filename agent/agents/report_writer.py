@@ -7,15 +7,11 @@ import logging
 from datetime import date
 from pathlib import Path
 
-from agent.config import get_llm, call_llm_with_retry
+from agent.config import get_llm_with_fallback, call_llm_with_retry
+from agent.tools.prompt_loader import load_prompt
 
 logger = logging.getLogger(__name__)
 from agent.state import AuditState
-
-
-def _load_prompt() -> str:
-    prompt_path = Path(__file__).parent.parent / "prompts" / "report_writer.txt"
-    return prompt_path.read_text(encoding="utf-8")
 
 
 def _format_findings(findings: list[dict]) -> str:
@@ -60,8 +56,8 @@ async def report_writer_node(state: AuditState) -> dict:
     # Call LLM to generate the report
     used_fallback = False
     try:
-        llm = get_llm(provider=None, temperature=0.3)
-        prompt_template = _load_prompt()
+        llm = get_llm_with_fallback(temperature=0.3)
+        prompt_template = load_prompt("report_writer.txt")
         prompt = prompt_template.format(
             document_name=doc_name,
             document_type=doc_type,
@@ -71,7 +67,7 @@ async def report_writer_node(state: AuditState) -> dict:
             findings_text=findings_text,
         )
 
-        response = await call_llm_with_retry(llm, prompt)
+        response = await call_llm_with_retry(llm, prompt, node="report_writer")
         report_md = response.content
     except Exception as e:
         logger.warning(f"Report Writer LLM call failed, using fallback: {e}")
@@ -98,7 +94,11 @@ async def report_writer_node(state: AuditState) -> dict:
     from datetime import datetime
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     report_filename = f"{safe_name}_{timestamp}.md"
-    report_dir = Path(__file__).parent.parent.parent / "data" / "reports"
+    try:
+        from app.core.paths import REPORTS_DIR as report_dir
+    except ImportError:
+        # Standalone CLI mode: write next to project root, not inside bundle
+        report_dir = Path(__file__).resolve().parent.parent.parent.parent / "data" / "reports"
     report_dir.mkdir(parents=True, exist_ok=True)
     report_path = report_dir / report_filename
 
@@ -137,7 +137,7 @@ def _generate_fallback_report(
     findings: list[dict],
 ) -> str:
     """Generate a basic report when LLM is unavailable."""
-    high = [f for f in findings if f.get("severity") == "high"]
+    high = [f for f in findings if f.get("severity") in ("high", "critical")]
     medium = [f for f in findings if f.get("severity") == "medium"]
     low = [f for f in findings if f.get("severity") == "low"]
 

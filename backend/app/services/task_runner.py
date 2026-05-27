@@ -10,6 +10,8 @@ if TYPE_CHECKING:
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.core.config import settings
+
 from app.models.audit_task import AuditTask, TaskStatus, TaskType
 from app.models.document import Document, DocumentStatus
 from app.models.finding import Finding, SeverityLevel
@@ -121,6 +123,7 @@ async def build_task_payload(db: AsyncSession, task: AuditTask) -> dict[str, Any
         "report_id": report.id if report else None,
         "events": meta.get("events", []),
         "documents": meta.get("documents", []),
+        "trace": (task.config or {}).get("_trace"),
     }
 
 
@@ -168,17 +171,30 @@ def choose_report_content(
     document_results: list[dict[str, Any]],
     findings: list[dict[str, Any]],
     agent_reports: list[str],
+    agent_report_sources: list[str] | None = None,
 ) -> tuple[str, dict[str, Any]]:
     non_empty_agent_reports = [report for report in agent_reports if report.strip()]
     if len(document_results) == 1 and non_empty_agent_reports:
+        source = "agent_report_writer"
+        mode = "single_document"
+        # Check if agent reported fallback (LLM unavailable)
+        if agent_report_sources and "fallback" in agent_report_sources:
+            source = "fallback"
+            mode = "degraded"
         return non_empty_agent_reports[0], {
-            "report_source": "agent_report_writer",
-            "report_mode": "single_document",
+            "report_source": source,
+            "report_mode": mode,
         }
 
+    source = "task_runner_aggregate"
+    mode = "multi_document" if len(document_results) > 1 else "fallback_aggregate"
+    # Check if any document used fallback
+    if agent_report_sources and "fallback" in agent_report_sources:
+        source = "partial_fallback" if len(document_results) > 1 else "fallback"
+        mode = "degraded"
     return build_aggregate_report(task_name, document_results, findings), {
-        "report_source": "task_runner_aggregate",
-        "report_mode": "multi_document" if len(document_results) > 1 else "fallback_aggregate",
+        "report_source": source,
+        "report_mode": mode,
     }
 
 
@@ -322,13 +338,15 @@ class TaskRunner:
             old_report_ids = [r.id for r in (await db.execute(select(Report.id).where(Report.task_id == task.id))).scalars().all()]
 
             graph = build_audit_graph()
-            timeout_seconds = 300
+            timeout_seconds = settings.AGENT_TASK_TIMEOUT
             focus = get_execution_meta(task).get("focus", "")
             agent_doc_type = TASK_TYPE_TO_AGENT_TYPE.get(task.task_type, "deviation")
 
             findings_to_save: list[tuple[dict[str, Any], int]] = []
             document_results: list[dict[str, Any]] = []
             agent_reports: list[str] = []
+            agent_report_sources: list[str] = []
+            all_traces: list[dict[str, Any]] = []
 
             for index, document in enumerate(documents, start=1):
                 percent_start = int(((index - 1) / len(documents)) * 80)
@@ -355,8 +373,13 @@ class TaskRunner:
                     "report_writer": "report",
                 }
 
+                # Create trace for this document's pipeline run
+                from agent.trace import PipelineTrace, set_current_trace, clear_current_trace
+                trace = PipelineTrace(document_name=document.filename)
+                set_current_trace(trace)
+
                 async def _stream_graph():
-                    result = None
+                    result = {}
                     async for event in graph.astream_events(initial_state, version="v2"):
                         kind = event.get("event", "")
                         node_name = event.get("name", "")
@@ -387,13 +410,20 @@ class TaskRunner:
                                                 "message": str(content)[:500],
                                             },
                                         })
-                                # Capture final state from report_writer
-                                if node_name == "report_writer" or output.get("report_generated"):
-                                    result = output
+                                # Accumulate outputs from all nodes
+                                result.update(output)
 
                     return result
 
                 result_state = await asyncio.wait_for(_stream_graph(), timeout=timeout_seconds)
+
+                # Store trace if available
+                from agent.trace import get_current_trace
+                current_trace = get_current_trace()
+                if current_trace:
+                    current_trace.finalize(status=result_state.get("status", "completed"))
+                    result_state["_trace"] = current_trace.to_dict()
+                    all_traces.append(result_state["_trace"])
 
                 if not result_state:
                     logger.warning("Agent graph returned no result for document %s, using empty state", document.filename)
@@ -415,15 +445,23 @@ class TaskRunner:
                     }
                 )
                 agent_reports.append(result_state.get("report_markdown", ""))
+                agent_report_sources.append(result_state.get("report_source", ""))
 
                 task.progress = percent_end
                 meta = get_execution_meta(task)
                 meta["documents"] = document_results
                 set_execution_meta(task, meta)
+                if all_traces:
+                    task_config = dict(task.config or {})
+                    task_config["_trace"] = all_traces if len(all_traces) > 1 else all_traces[0]
+                    task.config = task_config
                 append_event(task, f"Completed document {document.filename}", stage="regulation")
                 await db.commit()
                 await self._publish(task_id, {"type": "event", "data": {"time": datetime.now(timezone.utc).isoformat(), "stage": "regulation", "level": "info", "message": f"Completed document {document.filename}"}})
                 await self._publish_progress(task_id, percent_end, "regulation")
+
+                # Clear trace after this document
+                clear_current_trace()
 
             # Validate findings before persisting
             all_finding_dicts = [f for f, _ in findings_to_save]
@@ -453,6 +491,7 @@ class TaskRunner:
                 document_results,
                 persisted_findings,
                 agent_reports,
+                agent_report_sources=agent_report_sources,
             )
             append_event(task, "Generating audit report", stage="report")
             await db.commit()
@@ -498,7 +537,7 @@ class TaskRunner:
                 await db.commit()
 
                 try:
-                    await notify_audit_complete(task.task_name, len(persisted_findings), high_risk_count, medium_count, top_findings)
+                    await notify_audit_complete(task.task_name, len(persisted_findings), high_risk_count, medium_count, top_findings, task_id=task.id)
                 except Exception:
                     logger.exception("Failed to send audit complete notification for task %s", task.id)
                 return
@@ -524,7 +563,7 @@ class TaskRunner:
             await db.commit()
 
             try:
-                await notify_audit_complete(task.task_name, len(persisted_findings), high_risk_count, medium_count, top_findings)
+                await notify_audit_complete(task.task_name, len(persisted_findings), high_risk_count, medium_count, top_findings, task_id=task.id)
             except Exception:
                 logger.exception("Failed to send audit complete notification for task %s", task.id)
             for item in persisted_findings:

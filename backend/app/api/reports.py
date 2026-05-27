@@ -1,9 +1,11 @@
 import html as html_module
+import io
 from datetime import timezone
 
+import bleach
 import markdown
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,6 +16,19 @@ from app.models.report import Report, ReportType
 from app.services.llm_engine import get_llm_engine
 
 router = APIRouter()
+
+# Tags allowed in markdown-generated HTML (strip <script>, <iframe>, etc.)
+_ALLOWED_TAGS = [
+    "h1", "h2", "h3", "h4", "h5", "h6", "p", "ul", "ol", "li",
+    "table", "thead", "tbody", "tr", "th", "td", "code", "pre",
+    "blockquote", "strong", "em", "a", "br", "hr", "span", "div",
+]
+_ALLOWED_ATTRS = {"a": ["href", "title"]}
+
+
+def _sanitize_html(html_str: str) -> str:
+    """Strip dangerous tags from markdown-generated HTML."""
+    return bleach.clean(html_str, tags=_ALLOWED_TAGS, attributes=_ALLOWED_ATTRS, strip=True)
 
 
 @router.get("/")
@@ -137,7 +152,7 @@ async def export_report_html(
 
     safe_title = html_module.escape(report.title or "Untitled")
     created_display = report.created_at.replace(tzinfo=timezone.utc).isoformat() if report.created_at else ""
-    html_body = markdown.markdown(report.content or "", extensions=["tables", "fenced_code"])
+    html_body = _sanitize_html(markdown.markdown(report.content or "", extensions=["tables", "fenced_code"]))
     html = f"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -163,3 +178,63 @@ async def export_report_html(
 </body>
 </html>"""
     return HTMLResponse(content=html)
+
+
+@router.get("/{report_id}/export/pdf")
+async def export_report_pdf(
+    report_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    report = (await db.execute(select(Report).where(Report.id == report_id))).scalar_one_or_none()
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+    safe_title = html_module.escape(report.title or "Untitled")
+    created_display = report.created_at.replace(tzinfo=timezone.utc).isoformat() if report.created_at else ""
+    html_body = _sanitize_html(markdown.markdown(report.content or "", extensions=["tables", "fenced_code"]))
+    full_html = f"""<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>{safe_title}</title>
+<style>
+  body {{ font-family: STSong-Light, sans-serif; margin: 0 auto; padding: 40px 20px; color: #1a1a1a; line-height: 1.6; }}
+  h1 {{ color: #D97757; border-bottom: 2px solid #E8E5E0; padding-bottom: 8px; }}
+  h2 {{ color: #1a1a1a; margin-top: 24px; }}
+  h3 {{ color: #374151; }}
+  table {{ width: 100%; margin: 16px 0; }}
+  th, td {{ border: 1px solid #E8E5E0; padding: 8px 12px; text-align: left; }}
+  th {{ background: #FAFAF8; font-weight: bold; }}
+  code {{ background: #FAFAF8; padding: 2px 6px; font-size: 10pt; }}
+  pre {{ background: #FAFAF8; padding: 16px; }}
+  .meta {{ color: #6B7280; font-size: 10pt; margin-bottom: 24px; }}
+  @page {{ size: A4; margin: 2cm; }}
+</style>
+</head>
+<body>
+<h1>{safe_title}</h1>
+<div class="meta">类型: {report.report_type.value} | 生成时间: {created_display}</div>
+{html_body}
+</body>
+</html>"""
+
+    try:
+        from reportlab.pdfbase import pdfmetrics
+        from reportlab.pdfbase.cidfonts import UnicodeCIDFont
+        pdfmetrics.registerFont(UnicodeCIDFont('STSong-Light'))
+
+        from xhtml2pdf import pisa
+        pdf_buffer = io.BytesIO()
+        status = pisa.CreatePDF(full_html, dest=pdf_buffer, encoding="utf-8")
+        if status.err:
+            raise RuntimeError(f"PDF rendering errors: {status.err}")
+        pdf_bytes = pdf_buffer.getvalue()
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"PDF 生成失败: {exc}")
+
+    safe_filename = (report.title or "report").replace(" ", "_")
+    return StreamingResponse(
+        io.BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{safe_filename}.pdf"'},
+    )

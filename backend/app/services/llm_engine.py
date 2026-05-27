@@ -7,6 +7,7 @@ from typing import List, Dict, Any, AsyncGenerator
 from dataclasses import dataclass
 
 from app.core.config import settings
+from app.core.providers import PROVIDER_REGISTRY
 
 logger = logging.getLogger(__name__)
 
@@ -40,8 +41,8 @@ class BaseLLMAdapter(ABC):
 
 
 def _check_response(response: httpx.Response):
-    """Raise LLMError if response status is not 200."""
-    if response.status_code != 200:
+    """Raise LLMError if response status is not 2xx."""
+    if not (200 <= response.status_code < 300):
         raise LLMError(
             f"LLM API error: {response.status_code}",
             status_code=response.status_code,
@@ -145,14 +146,14 @@ class AnthropicAdapter(BaseLLMAdapter):
     @staticmethod
     def _extract_system(messages: List[Dict[str, str]]) -> tuple[str, List[Dict[str, str]]]:
         """Extract system message from messages array (Anthropic requires separate system param)."""
-        system = ""
+        system_parts = []
         filtered = []
         for msg in messages:
             if msg["role"] == "system":
-                system = msg["content"]
+                system_parts.append(msg["content"])
             else:
                 filtered.append(msg)
-        return system, filtered
+        return "\n\n".join(system_parts), filtered
 
     async def chat(self, messages: List[Dict[str, str]], **kwargs) -> LLMResponse:
         system, user_messages = self._extract_system(messages)
@@ -221,13 +222,9 @@ class AnthropicAdapter(BaseLLMAdapter):
 
 # Provider registry: name -> (base_url, default_model)
 PROVIDER_DEFAULTS: Dict[str, Dict[str, str]] = {
-    "deepseek": {"base_url": "https://api.deepseek.com/v1", "model": "deepseek-chat"},
-    "qwen": {"base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1", "model": "qwen-plus"},
-    "glm": {"base_url": "https://open.bigmodel.cn/api/paas/v4", "model": "glm-4-flash"},
-    "openai": {"base_url": "https://api.openai.com/v1", "model": "gpt-4o"},
-    "siliconflow": {"base_url": "https://api.siliconflow.cn/v1", "model": "deepseek-ai/DeepSeek-V3.2"},
-    "openrouter": {"base_url": "https://openrouter.ai/api/v1", "model": "deepseek/deepseek-chat"},
-    "mimo": {"base_url": "https://api.xiaomimimo.com/v1", "model": "mimo-v2.5-pro"},
+    k: {"base_url": v["base_url"], "model": v["default_model"]}
+    for k, v in PROVIDER_REGISTRY.items()
+    if k != "anthropic"  # Anthropic uses AnthropicAdapter, not OpenAICompatibleAdapter
 }
 
 
@@ -256,8 +253,11 @@ class LLMEngine:
                 continue
 
             defaults = PROVIDER_DEFAULTS[name]
-            base_url = getattr(settings, url_attr, defaults["base_url"])
-            model = getattr(settings, model_attr, defaults["model"])
+            raw_url = getattr(settings, url_attr, None)
+            raw_model = getattr(settings, model_attr, None)
+            # Skip placeholder values from .env.example (e.g. "your_siliconflow_model_here")
+            base_url = raw_url if raw_url and not raw_url.startswith("your_") else defaults["base_url"]
+            model = raw_model if raw_model and not raw_model.startswith("your_") else defaults["model"]
 
             self.adapters[name] = OpenAICompatibleAdapter(
                 api_key=api_key,
@@ -270,9 +270,12 @@ class LLMEngine:
         # Anthropic uses a different API format
         if settings.ANTHROPIC_API_KEY:
             base_url = getattr(settings, "ANTHROPIC_BASE_URL", "https://api.anthropic.com")
+            raw_model = getattr(settings, "ANTHROPIC_MODEL", None)
+            model = raw_model if raw_model and not raw_model.startswith("your_") else "claude-sonnet-4-20250514"
             self.adapters["anthropic"] = AnthropicAdapter(
                 api_key=settings.ANTHROPIC_API_KEY,
                 base_url=base_url,
+                model=model,
             )
             logger.info("Initialized LLM adapter: anthropic")
 
@@ -292,7 +295,7 @@ class LLMEngine:
         ]
         t0 = time.time()
         try:
-            response = await adapter.chat(messages)
+            response = await adapter.chat(messages, timeout=settings.LLM_REQUEST_TIMEOUT)
             logger.info(f"LLM analyze complete: provider={model}, latency={time.time() - t0:.2f}s, usage={response.usage}")
             return response
         except Exception as e:
@@ -331,7 +334,7 @@ class LLMEngine:
         logger.info(f"LLM generate_report: provider={model}, findings_count={len(findings)}")
         t0 = time.time()
         try:
-            response = await adapter.chat(messages)
+            response = await adapter.chat(messages, timeout=settings.LLM_REQUEST_TIMEOUT)
             logger.info(f"LLM generate_report complete: provider={model}, latency={time.time() - t0:.2f}s")
             return response.content
         except Exception as e:
@@ -339,15 +342,23 @@ class LLMEngine:
             raise
 
     def get_available_providers(self) -> List[Dict[str, Any]]:
-        """Return list of providers that have API keys configured."""
+        """Return list of all providers, marking configured ones as available."""
+        from app.core.providers import PROVIDER_REGISTRY
         result = []
-        for name, adapter in self.adapters.items():
-            defaults = PROVIDER_DEFAULTS.get(name, {})
-            result.append({
-                "name": name,
-                "model": getattr(adapter, "model", defaults.get("model", "")),
-                "available": True,
-            })
+        for name, info in PROVIDER_REGISTRY.items():
+            if name in self.adapters:
+                adapter = self.adapters[name]
+                result.append({
+                    "name": name,
+                    "model": getattr(adapter, "model", info.get("default_model", "")),
+                    "available": True,
+                })
+            else:
+                result.append({
+                    "name": name,
+                    "model": info.get("default_model", ""),
+                    "available": False,
+                })
         return result
 
     async def reload_provider(self, name: str, api_key: str, base_url: str = None, model: str = None):
@@ -360,9 +371,11 @@ class LLMEngine:
             if not api_key:
                 self.adapters.pop(name, None)
                 return
+            resolved_model = (model if model and not model.startswith("your_") else None) or "claude-sonnet-4-20250514"
             self.adapters[name] = AnthropicAdapter(
                 api_key=api_key,
                 base_url=base_url or "https://api.anthropic.com",
+                model=resolved_model,
             )
             logger.info("Reloaded LLM adapter: anthropic")
             return
@@ -372,13 +385,16 @@ class LLMEngine:
             self.adapters.pop(name, None)
             logger.info("Removed LLM adapter: %s (no API key)", name)
             return
+        # Skip placeholder values from .env.example
+        resolved_model = (model if model and not model.startswith("your_") else None) or defaults.get("model", "")
+        resolved_url = (base_url if base_url and not base_url.startswith("your_") else None) or defaults.get("base_url", "")
         self.adapters[name] = OpenAICompatibleAdapter(
             api_key=api_key,
-            base_url=base_url or defaults.get("base_url", ""),
-            model=model or defaults.get("model", ""),
+            base_url=resolved_url,
+            model=resolved_model,
             name=name,
         )
-        logger.info("Reloaded LLM adapter: %s", name)
+        logger.info("Reloaded LLM adapter: %s (model=%s)", name, resolved_model)
 
     async def close(self):
         """Close all adapter HTTP clients."""

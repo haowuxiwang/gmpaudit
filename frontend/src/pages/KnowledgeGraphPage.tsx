@@ -35,11 +35,20 @@ const { Title, Paragraph, Text } = Typography;
 
 const CATEGORY_COLORS: Record<string, string> = {
   concept: '#2563eb',
+  概念: '#2563eb',
   organization: '#10b981',
+  组织: '#10b981',
+  机构: '#10b981',
   person: '#f59e0b',
+  人物: '#f59e0b',
+  人员: '#f59e0b',
   method: '#7c3aed',
+  方法: '#7c3aed',
   regulation: '#0f766e',
+  法规: '#0f766e',
+  法规文件: '#0f766e',
   unknown: '#94a3b8',
+  未知: '#94a3b8',
 };
 
 const KnowledgeGraphPage: React.FC = () => {
@@ -154,11 +163,15 @@ const KnowledgeGraphPage: React.FC = () => {
     }
   }, [queryText, setSearchParams]);
 
+  const handleQueryRef = useRef(handleQuery);
+  useEffect(() => { handleQueryRef.current = handleQuery; }, [handleQuery]);
+
   useEffect(() => {
     if (initialQuery && status?.built) {
-      void handleQuery(initialQuery);
+      void handleQueryRef.current(initialQuery);
     }
-  }, [handleQuery, initialQuery, status?.built]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialQuery, status?.built]);
 
   const handleUpload: UploadProps['customRequest'] = async (options) => {
     const { file, onSuccess, onError } = options;

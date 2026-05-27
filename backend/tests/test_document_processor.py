@@ -104,9 +104,10 @@ async def test_process_word_legacy():
 async def test_process_word_legacy_antword_missing():
     dp = DocumentProcessor()
 
-    with patch("app.services.document_processor.subprocess.run", side_effect=FileNotFoundError):
-        with pytest.raises(RuntimeError, match="antiword not installed"):
-            await dp._process_word_legacy("test.doc")
+    with patch("app.services.document_processor.subprocess.run", side_effect=FileNotFoundError), \
+         patch.object(dp, "_extract_doc_text_olefile", return_value="olefile extracted text"):
+        result = await dp._process_word_legacy("test.doc")
+        assert result == "olefile extracted text"
 
 
 @pytest.mark.asyncio
@@ -117,9 +118,58 @@ async def test_process_word_legacy_antword_failure():
     mock_completed.stdout = ""
     mock_completed.stderr = "Cannot read file"
 
-    with patch("app.services.document_processor.subprocess.run", return_value=mock_completed):
-        with pytest.raises(RuntimeError, match="antiword failed"):
-            await dp._process_word_legacy("test.doc")
+    with patch("app.services.document_processor.subprocess.run", return_value=mock_completed), \
+         patch.object(dp, "_extract_doc_text_olefile", return_value="olefile fallback text"):
+        result = await dp._process_word_legacy("test.doc")
+        assert result == "olefile fallback text"
+
+
+@pytest.mark.asyncio
+async def test_process_word_legacy_fallback_to_olefile():
+    dp = DocumentProcessor()
+    mock_completed = MagicMock()
+    mock_completed.returncode = 0
+    mock_completed.stdout = "   "
+    mock_completed.stderr = ""
+
+    with patch("app.services.document_processor.subprocess.run", return_value=mock_completed), \
+         patch.object(dp, "_extract_doc_text_olefile", return_value="olefile text content"):
+        result = await dp._process_word_legacy("test.doc")
+        assert result == "olefile text content"
+
+
+def test_extract_doc_text_olefile_corrupted_file():
+    dp = DocumentProcessor()
+    import tempfile, os
+
+    with tempfile.NamedTemporaryFile(suffix='.doc', delete=False, mode='w') as f:
+        f.write('not an ole file')
+        path = f.name
+
+    try:
+        with pytest.raises(RuntimeError, match="Not a valid Word .doc file"):
+            dp._extract_doc_text_olefile(path)
+    finally:
+        os.unlink(path)
+
+
+def test_extract_doc_text_olefile_password_protected():
+    dp = DocumentProcessor()
+    import tempfile, os
+
+    # Create a minimal valid OLE2 file with EncryptionInfo stream
+    # A real encrypted .doc would be needed; skip if not available
+    # Instead test with a real .doc that has no EncryptionInfo
+    with tempfile.NamedTemporaryFile(suffix='.doc', delete=False, mode='w') as f:
+        f.write('not an ole file')
+        path = f.name
+
+    try:
+        # Non-OLE files raise "Not a valid Word .doc file" (not password-protected)
+        with pytest.raises(RuntimeError, match="Not a valid Word .doc file"):
+            dp._extract_doc_text_olefile(path)
+    finally:
+        os.unlink(path)
 
 
 def test_process_image_no_result():

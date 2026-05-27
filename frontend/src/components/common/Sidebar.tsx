@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Layout, Menu, Typography } from 'antd';
 import {
   AlertOutlined,
@@ -18,6 +18,7 @@ const { Text } = Typography;
 const Sidebar: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [collapsed, setCollapsed] = useState(false);
 
   const items = [
     { key: '/', icon: <AppstoreOutlined />, label: '工作台' },
@@ -30,7 +31,15 @@ const Sidebar: React.FC = () => {
   ];
 
   return (
-    <Sider width={248} style={{ background: THEME.bgContainer, padding: 16, borderRight: `1px solid ${THEME.border}` }}>
+    <Sider
+      width={248}
+      collapsible
+      collapsed={collapsed}
+      onCollapse={setCollapsed}
+      breakpoint="md"
+      collapsedWidth={0}
+      style={{ background: THEME.bgContainer, padding: collapsed ? 0 : 16, borderRight: `1px solid ${THEME.border}` }}
+    >
       <div
         style={{
           minHeight: 92,

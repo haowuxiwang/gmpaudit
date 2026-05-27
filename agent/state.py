@@ -29,6 +29,7 @@ class AuditState(TypedDict):
     report_markdown: str
     report_path: str
     report_generated: bool
+    report_source: str
 
     messages: Annotated[list, merge_lists]
     iteration: int

@@ -117,6 +117,27 @@ async def test_notify_audit_complete_low_risk():
 
 
 @pytest.mark.asyncio
+async def test_notify_audit_complete_with_task_id():
+    """Verify action_url is generated when task_id is provided."""
+    with patch("app.services.notification.send_feishu_notification", new_callable=AsyncMock, return_value=True) as mock_send, \
+         patch("app.services.notification.settings") as mock_settings:
+        mock_settings.APP_BASE_URL = "http://localhost:8000"
+        await notify_audit_complete("任务", 5, 2, 1, task_id=42)
+        call_args = mock_send.call_args
+        # action_url should be passed as keyword argument
+        assert call_args.kwargs.get("action_url") == "http://localhost:8000/reports?task_id=42"
+
+
+@pytest.mark.asyncio
+async def test_notify_audit_complete_without_task_id():
+    """Verify no action_url when task_id is not provided."""
+    with patch("app.services.notification.send_feishu_notification", new_callable=AsyncMock, return_value=True) as mock_send:
+        await notify_audit_complete("任务", 5, 2, 1)
+        call_args = mock_send.call_args
+        assert call_args.kwargs.get("action_url") is None
+
+
+@pytest.mark.asyncio
 async def test_notify_high_risk_finding():
     with patch("app.services.notification.send_feishu_notification", new_callable=AsyncMock, return_value=True) as mock_send:
         await notify_high_risk_finding("任务", "严重偏差", "high", "发现重大偏差")

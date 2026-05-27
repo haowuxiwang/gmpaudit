@@ -21,8 +21,8 @@ class TestRiskAssessorNode:
         mock_llm.ainvoke = AsyncMock(return_value=MagicMock(content="[]"))
         mock_prompt = "Analyze: {document_content}\n{regulation_context}\n{document_type}"
 
-        with patch("agent.agents.risk_assessor.get_llm", return_value=mock_llm), \
-             patch("agent.agents.risk_assessor._load_prompt", return_value=mock_prompt), \
+        with patch("agent.agents.risk_assessor.get_llm_with_fallback", return_value=mock_llm), \
+             patch("agent.agents.risk_assessor.load_prompt", return_value=mock_prompt), \
              patch("agent.agents.risk_assessor._parse_llm_json", return_value=llm_findings):
             result = await risk_assessor_node(sample_state)
 
@@ -37,8 +37,8 @@ class TestRiskAssessorNode:
         mock_llm.ainvoke = AsyncMock(side_effect=Exception("LLM timeout"))
         mock_prompt = "Analyze: {document_content}\n{regulation_context}\n{document_type}"
 
-        with patch("agent.agents.risk_assessor.get_llm", return_value=mock_llm), \
-             patch("agent.agents.risk_assessor._load_prompt", return_value=mock_prompt):
+        with patch("agent.agents.risk_assessor.get_llm_with_fallback", return_value=mock_llm), \
+             patch("agent.agents.risk_assessor.load_prompt", return_value=mock_prompt):
             result = await risk_assessor_node(sample_state)
 
         assert result["risk_assessed"] is True
@@ -54,8 +54,8 @@ class TestRiskAssessorNode:
         mock_llm.ainvoke = AsyncMock(return_value=MagicMock(content="[]"))
         mock_prompt = "Analyze: {document_content}\n{regulation_context}\n{document_type}"
 
-        with patch("agent.agents.risk_assessor.get_llm", return_value=mock_llm), \
-             patch("agent.agents.risk_assessor._load_prompt", return_value=mock_prompt), \
+        with patch("agent.agents.risk_assessor.get_llm_with_fallback", return_value=mock_llm), \
+             patch("agent.agents.risk_assessor.load_prompt", return_value=mock_prompt), \
              patch("agent.agents.risk_assessor._parse_llm_json", return_value=incomplete_findings):
             result = await risk_assessor_node(sample_state)
 
@@ -74,8 +74,8 @@ class TestRiskAssessorNode:
         mock_llm.ainvoke = AsyncMock(return_value=MagicMock(content="[]"))
         mock_prompt = "Analyze: {document_content}\n{regulation_context}\n{document_type}"
 
-        with patch("agent.agents.risk_assessor.get_llm", return_value=mock_llm), \
-             patch("agent.agents.risk_assessor._load_prompt", return_value=mock_prompt), \
+        with patch("agent.agents.risk_assessor.get_llm_with_fallback", return_value=mock_llm), \
+             patch("agent.agents.risk_assessor.load_prompt", return_value=mock_prompt), \
              patch("agent.agents.risk_assessor._parse_llm_json", return_value=findings):
             result = await risk_assessor_node(sample_state)
 
@@ -89,8 +89,8 @@ class TestRiskAssessorNode:
         mock_llm.ainvoke = AsyncMock(return_value=MagicMock(content="[]"))
         mock_prompt = "Analyze: {document_content}\n{regulation_context}\n{document_type}"
 
-        with patch("agent.agents.risk_assessor.get_llm", return_value=mock_llm), \
-             patch("agent.agents.risk_assessor._load_prompt", return_value=mock_prompt), \
+        with patch("agent.agents.risk_assessor.get_llm_with_fallback", return_value=mock_llm), \
+             patch("agent.agents.risk_assessor.load_prompt", return_value=mock_prompt), \
              patch("agent.agents.risk_assessor._parse_llm_json", return_value=[]):
             result = await risk_assessor_node(sample_state)
 
