@@ -368,12 +368,14 @@ class TaskRunner:
                 # Stream agent thinking events via astream_events
                 NODE_STAGE_MAP = {
                     "parse_doc": "parsing",
+                    "supervisor": "routing",
                     "regulation_expert": "regulation",
                     "risk_assessor": "risk",
                     "report_writer": "report",
                 }
                 NODE_PROGRESS_MAP = {
                     "parse_doc": 5,
+                    "supervisor": 0,
                     "regulation_expert": 25,
                     "risk_assessor": 50,
                     "report_writer": 70,

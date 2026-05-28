@@ -23,7 +23,7 @@ def _mask_value(key: str, value: str) -> str:
     if not value:
         return value
     # Return empty for placeholder values so frontend knows the key is not configured
-    if value.startswith("your_"):
+    if value.lower().startswith("your_"):
         return ""
     lower_key = key.lower()
     if "key" not in lower_key and "secret" not in lower_key:
@@ -78,7 +78,7 @@ async def _apply_setting(key: str, value: str):
     attr, provider = mapping
 
     # Validate: reject placeholder and masked API keys, URLs, and model names
-    if ("api_key" in attr.lower() or "base_url" in attr.lower() or "model" in attr.lower()) and isinstance(value, str) and re.match(r'^your', value, re.IGNORECASE):
+    if ("api_key" in attr.lower() or "base_url" in attr.lower() or "model" in attr.lower()) and isinstance(value, str) and re.match(r'^your_', value, re.IGNORECASE):
         raise HTTPException(status_code=422, detail=f"{key} 为占位符值，请填写真实配置")
 
     # Update settings singleton
@@ -105,7 +105,7 @@ async def _apply_setting(key: str, value: str):
     _update_env_file(attr, str(value))
 
     # Reload LLM adapter if API key, base URL, or model changed
-    if provider and ("api_key" in key or "base_url" in key or "model" in key):
+    if provider and ("api_key" in key.lower() or "base_url" in key.lower() or "model" in key.lower()):
         await _reload_llm_provider(provider)
 
     # Clear agent LLM cache when provider selection changes
@@ -183,6 +183,7 @@ async def _reload_llm_provider(provider: str):
         )
     except asyncio.TimeoutError:
         logger.warning("LLM provider reload timed out for %s", provider)
+        return
     logger.info("Reloaded LLM provider: %s", provider)
 
     # Clear agent-side LangChain LLM cache so next audit uses the new provider
@@ -238,7 +239,7 @@ async def update_config(key: str, req: ConfigUpdateRequest, db: AsyncSession = D
 
     # Validate placeholder before DB write
     lower_key = key.lower()
-    if ("api_key" in lower_key or "base_url" in lower_key or "model" in lower_key) and isinstance(value, str) and re.match(r'^your', value, re.IGNORECASE):
+    if ("api_key" in lower_key or "base_url" in lower_key or "model" in lower_key) and isinstance(value, str) and re.match(r'^your_', value, re.IGNORECASE):
         raise HTTPException(status_code=422, detail=f"{key} 为占位符值，请填写真实配置")
 
     result = await db.execute(select(Configuration).where(Configuration.config_key == key))
@@ -281,12 +282,12 @@ async def batch_update_config(request: BatchConfigRequest, db: AsyncSession = De
     from app.core.config import settings
 
     # Pre-filter: skip placeholder/masked API key values
-    _placeholder_re = re.compile(r'^your', re.IGNORECASE)
+    _placeholder_re = re.compile(r'^your_', re.IGNORECASE)
     filtered_configs = {}
     auto_provider = None
     for key, value in request.configs.items():
         lower_key = key.lower()
-        if ("api_key" in lower_key or "base_url" in lower_key) and isinstance(value, str) and _placeholder_re.match(value):
+        if ("api_key" in lower_key or "base_url" in lower_key or "model" in lower_key) and isinstance(value, str) and _placeholder_re.match(value):
             logger.info("Skipping placeholder/masked config: %s", key)
             continue
         filtered_configs[key] = value
@@ -338,7 +339,7 @@ async def batch_update_config(request: BatchConfigRequest, db: AsyncSession = De
         setattr(settings, attr, value)
         os.environ[attr] = str(value)
         env_updates[attr] = str(value)
-        if provider and ("api_key" in key or "base_url" in key or "model" in key):
+        if provider and ("api_key" in key.lower() or "base_url" in key.lower() or "model" in key.lower()):
             providers_to_reload.add(provider)
 
     # 3. Single .env file write
