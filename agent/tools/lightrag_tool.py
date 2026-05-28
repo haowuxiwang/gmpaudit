@@ -204,6 +204,21 @@ async def build_index(force_rebuild: bool = False):
     logger.info("Index build complete: %d documents indexed", len(txt_files))
 
 
+def _extract_title(content: str, query: str) -> str:
+    """Extract a meaningful title from search result content."""
+    # Try first line if it looks like a heading (short, no period)
+    first_line = content.split('\n')[0].strip()
+    if first_line and len(first_line) <= 80 and not first_line.endswith(('。', '，', '；')):
+        return first_line[:80]
+    # Fall back to first sentence
+    for sep in ('。', '；', '\n'):
+        idx = content.find(sep)
+        if 0 < idx <= 60:
+            return content[:idx].strip()
+    # Truncate
+    return content[:60].strip() + ('...' if len(content) > 60 else '')
+
+
 async def lightrag_search(query: str, method: str = "local") -> list[dict]:
     """Search GMP regulations using LightRAG knowledge graph.
 
@@ -231,8 +246,8 @@ async def lightrag_search(query: str, method: str = "local") -> list[dict]:
             return [
                 {
                     "regulation": "GMP法规知识库",
-                    "chapter": "LightRAG检索",
-                    "title": f"关于'{query[:30]}...'的检索结果",
+                    "chapter": f"查询: {query[:40]}",
+                    "title": _extract_title(result, query),
                     "content": result,
                     "relevance": "知识图谱语义匹配",
                 }
@@ -243,8 +258,8 @@ async def lightrag_search(query: str, method: str = "local") -> list[dict]:
         for i, para in enumerate(paragraphs[:5]):  # Limit to 5 results
             results.append({
                 "regulation": "GMP法规知识库",
-                "chapter": f"相关段落 {i + 1}",
-                "title": f"关于'{query[:30]}...'的检索结果",
+                "chapter": f"查询: {query[:40]}",
+                "title": _extract_title(para, query),
                 "content": para,
                 "relevance": "知识图谱语义匹配",
             })

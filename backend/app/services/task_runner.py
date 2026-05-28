@@ -375,7 +375,7 @@ class TaskRunner:
                 }
                 NODE_PROGRESS_MAP = {
                     "parse_doc": 5,
-                    "supervisor": 0,
+                    "supervisor": 5,
                     "regulation_expert": 25,
                     "risk_assessor": 50,
                     "report_writer": 70,
@@ -393,10 +393,11 @@ class TaskRunner:
                         node_name = event.get("name", "")
 
                         if kind == "on_chain_start" and node_name in NODE_STAGE_MAP:
+                            stage_name = NODE_STAGE_MAP[node_name]
                             await self._publish(task_id, {
                                 "type": "agent_thinking",
                                 "data": {
-                                    "stage": NODE_STAGE_MAP[node_name],
+                                    "stage": stage_name,
                                     "node": node_name,
                                     "status": "started",
                                     "message": f"Agent {node_name} started",
@@ -406,7 +407,13 @@ class TaskRunner:
                             if node_name in NODE_PROGRESS_MAP:
                                 node_pct = NODE_PROGRESS_MAP[node_name]
                                 progress = percent_start + int((node_pct / 80) * (percent_end - percent_start))
-                                await self._publish_progress(task_id, progress, NODE_STAGE_MAP[node_name])
+                                await self._publish_progress(task_id, progress, stage_name)
+                                # Persist stage + progress to DB so frontend polls see updates
+                                task.progress = progress
+                                meta = get_execution_meta(task)
+                                meta["stage"] = stage_name
+                                set_execution_meta(task, meta)
+                                await db.commit()
 
                         elif kind == "on_chain_end" and node_name in NODE_STAGE_MAP:
                             output = event.get("data", {}).get("output", {})
@@ -418,6 +425,7 @@ class TaskRunner:
                                         await self._publish(task_id, {
                                             "type": "agent_thinking",
                                             "data": {
+                                                "stage": NODE_STAGE_MAP[node_name],
                                                 "node": node_name,
                                                 "status": "completed",
                                                 "message": str(content)[:500],
