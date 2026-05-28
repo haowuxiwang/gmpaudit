@@ -372,6 +372,12 @@ class TaskRunner:
                     "risk_assessor": "risk",
                     "report_writer": "report",
                 }
+                NODE_PROGRESS_MAP = {
+                    "parse_doc": 5,
+                    "regulation_expert": 25,
+                    "risk_assessor": 50,
+                    "report_writer": 70,
+                }
 
                 # Create trace for this document's pipeline run
                 from agent.trace import PipelineTrace, set_current_trace, clear_current_trace
@@ -394,6 +400,11 @@ class TaskRunner:
                                     "message": f"Agent {node_name} started",
                                 },
                             })
+                            # Publish intermediate progress so frontend sees updates during LLM calls
+                            if node_name in NODE_PROGRESS_MAP:
+                                node_pct = NODE_PROGRESS_MAP[node_name]
+                                progress = percent_start + int((node_pct / 80) * (percent_end - percent_start))
+                                await self._publish_progress(task_id, progress, NODE_STAGE_MAP[node_name])
 
                         elif kind == "on_chain_end" and node_name in NODE_STAGE_MAP:
                             output = event.get("data", {}).get("output", {})

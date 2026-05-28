@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import re
 from pathlib import Path
 from typing import Dict
 
@@ -21,6 +22,9 @@ def _mask_value(key: str, value: str) -> str:
     """Mask sensitive config values (keys containing 'key' or 'secret')."""
     if not value:
         return value
+    # Return empty for placeholder values so frontend knows the key is not configured
+    if value.startswith("your_"):
+        return ""
     lower_key = key.lower()
     if "key" not in lower_key and "secret" not in lower_key:
         return value
@@ -73,8 +77,8 @@ async def _apply_setting(key: str, value: str):
         return
     attr, provider = mapping
 
-    # Validate: reject placeholder API keys, URLs, and model names
-    if ("api_key" in key or "base_url" in key or "model" in key) and isinstance(value, str) and value.startswith("your_"):
+    # Validate: reject placeholder and masked API keys, URLs, and model names
+    if ("api_key" in key or "base_url" in key or "model" in key) and isinstance(value, str) and re.match(r'^your', value, re.IGNORECASE):
         raise HTTPException(status_code=422, detail=f"{key} 为占位符值，请填写真实配置")
 
     # Update settings singleton
@@ -253,8 +257,19 @@ class BatchConfigRequest(BaseModel):
 
 @router.post("/batch")
 async def batch_update_config(request: BatchConfigRequest, db: AsyncSession = Depends(get_db)):
-    # 1. Batch update DB
+    from app.core.config import settings
+
+    # Pre-filter: skip placeholder/masked API key values
+    _placeholder_re = re.compile(r'^your', re.IGNORECASE)
+    filtered_configs = {}
     for key, value in request.configs.items():
+        if ("api_key" in key or "base_url" in key) and isinstance(value, str) and _placeholder_re.match(value):
+            logger.info("Skipping placeholder/masked config: %s", key)
+            continue
+        filtered_configs[key] = value
+
+    # 1. Batch update DB
+    for key, value in filtered_configs.items():
         result = await db.execute(select(Configuration).where(Configuration.config_key == key))
         config = result.scalar_one_or_none()
         if config:
@@ -266,8 +281,7 @@ async def batch_update_config(request: BatchConfigRequest, db: AsyncSession = De
     # 2. Batch update os.environ + collect env file updates
     env_updates = {}
     providers_to_reload = set()
-    from app.core.config import settings
-    for key, value in request.configs.items():
+    for key, value in filtered_configs.items():
         if key not in _LLM_KEY_MAP:
             logger.warning("Skipping unknown config key: %s", key)
             continue
@@ -288,9 +302,6 @@ async def batch_update_config(request: BatchConfigRequest, db: AsyncSession = De
             except ValueError:
                 logger.warning("Skipping %s: expected float, got %s", key, value)
                 continue
-        # Block placeholder API keys, URLs, and model names
-        if ("api_key" in key or "base_url" in key or "model" in key) and isinstance(value, str) and value.startswith("your_"):
-            raise HTTPException(status_code=422, detail=f"{key} 为占位符值，请填写真实配置")
         setattr(settings, attr, value)
         os.environ[attr] = str(value)
         env_updates[attr] = str(value)

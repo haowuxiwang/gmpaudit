@@ -94,7 +94,7 @@ const SettingsPage: React.FC = () => {
         }
       }
 
-      const isPlaceholder = (v: string) => !v || /^your_.*_here$/i.test(v);
+      const isPlaceholder = (v: string) => !v || /^your_/i.test(v);
       for (const p of models) {
         const defaults = PROVIDER_DEFAULTS[p.id] || {};
         const modelKey = `${p.id}_model`;

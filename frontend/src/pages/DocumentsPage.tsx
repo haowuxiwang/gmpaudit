@@ -105,8 +105,9 @@ const DocumentsPage: React.FC = () => {
           await documentApi.delete(id);
           message.success('文档已删除');
           void loadDocuments();
-        } catch {
-          message.error('删除失败');
+        } catch (err: any) {
+          const detail = err?.response?.data?.detail || '删除失败';
+          message.error(detail);
         }
       },
     });

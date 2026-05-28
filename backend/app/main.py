@@ -65,7 +65,7 @@ async def _seed_configurations():
     from app.api.config import _LLM_KEY_MAP
     from app.models.configuration import Configuration
 
-    _placeholder_re = re.compile(r'^your_.*_here$', re.IGNORECASE)
+    _placeholder_re = re.compile(r'^your_', re.IGNORECASE)
 
     try:
         async with async_session() as db:
