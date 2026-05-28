@@ -175,22 +175,25 @@ async def get_graph_data():
 async def build_index(
     background_tasks: BackgroundTasks,
     force: bool = False,
+    db: AsyncSession = Depends(get_db),
 ):
     """Trigger LightRAG index build."""
-    if _build_status["building"]:
+    # Check both in-memory and DB to prevent duplicate builds
+    db_status = await _get_build_status_from_db(db)
+    if _build_status["building"] or db_status.get("building"):
         raise HTTPException(status_code=409, detail="索引正在构建中")
 
     if not os.path.isdir(INPUT_DIR) or not any(f.endswith((".txt", ".md")) for f in os.listdir(INPUT_DIR)):
         raise HTTPException(status_code=400, detail="没有输入文件，请先将法规文本放入 graphrag_index/input/ 目录")
 
+    # Persist "building: True" to DB immediately so frontend polls see correct state
+    _build_status["building"] = True
+    _build_status["started_at"] = datetime.now(timezone.utc).isoformat()
+    _build_status["error"] = None
+    _build_status["recent_logs"] = ["Build started"]
+    await _save_build_status_to_db(db, _build_status)
+
     async def _build():
-        global _build_status
-        _build_status = {
-            "building": True,
-            "started_at": datetime.now(timezone.utc).isoformat(),
-            "error": None,
-            "recent_logs": ["Build started"],
-        }
         try:
             from agent.tools.lightrag_tool import build_index as lr_build
             _append_build_log("Initializing LightRAG build")

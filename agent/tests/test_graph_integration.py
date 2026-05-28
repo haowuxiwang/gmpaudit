@@ -1,12 +1,15 @@
 """Integration tests for the LangGraph audit workflow."""
 
 import sys
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from agent.graph import build_audit_graph, parse_document_node
 from agent.state import AuditState
+
+_FIXTURES = Path(__file__).parent / "fixtures"
 
 
 class TestParseDocumentNode:
@@ -15,7 +18,7 @@ class TestParseDocumentNode:
     def test_parse_existing_file(self):
         """Parse a real test document."""
         state = {
-            "document_name": "tests/fixtures/sample_deviation.txt",
+            "document_name": str(_FIXTURES / "sample_deviation.txt"),
             "document_type": "unknown",
         }
         result = parse_document_node(state)
@@ -41,7 +44,7 @@ class TestParseDocumentNode:
     def test_detect_deviation_type(self):
         """Detect deviation document type from content."""
         state = {
-            "document_name": "tests/fixtures/sample_deviation.txt",
+            "document_name": str(_FIXTURES / "sample_deviation.txt"),
             "document_type": "unknown",
         }
         result = parse_document_node(state)
@@ -51,7 +54,7 @@ class TestParseDocumentNode:
     def test_preserves_known_type(self):
         """Preserve document type if already set."""
         state = {
-            "document_name": "tests/fixtures/sample_deviation.txt",
+            "document_name": str(_FIXTURES / "sample_deviation.txt"),
             "document_type": "sop",
         }
         result = parse_document_node(state)
