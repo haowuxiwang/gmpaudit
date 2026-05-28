@@ -72,13 +72,13 @@ async def _apply_setting(key: str, value: str):
     """Update the settings singleton, sync to os.environ, persist to .env, and reload LLM adapter."""
     from app.core.config import settings
 
-    mapping = _LLM_KEY_MAP.get(key)
+    mapping = _LLM_KEY_MAP.get(key.lower())
     if not mapping:
         return
     attr, provider = mapping
 
     # Validate: reject placeholder and masked API keys, URLs, and model names
-    if ("api_key" in key or "base_url" in key or "model" in key) and isinstance(value, str) and re.match(r'^your', value, re.IGNORECASE):
+    if ("api_key" in attr.lower() or "base_url" in attr.lower() or "model" in attr.lower()) and isinstance(value, str) and re.match(r'^your', value, re.IGNORECASE):
         raise HTTPException(status_code=422, detail=f"{key} 为占位符值，请填写真实配置")
 
     # Update settings singleton
@@ -235,6 +235,12 @@ class ConfigUpdateRequest(BaseModel):
 async def update_config(key: str, req: ConfigUpdateRequest, db: AsyncSession = Depends(get_db)):
     value = req.value
     description = req.description
+
+    # Validate placeholder before DB write
+    lower_key = key.lower()
+    if ("api_key" in lower_key or "base_url" in lower_key or "model" in lower_key) and isinstance(value, str) and re.match(r'^your', value, re.IGNORECASE):
+        raise HTTPException(status_code=422, detail=f"{key} 为占位符值，请填写真实配置")
+
     result = await db.execute(select(Configuration).where(Configuration.config_key == key))
     config = result.scalar_one_or_none()
 
@@ -248,6 +254,21 @@ async def update_config(key: str, req: ConfigUpdateRequest, db: AsyncSession = D
 
     await db.commit()
     await _apply_setting(key, value)
+
+    # Auto-set AGENT_LLM_PROVIDER if an API key was configured
+    if "api_key" in lower_key and value and lower_key in _LLM_KEY_MAP:
+        _, provider = _LLM_KEY_MAP[lower_key]
+        if provider:
+            await _apply_setting("agent_llm_provider", provider)
+            result2 = await db.execute(select(Configuration).where(Configuration.config_key == "agent_llm_provider"))
+            cfg2 = result2.scalar_one_or_none()
+            if cfg2:
+                cfg2.config_value = provider
+            else:
+                db.add(Configuration(config_key="agent_llm_provider", config_value=provider, config_type="string"))
+            await db.commit()
+            logger.info("Auto-set AGENT_LLM_PROVIDER to %s", provider)
+
     return {"status": "success"}
 
 
@@ -262,11 +283,23 @@ async def batch_update_config(request: BatchConfigRequest, db: AsyncSession = De
     # Pre-filter: skip placeholder/masked API key values
     _placeholder_re = re.compile(r'^your', re.IGNORECASE)
     filtered_configs = {}
+    auto_provider = None
     for key, value in request.configs.items():
-        if ("api_key" in key or "base_url" in key) and isinstance(value, str) and _placeholder_re.match(value):
+        lower_key = key.lower()
+        if ("api_key" in lower_key or "base_url" in lower_key) and isinstance(value, str) and _placeholder_re.match(value):
             logger.info("Skipping placeholder/masked config: %s", key)
             continue
         filtered_configs[key] = value
+        # Auto-detect provider from API key for AGENT_LLM_PROVIDER
+        if "api_key" in lower_key and value and lower_key in _LLM_KEY_MAP:
+            _, provider = _LLM_KEY_MAP[lower_key]
+            if provider:
+                auto_provider = provider
+
+    # Auto-set AGENT_LLM_PROVIDER if an API key was configured
+    if auto_provider and "AGENT_LLM_PROVIDER" not in filtered_configs and "agent_llm_provider" not in filtered_configs:
+        filtered_configs["AGENT_LLM_PROVIDER"] = auto_provider
+        logger.info("Auto-setting AGENT_LLM_PROVIDER to %s", auto_provider)
 
     # 1. Batch update DB
     for key, value in filtered_configs.items():
@@ -282,10 +315,10 @@ async def batch_update_config(request: BatchConfigRequest, db: AsyncSession = De
     env_updates = {}
     providers_to_reload = set()
     for key, value in filtered_configs.items():
-        if key not in _LLM_KEY_MAP:
+        if key.lower() not in _LLM_KEY_MAP:
             logger.warning("Skipping unknown config key: %s", key)
             continue
-        attr, provider = _LLM_KEY_MAP[key]
+        attr, provider = _LLM_KEY_MAP[key.lower()]
         old_val = getattr(settings, attr, None)
         if old_val is not None and str(old_val) == str(value):
             continue
@@ -316,7 +349,16 @@ async def batch_update_config(request: BatchConfigRequest, db: AsyncSession = De
     for provider in providers_to_reload:
         await _reload_llm_provider(provider)
 
-    return {"status": "success", "updated": len(request.configs)}
+    # 5. Clear agent LLM cache if provider changed
+    if auto_provider:
+        try:
+            from agent.config import clear_llm_cache
+            clear_llm_cache()
+            logger.info("Agent LLM cache cleared due to provider auto-set to %s", auto_provider)
+        except ImportError:
+            pass
+
+    return {"status": "success", "updated": len(filtered_configs)}
 
 
 @router.post("/test-webhook")
