@@ -109,7 +109,7 @@ async def _apply_setting(key: str, value: str):
         await _reload_llm_provider(provider)
 
     # Clear agent LLM cache when provider selection changes
-    if key == "agent_llm_provider":
+    if key.lower() == "agent_llm_provider":
         try:
             from agent.config import clear_llm_cache
             clear_llm_cache()
@@ -406,8 +406,8 @@ async def test_llm_connection(request: TestLLMRequest):
         return {"success": False, "error": f"不支持的 provider: {provider}", "latency_ms": 0}
 
     default_url, default_model = defaults[provider]
-    base_url = (base_url if base_url and not base_url.startswith("your_") else None) or default_url
-    model = (model if model and not model.startswith("your_") else None) or default_model
+    base_url = (base_url if base_url and not base_url.lower().startswith("your_") else None) or default_url
+    model = (model if model and not model.lower().startswith("your_") else None) or default_model
 
     logger.info("Testing LLM connection: provider=%s, model=%s, base_url=%s", provider, model, base_url)
 

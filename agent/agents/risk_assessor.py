@@ -90,10 +90,10 @@ async def risk_assessor_node(state: AuditState) -> dict:
                 doc_type, len(full_content), len(regulations), strategy)
 
     regulation_context = _format_regulations(regulations)
-    llm = get_llm_with_fallback(temperature=0.2)
-    prompt_template = load_prompt("risk_assessor.txt")
 
     try:
+        llm = get_llm_with_fallback(temperature=0.2)
+        prompt_template = load_prompt("risk_assessor.txt")
         if strategy == "stuff":
             # Single analysis with full content (no truncation for stuff strategy)
             doc_for_llm = full_content
