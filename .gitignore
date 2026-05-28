@@ -64,9 +64,11 @@ graphrag_index/logs/
 # Test artifacts
 test.db
 backend/test.db
+.coverage
 backend/.coverage
 backend/htmlcov/
 data/test_documents/
+data/test_output/
 
 # Playwright
 frontend/test-results/
@@ -75,6 +77,7 @@ frontend/blob-report/
 frontend/.playwright/
 
 # Pip install artifacts (malformed command output)
+=*
 backend/=*
 
 # Claude Code
@@ -82,3 +85,16 @@ backend/=*
 
 # Logs
 data/logs/
+
+# Playwright MCP config
+.playwright-mcp/
+
+# LightRAG cache
+graphrag_index/lightrag_output/kv_store_llm_response_cache.json
+
+# Screenshots
+openwebui-home.png
+
+# Session summaries
+docs/2026052*.md
+docs/2026052*.txt
