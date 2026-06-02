@@ -566,8 +566,8 @@ class TaskRunner:
                 raise RuntimeError("All documents must be processed before audit")
 
             # Backup existing data before re-run (B6: data loss protection)
-            old_finding_ids = [f.id for f in (await db.execute(select(Finding.id).where(Finding.task_id == task.id))).scalars().all()]
-            old_report_ids = [r.id for r in (await db.execute(select(Report.id).where(Report.task_id == task.id))).scalars().all()]
+            old_finding_ids = list((await db.execute(select(Finding.id).where(Finding.task_id == task.id))).scalars().all())
+            old_report_ids = list((await db.execute(select(Report.id).where(Report.task_id == task.id))).scalars().all())
 
             timeout_seconds = settings.AGENT_TASK_TIMEOUT
             focus = get_execution_meta(task).get("focus", "")
