@@ -114,10 +114,11 @@ def get_llm_config(provider: Optional[str] = None) -> dict:
     api_key_env = f"{provider.upper()}_API_KEY"
     base_url_env = f"{provider.upper()}_BASE_URL"
     model_env = f"{provider.upper()}_MODEL"
+    model = os.getenv(model_env, "") or endpoint.get("default_model", "")
     return {
         "base_url": os.getenv(base_url_env, endpoint.get("base_url", "")),
         "api_key": os.getenv(api_key_env, ""),
-        "model": os.getenv(model_env, endpoint.get("default_model", "")),
+        "model": model,
     }
 
 

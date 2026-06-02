@@ -103,6 +103,13 @@ def _get_llm_func():
 
         config = get_llm_config()
 
+        # Ensure model name is not empty (fallback to provider default)
+        if not config.get("model"):
+            from agent.config import MODEL_ENDPOINTS
+            provider = get_default_provider()
+            config["model"] = MODEL_ENDPOINTS.get(provider, {}).get("default_model", "mimo-v2.5-pro")
+            logger.warning("LLM model name was empty, falling back to default: %s", config["model"])
+
         messages = []
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})

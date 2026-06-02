@@ -151,6 +151,22 @@ const SettingsPage: React.FC = () => {
         }
       }
 
+      // For any provider with an API key, always include model and base_url
+      // to ensure they are persisted even when auto-filled (not dirty)
+      for (const p of providers) {
+        const apiKey = draft[`${p.id}_api_key`] || '';
+        if (apiKey && !apiKey.startsWith('your_')) {
+          const modelKey = `${p.id}_model`;
+          const urlKey = `${p.id}_base_url`;
+          if (!changes[modelKey] && draft[modelKey]) {
+            changes[modelKey] = draft[modelKey];
+          }
+          if (!changes[urlKey] && draft[urlKey]) {
+            changes[urlKey] = draft[urlKey];
+          }
+        }
+      }
+
       if (Object.keys(changes).length === 0) {
         message.info('无配置变更');
         return;
