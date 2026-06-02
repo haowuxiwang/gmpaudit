@@ -165,12 +165,15 @@ async def startup():
     logger.info("Database schema verified")
 
     # Reset stale KG build status (in case of crash during previous build)
+    _reset_json = '{"building": false, "started_at": null, "error": null, "recent_logs": []}'
     from sqlalchemy import text as _text
     async with async_session() as _db:
         await _db.execute(
-            _text("UPDATE configurations SET config_value = 'false' WHERE config_key = 'kg_build_status' AND config_value LIKE '%\"building\": true%'")
+            _text("UPDATE configurations SET config_value = :val WHERE config_key = 'kg_build_status' AND config_value LIKE '%\"building\": true%'"),
+            {"val": _reset_json},
         )
         await _db.commit()
+        logger.info("Reset stale KG build status (if any)")
 
     # Seed configurations table from .env so GET /config/ returns real values
     await _seed_configurations()
