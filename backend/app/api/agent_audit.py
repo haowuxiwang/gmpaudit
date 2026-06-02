@@ -65,7 +65,10 @@ async def run_agent_audit(
     await db.commit()
     await db.refresh(task)
 
-    http_request.app.state.task_runner_factory().enqueue(task.id)
+    try:
+        http_request.app.state.task_runner_factory().enqueue(task.id)
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
 
     return AgentAuditResponse(task_id=task.id, status="pending", message="Agent audit queued")
 

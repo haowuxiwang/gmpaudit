@@ -8,6 +8,7 @@ Supports two strategies based on document size:
 - Map-Reduce: chunked analysis for larger documents
 """
 
+import asyncio
 import logging
 
 from agent.config import get_llm_with_fallback, call_llm_with_retry, MAX_DOCUMENT_CHARS
@@ -101,16 +102,23 @@ async def risk_assessor_node(state: AuditState) -> dict:
                 llm, prompt_template, doc_for_llm, regulation_context, doc_type, ""
             )
         else:
-            # Map-Reduce: analyze each chunk
+            # Map-Reduce: analyze chunks in parallel
             chunks = chunk_document(full_content)
-            logger.info("Map-Reduce: analyzing %d chunks", len(chunks))
-            all_findings = []
-            for chunk in chunks:
-                chunk_findings = await _analyze_chunk(
+            logger.info("Map-Reduce: analyzing %d chunks (parallel)", len(chunks))
+            tasks = [
+                _analyze_chunk(
                     llm, prompt_template, chunk.content, regulation_context, doc_type,
                     chunk.section_path,
                 )
-                all_findings.extend(chunk_findings)
+                for chunk in chunks
+            ]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            all_findings = []
+            for result in results:
+                if isinstance(result, list):
+                    all_findings.extend(result)
+                elif isinstance(result, Exception):
+                    logger.warning("Chunk analysis failed: %s", result)
 
             # Deduplicate findings across chunks
             findings = deduplicate_findings(all_findings)

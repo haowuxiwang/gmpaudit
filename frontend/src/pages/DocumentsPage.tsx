@@ -8,6 +8,7 @@ import {
   Steps,
   Table,
   Tag,
+  Tooltip,
   Typography,
   Upload,
   message,
@@ -133,7 +134,13 @@ const DocumentsPage: React.FC = () => {
       dataIndex: 'process_status',
       key: 'process_status',
       width: 140,
-      render: (status: string) => <Tag color={STATUS_COLORS[status] || 'default'}>{STATUS_LABELS[status] || status}</Tag>,
+      render: (status: string, record: Document) => {
+        const tag = <Tag color={STATUS_COLORS[status] || 'default'}>{STATUS_LABELS[status] || status}</Tag>;
+        if (status === 'failed' && record.doc_metadata?.error) {
+          return <Tooltip title={record.doc_metadata.error}>{tag}</Tooltip>;
+        }
+        return tag;
+      },
     },
     {
       title: '操作',

@@ -157,6 +157,12 @@ class TestStability:
         trace_structures = []
 
         for i in range(5):
+            # Clear caches to ensure each iteration runs the full pipeline
+            from agent.agents.regulation_expert import clear_llm_cache
+            from agent.tools.lightrag_tool import _query_cache
+            clear_llm_cache()
+            _query_cache.clear()
+
             trace = PipelineTrace(document_name=f"test_{i}.txt")
             set_current_trace(trace)
 

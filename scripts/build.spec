@@ -34,6 +34,7 @@ for _pkg in [
     'langchain_anthropic',  # Anthropic adapter
     'langgraph',        # agent state graph
     'markitdown',       # document converter (pip: markitdown)
+    'magika',           # markitdown dep: content-type detection with ML models
     'olefile',          # OLE2 parser for .doc fallback
     'docx',             # python-docx DOCX parser
     'tiktoken',         # tokenizer for LightRAG (Python wrapper + C ext)

@@ -50,9 +50,9 @@ async def send_feishu_notification(
     Returns:
         True if notification was delivered successfully.
     """
-    webhook_url = settings.FEISHU_WEBHOOK_URL
-    if not webhook_url:
-        logger.warning("FEISHU_WEBHOOK_URL not configured, skipping notification")
+    webhook_url = (settings.FEISHU_WEBHOOK_URL or "").strip()
+    if not webhook_url or not webhook_url.startswith("http"):
+        # Silently skip — no webhook configured, don't log errors
         return False
 
     elements: list[dict] = [
@@ -178,3 +178,9 @@ async def notify_task_failed(task_name: str, error_message: str):
         f"**错误:** {error_message[:300]}"
     )
     await send_feishu_notification(title, content, "high")
+
+
+def is_feishu_configured() -> bool:
+    """Check if Feishu webhook is configured and valid."""
+    url = (settings.FEISHU_WEBHOOK_URL or "").strip()
+    return bool(url and url.startswith("http"))

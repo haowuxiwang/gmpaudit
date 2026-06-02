@@ -6,10 +6,12 @@ LLM provider for entity extraction and querying.
 """
 
 import asyncio
+import hashlib
 import logging
 import os
 import shutil
 import threading
+import time
 from pathlib import Path
 
 import httpx
@@ -116,19 +118,43 @@ def _get_llm_func():
         url = f"{base_url}/chat/completions"
 
         client = await _get_llm_client()
-        resp = await client.post(
-            url,
-            json={
-                "model": config.get("model", "mimo-v2.5-pro"),
-                "messages": messages,
-                "temperature": 0.3,
-                "max_tokens": kwargs.get("max_tokens", 4096),
-            },
-            headers=headers,
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        return data["choices"][0]["message"]["content"]
+        for _attempt in range(3):
+            try:
+                resp = await client.post(
+                    url,
+                    json={
+                        "model": config.get("model", "mimo-v2.5-pro"),
+                        "messages": messages,
+                        "temperature": 0.3,
+                        "max_tokens": kwargs.get("max_tokens", 4096),
+                    },
+                    headers=headers,
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                return data["choices"][0]["message"]["content"]
+            except httpx.HTTPStatusError as e:
+                resp_body = ""
+                try:
+                    resp_body = e.response.text[:500]
+                except Exception:
+                    pass
+                total_chars = sum(len(m.get("content", "")) for m in messages)
+                logger.error(
+                    "LLM HTTP %d (attempt %d/3): %s | model=%s msgs=%d chars=%d max_tokens=%d | body: %s",
+                    e.response.status_code, _attempt + 1, url,
+                    config.get("model"), len(messages), total_chars,
+                    kwargs.get("max_tokens", 4096), resp_body,
+                )
+                if e.response.status_code in (429, 500, 502, 503, 504) and _attempt < 2:
+                    await asyncio.sleep(2 ** _attempt)
+                    continue
+                raise
+            except (httpx.TimeoutException, httpx.ConnectError):
+                if _attempt < 2:
+                    await asyncio.sleep(2 ** _attempt)
+                    continue
+                raise
 
     return llm_complete
 
@@ -204,6 +230,57 @@ async def build_index(force_rebuild: bool = False):
     logger.info("Index build complete: %d documents indexed", len(txt_files))
 
 
+# ---------------------------------------------------------------------------
+# Query result cache (LRU with TTL)
+# ---------------------------------------------------------------------------
+
+_QUERY_CACHE_MAX_SIZE = 100
+_QUERY_CACHE_TTL = 3600  # 1 hour in seconds
+_query_cache: dict[str, tuple[list[dict], float]] = {}
+_cache_hits = 0
+_cache_misses = 0
+
+
+def _cache_key(query: str, method: str) -> str:
+    return hashlib.md5(f"{method}:{query}".encode()).hexdigest()
+
+
+def _get_cached(query: str, method: str) -> list[dict] | None:
+    global _cache_hits
+    key = _cache_key(query, method)
+    entry = _query_cache.get(key)
+    if entry is None:
+        return None
+    result, ts = entry
+    if time.time() - ts > _QUERY_CACHE_TTL:
+        _query_cache.pop(key, None)
+        return None
+    _cache_hits += 1
+    return result
+
+
+def _set_cached(query: str, method: str, result: list[dict]) -> None:
+    global _query_cache
+    key = _cache_key(query, method)
+    # Evict oldest if at capacity
+    if len(_query_cache) >= _QUERY_CACHE_MAX_SIZE:
+        oldest_key = min(_query_cache, key=lambda k: _query_cache[k][1])
+        del _query_cache[oldest_key]
+    _query_cache[key] = (result, time.time())
+
+
+def get_cache_stats() -> dict:
+    """Return cache statistics for monitoring."""
+    total = _cache_hits + _cache_misses
+    return {
+        "size": len(_query_cache),
+        "max_size": _QUERY_CACHE_MAX_SIZE,
+        "hits": _cache_hits,
+        "misses": _cache_misses,
+        "hit_rate": f"{_cache_hits / total * 100:.1f}%" if total > 0 else "N/A",
+    }
+
+
 def _extract_title(content: str, query: str) -> str:
     """Extract a meaningful title from search result content."""
     # Try first line if it looks like a heading (short, no period)
@@ -229,6 +306,15 @@ async def lightrag_search(query: str, method: str = "local") -> list[dict]:
     Returns:
         List of regulation dicts with title, content, relevance
     """
+    global _cache_misses
+
+    # Check cache first
+    cached = _get_cached(query, method)
+    if cached is not None:
+        logger.debug("LightRAG cache hit for query: %s...", query[:50])
+        return cached
+
+    _cache_misses += 1
     try:
         from lightrag.base import QueryParam
         rag = await get_lightrag()
@@ -236,6 +322,7 @@ async def lightrag_search(query: str, method: str = "local") -> list[dict]:
         result = await rag.aquery(query, param=QueryParam(mode=mode))
 
         if not result or not result.strip():
+            _set_cached(query, method, [])
             return []
 
         # Split result into multiple entries if it contains multiple paragraphs
@@ -243,7 +330,7 @@ async def lightrag_search(query: str, method: str = "local") -> list[dict]:
 
         if len(paragraphs) <= 1:
             # Single result
-            return [
+            results = [
                 {
                     "regulation": "GMP法规知识库",
                     "chapter": f"查询: {query[:40]}",
@@ -252,6 +339,8 @@ async def lightrag_search(query: str, method: str = "local") -> list[dict]:
                     "relevance": "知识图谱语义匹配",
                 }
             ]
+            _set_cached(query, method, results)
+            return results
 
         # Multiple results
         results = []
@@ -263,6 +352,7 @@ async def lightrag_search(query: str, method: str = "local") -> list[dict]:
                 "content": para,
                 "relevance": "知识图谱语义匹配",
             })
+        _set_cached(query, method, results)
         return results
     except Exception as e:
         logger.warning("LightRAG search failed: %s", e)

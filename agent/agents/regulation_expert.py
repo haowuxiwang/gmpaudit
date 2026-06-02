@@ -8,15 +8,53 @@ Supports two strategies based on document size:
 - Map-Reduce: chunked analysis for larger documents
 """
 
+import asyncio
+import hashlib
 import logging
+import time
 
-from agent.config import get_llm_with_fallback, call_llm_with_retry, MAX_DOCUMENT_CHARS, STUFF_LIMIT
+from agent.config import get_llm_with_fallback, call_llm_with_retry, MAX_DOCUMENT_CHARS, STUFF_LIMIT, LLMAuthError
 from agent.tools.document_chunker import select_strategy, chunk_document, deduplicate_findings
 from agent.tools.json_parser import parse_llm_json as _parse_llm_json
 from agent.tools.prompt_loader import load_prompt
 
 logger = logging.getLogger(__name__)
 from agent.state import AuditState
+
+# LLM response cache for regulation_expert (avoids re-analyzing same document)
+_LLM_CACHE_MAX_SIZE = 50
+_LLM_CACHE_TTL = 1800  # 30 minutes
+_llm_cache: dict[str, tuple[dict, float]] = {}
+
+
+def _llm_cache_key(content: str, doc_type: str) -> str:
+    return hashlib.md5(f"{doc_type}:{content}".encode()).hexdigest()
+
+
+def _get_llm_cached(content: str, doc_type: str) -> dict | None:
+    key = _llm_cache_key(content, doc_type)
+    entry = _llm_cache.get(key)
+    if entry is None:
+        return None
+    result, ts = entry
+    if time.time() - ts > _LLM_CACHE_TTL:
+        _llm_cache.pop(key, None)
+        return None
+    logger.debug("LLM cache hit for regulation_expert (doc_type=%s)", doc_type)
+    return result
+
+
+def _set_llm_cached(content: str, doc_type: str, result: dict) -> None:
+    key = _llm_cache_key(content, doc_type)
+    if len(_llm_cache) >= _LLM_CACHE_MAX_SIZE:
+        oldest_key = min(_llm_cache, key=lambda k: _llm_cache[k][1])
+        del _llm_cache[oldest_key]
+    _llm_cache[key] = (result, time.time())
+
+
+def clear_llm_cache() -> None:
+    """Clear the regulation expert LLM response cache."""
+    _llm_cache.clear()
 from agent.tools.regulation_db import search_regulations
 
 
@@ -104,6 +142,13 @@ async def regulation_expert_node(state: AuditState) -> dict:
     full_content = state.get("document_content", "")
     doc_type = state.get("document_type", "unknown")
     doc_name = state.get("document_name", "unknown")
+
+    # Check LLM response cache
+    cached = _get_llm_cached(full_content, doc_type)
+    if cached is not None:
+        logger.info("Regulation Expert: cache hit for doc_type=%s", doc_type)
+        return cached
+
     strategy = select_strategy(full_content)
 
     logger.info("Regulation Expert: doc_type=%s, content_len=%d, strategy=%s",
@@ -114,13 +159,13 @@ async def regulation_expert_node(state: AuditState) -> dict:
         # Single query with content summary (first 2000 chars)
         reg_results, source = await _search_regulations(full_content[:2000])
     else:
-        # Map-Reduce: query KG per chunk for better coverage
+        # Map-Reduce: query KG per chunk in parallel for better coverage
         chunks = chunk_document(full_content)
-        logger.info("Map-Reduce: %d chunks, querying KG per chunk", len(chunks))
+        logger.info("Map-Reduce: %d chunks, querying KG per chunk (parallel)", len(chunks))
+        tasks = [_search_regulations(chunk.content[:500]) for chunk in chunks]
+        results_list = await asyncio.gather(*tasks)
         all_regs = []
-        for chunk in chunks:
-            query_text = chunk.content[:500]  # Use first 500 chars per chunk for KG query
-            chunk_regs, _ = await _search_regulations(query_text)
+        for chunk_regs, _ in results_list:
             all_regs.extend(chunk_regs)
         reg_results = _deduplicate_regulations(all_regs)
         source = "lightrag_multi" if reg_results else "fallback_db"
@@ -150,6 +195,20 @@ async def regulation_expert_node(state: AuditState) -> dict:
 
         response = await call_llm_with_retry(llm, prompt, node="regulation_expert")
         llm_analysis = _parse_llm_json(response.content)
+    except LLMAuthError as e:
+        logger.warning("Regulation Expert auth error: %s, using fallback", e)
+        summary_lines = [f"Regulation analysis ({source}, LLM auth error):"]
+        for reg in reg_results[:5]:
+            title = reg.get("title", reg.get("article", "N/A"))
+            reg_name = reg.get("regulation", "Unknown")
+            summary_lines.append(f"- {reg_name}: {title}")
+        return {
+            "matched_regulations": reg_results,
+            "regulation_summary": "\n".join(summary_lines),
+            "regulation_checked": True,
+            "status": "running",
+            "messages": [f"Regulation Expert: {e.user_message}, used {len(reg_results)} clauses from {source}"],
+        }
     except Exception as e:
         logger.warning("Regulation Expert LLM call failed: %s, using fallback", e)
         summary_lines = [f"Regulation analysis ({source}, LLM failed):"]
@@ -179,9 +238,11 @@ async def regulation_expert_node(state: AuditState) -> dict:
         summary_lines.append(f"- {reg_name}: {title}")
 
     logger.info("Regulation Expert: found %d clauses from %s (%s)", len(matched), source, strategy)
-    return {
+    result = {
         "matched_regulations": matched,
         "regulation_summary": "\n".join(summary_lines),
         "regulation_checked": True,
         "messages": [f"Regulation Expert: found {len(matched)} relevant clauses ({source}, {strategy})"],
     }
+    _set_llm_cached(full_content, doc_type, result)
+    return result

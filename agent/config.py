@@ -12,6 +12,20 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
+
+class LLMAuthError(Exception):
+    """Raised when LLM API returns 401/403 (invalid or missing API key).
+
+    Attributes:
+        provider: The LLM provider name (e.g. 'deepseek', 'mimo')
+        user_message: A user-friendly Chinese error message
+    """
+    def __init__(self, provider: str, original_error: str = ""):
+        self.provider = provider
+        self.original_error = original_error
+        self.user_message = f"API Key 无效或已过期（{provider}），请在「设置」页面重新配置"
+        super().__init__(self.user_message)
+
 # LLM client cache: key=(provider, model, temperature, max_tokens) -> LLM instance
 _llm_cache: dict[tuple, object] = {}
 
@@ -265,6 +279,21 @@ def _is_retryable_error(exc: Exception) -> bool:
     return False
 
 
+def _is_auth_error(exc: Exception) -> bool:
+    """Check if an LLM error is an authentication error (401/403)."""
+    error_str = str(exc).lower()
+    # Check for explicit auth keywords first (most reliable)
+    if any(kw in error_str for kw in ("invalid api key", "invalid_key", "unauthorized")):
+        return True
+    # Check for status code patterns (not substrings like model names)
+    import re
+    if re.search(r'(?:error code|status.?code|http)[:\s]*40[13]\b', error_str):
+        return True
+    if re.search(r'\b40[13]\b.*(?:api.?key|auth|token)', error_str):
+        return True
+    return False
+
+
 async def call_llm_with_retry(llm, prompt: str, node: str = "unknown", max_retries: int = 3, retry_delay: float = 2.0):
     """Call LLM with retry for transient failures.
 
@@ -329,6 +358,10 @@ async def call_llm_with_retry(llm, prompt: str, node: str = "unknown", max_retri
                         error=str(e)[:500],
                         retry_count=total_retries,
                     ))
+                # Wrap auth errors with user-friendly message
+                if _is_auth_error(e):
+                    logger.error("LLM auth error (provider=%s): %s", provider, e)
+                    raise LLMAuthError(provider, str(e)) from e
                 logger.error("LLM call failed (non-retryable): %s", e)
                 raise
             if attempt < max_retries:

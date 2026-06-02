@@ -6,6 +6,7 @@ export interface Document {
   process_status: 'uploaded' | 'processing' | 'processed' | 'failed';
   created_at?: string;
   content_text?: string;
+  doc_metadata?: { error?: string; [key: string]: unknown };
 }
 
 export interface PaginatedResponse<T> {

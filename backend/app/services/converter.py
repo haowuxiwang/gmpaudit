@@ -52,5 +52,9 @@ async def convert_to_markdown(content: bytes, filename: str) -> str:
     try:
         return await loop.run_in_executor(None, _convert_sync, content, suffix)
     except Exception as exc:
-        logger.error("markitdown conversion failed for %s: %s", filename, exc)
-        raise RuntimeError(f"文档转换失败: {exc}") from exc
+        logger.error("markitdown conversion failed for %s: %s", filename, exc, exc_info=True)
+        # Provide actionable error message for common failures
+        detail = f"文档转换失败: {exc}"
+        if "magika" in str(exc).lower() or "model dir" in str(exc).lower():
+            detail = f"文档转换失败: 缺少 magika 模型文件。请重新打包应用或手动安装 magika。原始错误: {exc}"
+        raise RuntimeError(detail) from exc

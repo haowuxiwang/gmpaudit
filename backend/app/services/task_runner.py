@@ -18,6 +18,7 @@ from app.models.finding import Finding, SeverityLevel
 from app.models.report import Report, ReportType
 from app.models.risk_alert import AlertLevel, RiskAlert
 from app.services.notification import (
+    is_feishu_configured,
     notify_audit_complete,
     notify_high_risk_finding,
     notify_task_failed,
@@ -198,6 +199,36 @@ def choose_report_content(
     }
 
 
+def _build_node_summary(node_name: str, output: dict) -> str:
+    """Build a user-friendly Chinese summary for a completed agent node."""
+    if node_name == "regulation_expert":
+        regs = output.get("matched_regulations", [])
+        source = "知识图谱" if "lightrag" in str(output.get("regulation_summary", "")) else "内置法规库"
+        return f"法规检索完成，从{source}找到 {len(regs)} 条相关条款"
+
+    if node_name == "risk_assessor":
+        findings = output.get("findings", [])
+        risk_level = output.get("risk_level", "未知")
+        return f"风险评估完成，发现 {len(findings)} 个问题，风险等级: {risk_level}"
+
+    if node_name == "report_writer":
+        report_path = output.get("report_path", "")
+        if report_path:
+            return "审计报告生成完成"
+        return "报告生成完成（使用备用模板）"
+
+    if node_name == "parse_doc":
+        doc_name = output.get("document_name", "")
+        doc_type = output.get("document_type", "")
+        return f"文档解析完成: {doc_name} (类型: {doc_type})"
+
+    if node_name == "supervisor":
+        reasoning = output.get("supervisor_reasoning", "")
+        return reasoning if reasoning else "任务调度完成"
+
+    return f"{node_name} 完成"
+
+
 class TaskRunner:
     def __init__(self, session_factory: async_sessionmaker[AsyncSession], max_concurrency: int = 2, event_bus: "EventBus | None" = None):
         self._session_factory = session_factory
@@ -205,6 +236,8 @@ class TaskRunner:
         self._semaphore = asyncio.Semaphore(max_concurrency)
         self._active: dict[int, asyncio.Task] = {}
         self._event_bus = event_bus
+        # LLM concurrency limiter for parallel document processing
+        self._llm_semaphore = asyncio.Semaphore(3)
 
     async def _publish(self, task_id: int, event: dict[str, Any]) -> None:
         """Publish event to the in-memory event bus (non-blocking)."""
@@ -246,7 +279,7 @@ class TaskRunner:
             return False
         if len(self._active) >= self._max_concurrency * 2:
             logger.warning("Task queue full, rejecting task %s", task_id)
-            return False
+            raise RuntimeError(f"Task queue full ({len(self._active)}/{self._max_concurrency * 2}), try again later")
         task = asyncio.create_task(self._run(task_id))
         self._active[task_id] = task
         task.add_done_callback(lambda _: self._active.pop(task_id, None))
@@ -314,6 +347,205 @@ class TaskRunner:
                     if task:
                         await self._mark_failed(db, task, str(exc))
 
+    async def _process_single_document(
+        self,
+        task_id: int,
+        document: "Document",
+        agent_doc_type: str,
+        focus: str,
+        timeout_seconds: int,
+        doc_index: int,
+        total_docs: int,
+    ) -> dict[str, Any]:
+        """Process a single document through the agent pipeline.
+
+        Returns a dict with keys: findings, document_result, report, report_source, trace, error.
+        Errors are captured in the 'error' key rather than raised (for parallel isolation).
+        """
+        from agent.trace import PipelineTrace, set_current_trace, clear_current_trace, get_current_trace
+
+        NODE_STAGE_MAP = {
+            "parse_doc": "parsing",
+            "supervisor": "routing",
+            "regulation_expert": "regulation",
+            "risk_assessor": "risk",
+            "report_writer": "report",
+        }
+        NODE_PROGRESS_MAP = {
+            "parse_doc": 5,
+            "supervisor": 5,
+            "regulation_expert": 25,
+            "risk_assessor": 50,
+            "report_writer": 70,
+        }
+        NODE_START_MESSAGES = {
+            "parse_doc": "正在解析文档...",
+            "supervisor": "正在分析任务...",
+            "regulation_expert": "正在检索相关法规条款...",
+            "risk_assessor": "正在评估合规风险...",
+            "report_writer": "正在生成审计报告...",
+        }
+
+        percent_start = int(((doc_index - 1) / total_docs) * 80)
+        percent_end = int((doc_index / total_docs) * 80)
+
+        doc_label = f"[doc {doc_index}/{total_docs}]"
+        await self._publish(task_id, {"type": "event", "data": {
+            "time": datetime.now(timezone.utc).isoformat(),
+            "stage": "parsing", "level": "info",
+            "message": f"Processing document {document.filename}",
+        }})
+        await self._publish_progress(task_id, percent_start, "parsing")
+
+        graph = build_audit_graph()
+        initial_state = build_initial_state(
+            document_path=document.file_path,
+            document_type=agent_doc_type,
+            focus=focus,
+            document_content=document.content_text or "",
+            document_name=document.filename,
+        )
+
+        trace = PipelineTrace(document_name=document.filename)
+        set_current_trace(trace)
+        thinking_events: list[dict] = []
+
+        try:
+            async def _stream_graph():
+                result = {}
+                async for event in graph.astream_events(initial_state, version="v2"):
+                    kind = event.get("event", "")
+                    node_name = event.get("name", "")
+
+                    if kind == "on_chain_start" and node_name in NODE_STAGE_MAP:
+                        stage_name = NODE_STAGE_MAP[node_name]
+                        await self._publish(task_id, {
+                            "type": "agent_thinking",
+                            "data": {
+                                "stage": stage_name,
+                                "node": node_name,
+                                "status": "started",
+                                "message": NODE_START_MESSAGES.get(node_name, f"Agent {node_name} started"),
+                                "doc_name": document.filename,
+                            },
+                        })
+                        if node_name in NODE_PROGRESS_MAP:
+                            node_pct = NODE_PROGRESS_MAP[node_name]
+                            progress = percent_start + int((node_pct / 80) * (percent_end - percent_start))
+                            await self._publish_progress(task_id, progress, stage_name)
+
+                    elif kind == "on_chain_end" and node_name in NODE_STAGE_MAP:
+                        output = event.get("data", {}).get("output", {})
+                        if isinstance(output, dict):
+                            summary = _build_node_summary(node_name, output)
+                            thinking_event = {
+                                "stage": NODE_STAGE_MAP[node_name],
+                                "node": node_name,
+                                "status": "completed",
+                                "message": summary,
+                                "doc_name": document.filename,
+                            }
+                            await self._publish(task_id, {
+                                "type": "agent_thinking",
+                                "data": thinking_event,
+                            })
+                            # Persist for SSE reconnect replay
+                            thinking_events.append(thinking_event)
+                            result.update(output)
+                return result
+
+            result_state = await asyncio.wait_for(_stream_graph(), timeout=timeout_seconds)
+
+            current_trace = get_current_trace()
+            if current_trace:
+                current_trace.finalize(status=result_state.get("status", "completed"))
+                result_state["_trace"] = current_trace.to_dict()
+
+            if not result_state:
+                logger.warning("Agent graph returned no result for document %s, using empty state", document.filename)
+                result_state = {"findings": [], "status": "completed", "risk_level": "unknown"}
+
+            # Detect LLM auth failure and publish user-friendly warning
+            report_source = result_state.get("report_source", "")
+            if report_source == "fallback":
+                await self._publish(task_id, {
+                    "type": "agent_thinking",
+                    "data": {
+                        "stage": "report",
+                        "node": "report_writer",
+                        "status": "completed",
+                        "message": "API Key 无效或已过期，使用了备用模板生成报告。请在「设置」页面重新配置 API Key",
+                        "doc_name": document.filename,
+                    },
+                })
+
+            doc_findings = result_state.get("findings", [])
+            for finding in doc_findings:
+                finding["document_id"] = document.id
+
+            await self._publish_progress(task_id, percent_end, "regulation")
+            await self._publish(task_id, {"type": "event", "data": {
+                "time": datetime.now(timezone.utc).isoformat(),
+                "stage": "regulation", "level": "info",
+                "message": f"Completed document {document.filename}",
+            }})
+
+            return {
+                "findings": doc_findings,
+                "document_result": {
+                    "document_id": document.id,
+                    "filename": document.filename,
+                    "status": result_state.get("status", "completed"),
+                    "findings_count": len(doc_findings),
+                    "risk_level": result_state.get("risk_level", "unknown"),
+                    "report_path": result_state.get("report_path", ""),
+                },
+                "report": result_state.get("report_markdown", ""),
+                "report_source": result_state.get("report_source", ""),
+                "trace": result_state.get("_trace"),
+                "thinking_events": thinking_events,
+                "error": None,
+            }
+
+        except asyncio.TimeoutError:
+            logger.error("Document %s timed out after %ds", document.filename, timeout_seconds)
+            return {
+                "findings": [],
+                "document_result": {
+                    "document_id": document.id,
+                    "filename": document.filename,
+                    "status": "timeout",
+                    "findings_count": 0,
+                    "risk_level": "unknown",
+                    "report_path": "",
+                },
+                "report": "",
+                "report_source": "timeout",
+                "trace": None,
+                "thinking_events": thinking_events,
+                "error": f"Document {document.filename} processing timed out",
+            }
+        except Exception as e:
+            logger.exception("Document %s failed", document.filename)
+            return {
+                "findings": [],
+                "document_result": {
+                    "document_id": document.id,
+                    "filename": document.filename,
+                    "status": "failed",
+                    "findings_count": 0,
+                    "risk_level": "unknown",
+                    "report_path": "",
+                },
+                "report": "",
+                "report_source": "error",
+                "trace": None,
+                "thinking_events": thinking_events,
+                "error": str(e),
+            }
+        finally:
+            clear_current_trace()
+
     async def _execute_task(self, task_id: int) -> None:
         async with self._session_factory() as db:
             result = await db.execute(select(AuditTask).where(AuditTask.id == task_id))
@@ -337,152 +569,83 @@ class TaskRunner:
             old_finding_ids = [f.id for f in (await db.execute(select(Finding.id).where(Finding.task_id == task.id))).scalars().all()]
             old_report_ids = [r.id for r in (await db.execute(select(Report.id).where(Report.task_id == task.id))).scalars().all()]
 
-            graph = build_audit_graph()
             timeout_seconds = settings.AGENT_TASK_TIMEOUT
             focus = get_execution_meta(task).get("focus", "")
             agent_doc_type = TASK_TYPE_TO_AGENT_TYPE.get(task.task_type, "deviation")
 
+            total_docs = len(documents)
+            await self._publish(task_id, {"type": "event", "data": {
+                "time": datetime.now(timezone.utc).isoformat(),
+                "stage": "parsing", "level": "info",
+                "message": f"Starting audit of {total_docs} document(s)",
+            }})
+
+            # Process documents in parallel (or sequentially if only 1)
+            if total_docs == 1:
+                doc_results = [await self._process_single_document(
+                    task_id, documents[0], agent_doc_type, focus, timeout_seconds, 1, 1,
+                )]
+            else:
+                # Parallel processing with concurrency limiter
+                async def _limited_process(doc, idx):
+                    async with self._llm_semaphore:
+                        return await self._process_single_document(
+                            task_id, doc, agent_doc_type, focus, timeout_seconds, idx, total_docs,
+                        )
+                doc_results = await asyncio.gather(
+                    *[_limited_process(doc, i) for i, doc in enumerate(documents, start=1)],
+                    return_exceptions=False,  # exceptions already caught in _process_single_document
+                )
+
+            # Aggregate results from all documents
             findings_to_save: list[tuple[dict[str, Any], int]] = []
             document_results: list[dict[str, Any]] = []
             agent_reports: list[str] = []
             agent_report_sources: list[str] = []
             all_traces: list[dict[str, Any]] = []
+            all_thinking_events: list[dict[str, Any]] = []
+            errors: list[str] = []
 
-            for index, document in enumerate(documents, start=1):
-                percent_start = int(((index - 1) / len(documents)) * 80)
-                percent_end = int((index / len(documents)) * 80)
-                task.progress = percent_start
-                append_event(task, f"Processing document {document.filename}", stage="parsing")
-                await db.commit()
-                await self._publish(task_id, {"type": "event", "data": {"time": datetime.now(timezone.utc).isoformat(), "stage": "parsing", "level": "info", "message": f"Processing document {document.filename}"}})
-                await self._publish_progress(task_id, percent_start, "parsing")
+            for doc_result in doc_results:
+                if doc_result.get("error"):
+                    errors.append(doc_result["error"])
+                for finding in doc_result["findings"]:
+                    findings_to_save.append((finding, finding["document_id"]))
+                document_results.append(doc_result["document_result"])
+                agent_reports.append(doc_result["report"])
+                agent_report_sources.append(doc_result["report_source"])
+                if doc_result.get("trace"):
+                    all_traces.append(doc_result["trace"])
+                all_thinking_events.extend(doc_result.get("thinking_events", []))
 
-                initial_state = build_initial_state(
-                    document_path=document.file_path,
-                    document_type=agent_doc_type,
-                    focus=focus,
-                    document_content=document.content_text or "",
-                    document_name=document.filename,
-                )
+            # Check if ALL documents failed
+            all_failed = all(r.get("error") for r in doc_results)
+            if all_failed:
+                raise RuntimeError(f"All {total_docs} documents failed: {'; '.join(errors)}")
 
-                # Stream agent thinking events via astream_events
-                NODE_STAGE_MAP = {
-                    "parse_doc": "parsing",
-                    "supervisor": "routing",
-                    "regulation_expert": "regulation",
-                    "risk_assessor": "risk",
-                    "report_writer": "report",
-                }
-                NODE_PROGRESS_MAP = {
-                    "parse_doc": 5,
-                    "supervisor": 5,
-                    "regulation_expert": 25,
-                    "risk_assessor": 50,
-                    "report_writer": 70,
-                }
+            # Log partial failures
+            if errors:
+                append_event(task, f"{len(errors)}/{total_docs} document(s) had errors", stage="risk", level="warning")
+                await self._publish(task_id, {"type": "event", "data": {
+                    "time": datetime.now(timezone.utc).isoformat(),
+                    "stage": "risk", "level": "warning",
+                    "message": f"{len(errors)}/{total_docs} document(s) had errors",
+                }})
 
-                # Create trace for this document's pipeline run
-                from agent.trace import PipelineTrace, set_current_trace, clear_current_trace
-                trace = PipelineTrace(document_name=document.filename)
-                set_current_trace(trace)
+            # Store trace metadata and thinking events on task
+            task_config = dict(task.config or {})
+            if all_traces:
+                task_config["_trace"] = all_traces if len(all_traces) > 1 else all_traces[0]
+            if all_thinking_events:
+                task_config.setdefault("execution", {})["thinking_events"] = all_thinking_events
+            task.config = task_config
 
-                async def _stream_graph():
-                    result = {}
-                    async for event in graph.astream_events(initial_state, version="v2"):
-                        kind = event.get("event", "")
-                        node_name = event.get("name", "")
-
-                        if kind == "on_chain_start" and node_name in NODE_STAGE_MAP:
-                            stage_name = NODE_STAGE_MAP[node_name]
-                            await self._publish(task_id, {
-                                "type": "agent_thinking",
-                                "data": {
-                                    "stage": stage_name,
-                                    "node": node_name,
-                                    "status": "started",
-                                    "message": f"Agent {node_name} started",
-                                },
-                            })
-                            # Publish intermediate progress so frontend sees updates during LLM calls
-                            if node_name in NODE_PROGRESS_MAP:
-                                node_pct = NODE_PROGRESS_MAP[node_name]
-                                progress = percent_start + int((node_pct / 80) * (percent_end - percent_start))
-                                await self._publish_progress(task_id, progress, stage_name)
-                                # Persist stage + progress to DB so frontend polls see updates
-                                task.progress = progress
-                                meta = get_execution_meta(task)
-                                meta["stage"] = stage_name
-                                set_execution_meta(task, meta)
-                                await db.commit()
-
-                        elif kind == "on_chain_end" and node_name in NODE_STAGE_MAP:
-                            output = event.get("data", {}).get("output", {})
-                            if isinstance(output, dict):
-                                # Publish last few messages as thinking output
-                                for msg in (output.get("messages", []) or [])[-3:]:
-                                    content = getattr(msg, "content", str(msg))
-                                    if content:
-                                        await self._publish(task_id, {
-                                            "type": "agent_thinking",
-                                            "data": {
-                                                "stage": NODE_STAGE_MAP[node_name],
-                                                "node": node_name,
-                                                "status": "completed",
-                                                "message": str(content)[:500],
-                                            },
-                                        })
-                                # Accumulate outputs from all nodes
-                                result.update(output)
-
-                    return result
-
-                result_state = await asyncio.wait_for(_stream_graph(), timeout=timeout_seconds)
-
-                # Store trace if available
-                from agent.trace import get_current_trace
-                current_trace = get_current_trace()
-                if current_trace:
-                    current_trace.finalize(status=result_state.get("status", "completed"))
-                    result_state["_trace"] = current_trace.to_dict()
-                    all_traces.append(result_state["_trace"])
-
-                if not result_state:
-                    logger.warning("Agent graph returned no result for document %s, using empty state", document.filename)
-                    result_state = {"findings": [], "status": "completed", "risk_level": "unknown"}
-
-                doc_findings = result_state.get("findings", [])
-                for finding in doc_findings:
-                    finding["document_id"] = document.id
-                    findings_to_save.append((finding, document.id))
-
-                document_results.append(
-                    {
-                        "document_id": document.id,
-                        "filename": document.filename,
-                        "status": result_state.get("status", "completed"),
-                        "findings_count": len(doc_findings),
-                        "risk_level": result_state.get("risk_level", "unknown"),
-                        "report_path": result_state.get("report_path", ""),
-                    }
-                )
-                agent_reports.append(result_state.get("report_markdown", ""))
-                agent_report_sources.append(result_state.get("report_source", ""))
-
-                task.progress = percent_end
-                meta = get_execution_meta(task)
-                meta["documents"] = document_results
-                set_execution_meta(task, meta)
-                if all_traces:
-                    task_config = dict(task.config or {})
-                    task_config["_trace"] = all_traces if len(all_traces) > 1 else all_traces[0]
-                    task.config = task_config
-                append_event(task, f"Completed document {document.filename}", stage="regulation")
-                await db.commit()
-                await self._publish(task_id, {"type": "event", "data": {"time": datetime.now(timezone.utc).isoformat(), "stage": "regulation", "level": "info", "message": f"Completed document {document.filename}"}})
-                await self._publish_progress(task_id, percent_end, "regulation")
-
-                # Clear trace after this document
-                clear_current_trace()
+            # Update task with document results
+            meta = get_execution_meta(task)
+            meta["documents"] = document_results
+            set_execution_meta(task, meta)
+            task.progress = 80
+            await db.commit()
 
             # Validate findings before persisting
             all_finding_dicts = [f for f, _ in findings_to_save]
@@ -493,14 +656,7 @@ class TaskRunner:
                 append_event(task, f"Filtered {dropped_count} invalid findings (missing title/description)", stage="risk", level="warning")
                 await self._publish(task_id, {"type": "event", "data": {"time": datetime.now(timezone.utc).isoformat(), "stage": "risk", "level": "warning", "message": f"Filtered {dropped_count} invalid findings"}})
 
-            # Delete old data only after new audit succeeded (B6: data loss protection)
-            if old_finding_ids:
-                await db.execute(delete(RiskAlert).where(RiskAlert.finding_id.in_(old_finding_ids)))
-                await db.execute(delete(Finding).where(Finding.id.in_(old_finding_ids)))
-            if old_report_ids:
-                await db.execute(delete(Report).where(Report.id.in_(old_report_ids)))
-            await db.commit()
-
+            # Add new findings to session first (before deleting old data)
             persisted_findings: list[dict[str, Any]] = []
             for finding_data, document_id in findings_to_save:
                 if id(finding_data) in valid_set:
@@ -515,7 +671,6 @@ class TaskRunner:
                 agent_report_sources=agent_report_sources,
             )
             append_event(task, "Generating audit report", stage="report")
-            await db.commit()
             await self._publish(task_id, {"type": "event", "data": {"time": datetime.now(timezone.utc).isoformat(), "stage": "report", "level": "info", "message": "Generating audit report"}})
             await self._publish_progress(task_id, 90, "report")
             report = Report(
@@ -526,6 +681,14 @@ class TaskRunner:
                 report_metadata=report_metadata,
             )
             db.add(report)
+
+            # Delete old data after new data is staged (atomic: both in one commit)
+            if old_finding_ids:
+                await db.execute(delete(RiskAlert).where(RiskAlert.finding_id.in_(old_finding_ids)))
+                await db.execute(delete(Finding).where(Finding.id.in_(old_finding_ids)))
+            if old_report_ids:
+                await db.execute(delete(Report).where(Report.id.in_(old_report_ids)))
+            await db.commit()
 
             # Pre-compute finding statistics for notification
             high_risk_count = sum(1 for item in persisted_findings if item.get("severity", "").lower() in {"high", "critical"})
@@ -557,10 +720,11 @@ class TaskRunner:
                         db.add(RiskAlert(finding_id=finding.id, alert_level=AlertLevel.WARNING))
                 await db.commit()
 
-                try:
-                    await notify_audit_complete(task.task_name, len(persisted_findings), high_risk_count, medium_count, top_findings, task_id=task.id)
-                except Exception:
-                    logger.exception("Failed to send audit complete notification for task %s", task.id)
+                if is_feishu_configured():
+                    try:
+                        await notify_audit_complete(task.task_name, len(persisted_findings), high_risk_count, medium_count, top_findings, task_id=task.id)
+                    except Exception:
+                        logger.exception("Failed to send audit complete notification for task %s", task.id)
                 return
 
             task.status = TaskStatus.COMPLETED
@@ -583,21 +747,22 @@ class TaskRunner:
                     db.add(RiskAlert(finding_id=finding.id, alert_level=AlertLevel.WARNING))
             await db.commit()
 
-            try:
-                await notify_audit_complete(task.task_name, len(persisted_findings), high_risk_count, medium_count, top_findings, task_id=task.id)
-            except Exception:
-                logger.exception("Failed to send audit complete notification for task %s", task.id)
-            for item in persisted_findings:
-                if item.get("severity", "").lower() in {"high", "critical"}:
-                    try:
-                        await notify_high_risk_finding(
-                            task.task_name,
-                            item.get("title", ""),
-                            item.get("severity", ""),
-                            item.get("description", ""),
-                        )
-                    except Exception:
-                        logger.exception("Failed to send high-risk finding notification for task %s", task.id)
+            if is_feishu_configured():
+                try:
+                    await notify_audit_complete(task.task_name, len(persisted_findings), high_risk_count, medium_count, top_findings, task_id=task.id)
+                except Exception:
+                    logger.exception("Failed to send audit complete notification for task %s", task.id)
+                for item in persisted_findings:
+                    if item.get("severity", "").lower() in {"high", "critical"}:
+                        try:
+                            await notify_high_risk_finding(
+                                task.task_name,
+                                item.get("title", ""),
+                                item.get("severity", ""),
+                                item.get("description", ""),
+                            )
+                        except Exception:
+                            logger.exception("Failed to send high-risk finding notification for task %s", task.id)
 
     async def _mark_failed(self, db: AsyncSession, task: AuditTask, error: str) -> None:
         task.status = TaskStatus.FAILED
@@ -608,10 +773,11 @@ class TaskRunner:
         await db.commit()
         await self._publish(task.id, {"type": "event", "data": {"time": datetime.now(timezone.utc).isoformat(), "stage": "failed", "level": "error", "message": error}})
         await self._publish_done(task.id, "failed")
-        try:
-            await notify_task_failed(task.task_name, error)
-        except Exception:
-            logger.exception("Failed to send task failed notification for task %s", task.id)
+        if is_feishu_configured():
+            try:
+                await notify_task_failed(task.task_name, error)
+            except Exception:
+                logger.exception("Failed to send task failed notification for task %s", task.id)
 
 
 def get_task_runner_factory(

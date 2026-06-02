@@ -122,7 +122,10 @@ async def run_audit_task(
     await db.commit()
 
     runner = request.app.state.task_runner_factory()
-    runner.enqueue(task.id)
+    try:
+        runner.enqueue(task.id)
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
 
     return {"status": "pending", "task_id": task_id}
 
@@ -170,7 +173,10 @@ async def approve_task(
     await db.commit()
 
     runner = request.app.state.task_runner_factory()
-    runner.enqueue(task.id)
+    try:
+        runner.enqueue(task.id)
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
 
     return {"status": "approved", "task_id": task_id}
 
@@ -280,6 +286,9 @@ async def stream_task_events(task_id: int, request: Request, db: AsyncSession = 
             execution = meta.get("execution", {})
             for event in execution.get("events", []):
                 yield f"event: event\ndata: {json.dumps({'type': 'event', 'data': event})}\n\n"
+            # Replay persisted agent_thinking events
+            for event in execution.get("thinking_events", []):
+                yield f"event: agent_thinking\ndata: {json.dumps({'type': 'agent_thinking', 'data': event})}\n\n"
 
             # If task already finished, send done and close
             if refreshed.status in terminal_statuses:

@@ -75,7 +75,15 @@ export function useTaskSSE(taskId: number | null, isActive: boolean): UseTaskSSE
       },
       done: (data: { status: string }) => {
         setStatus(data.status);
-        setProgress(data.status === 'completed' ? 100 : 90);
+        if (data.status === 'completed') {
+          setProgress(100);
+          setCurrentStage('completed');
+        } else if (data.status === 'failed' || data.status === 'cancelled') {
+          setProgress(prev => prev); // keep current progress
+          setCurrentStage('failed');
+        } else {
+          setProgress(90);
+        }
       },
     },
     onError: () => {

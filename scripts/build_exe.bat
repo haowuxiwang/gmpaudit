@@ -110,6 +110,54 @@ if exist model (
 )
 
 echo.
+echo [VERIFY] Checking critical bundled files...
+set VERIFY_OK=1
+if not exist dist\AuditBee\_internal\magika\models\standard_v3_3\model.onnx (
+    echo   FAIL: magika model missing ^(markitdown PDF conversion will fail^)
+    set VERIFY_OK=0
+) else (
+    echo   OK: magika model
+)
+if not exist dist\AuditBee\_internal\lightrag\__init__.py (
+    echo   FAIL: lightrag missing ^(knowledge graph will fail^)
+    set VERIFY_OK=0
+) else (
+    echo   OK: lightrag
+)
+if not exist dist\AuditBee\_internal\rapidocr_onnxruntime\models\ch_PP-OCRv4_det_infer.onnx (
+    echo   FAIL: RapidOCR model missing ^(PDF OCR will fail^)
+    set VERIFY_OK=0
+) else (
+    echo   OK: RapidOCR models
+)
+if not exist dist\AuditBee\_internal\sentence_transformers\__init__.py (
+    echo   FAIL: sentence_transformers missing ^(embedding will fail^)
+    set VERIFY_OK=0
+) else (
+    echo   OK: sentence_transformers
+)
+if not exist dist\AuditBee\model\pytorch_model.bin (
+    echo   WARNING: embedding model not bundled. Knowledge graph will need manual model download.
+) else (
+    echo   OK: embedding model
+)
+if not exist dist\AuditBee\_internal\graphrag_index\lightrag_output (
+    echo   WARNING: LightRAG pre-built index not bundled. Knowledge graph will need rebuild.
+) else (
+    echo   OK: LightRAG pre-built index
+)
+if not exist dist\AuditBee\_internal\markitdown\__init__.py (
+    echo   FAIL: markitdown missing ^(document conversion will fail^)
+    set VERIFY_OK=0
+) else (
+    echo   OK: markitdown
+)
+if %VERIFY_OK%==0 (
+    echo.
+    echo   *** VERIFICATION FAILED - see above errors ***
+    echo.
+)
+echo.
 echo ========================================
 echo 打包完成！
 echo 输出目录: dist\AuditBee\

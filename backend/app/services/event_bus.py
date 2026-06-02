@@ -39,6 +39,7 @@ class EventBus:
         self._subscribers: dict[int, list[asyncio.Queue[Any]]] = {}
         self._last_activity: dict[int, float] = {}
         self._lock = asyncio.Lock()
+        self._dropped_count: int = 0
 
     async def subscribe(self, task_id: int) -> asyncio.Queue[Any]:
         """Create a queue for a new SSE connection and register it."""
@@ -90,7 +91,10 @@ class EventBus:
             try:
                 q.put_nowait(event)
             except asyncio.QueueFull:
-                logger.warning("SSE queue full for task %d, dropping event", task_id)
+                self._dropped_count += 1
+                if self._dropped_count % 10 == 1:
+                    logger.warning("SSE queue full for task %d, %d events dropped total",
+                                   task_id, self._dropped_count)
 
     async def publish_done(self, task_id: int, status: str) -> None:
         """Push terminal event and DONE sentinel to all subscribers."""

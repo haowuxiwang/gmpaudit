@@ -6,6 +6,16 @@ from pathlib import Path
 
 import pytest
 
+
+@pytest.fixture(autouse=True)
+def _clear_caches():
+    """Clear all agent caches before each test to prevent cross-test pollution."""
+    from agent.agents.regulation_expert import clear_llm_cache
+    from agent.tools.lightrag_tool import _query_cache
+    clear_llm_cache()
+    _query_cache.clear()
+    yield
+
 # Load .env for tests that need real LLM access
 _project_root = Path(__file__).parent.parent.parent
 _env_file = _project_root / "config" / ".env"

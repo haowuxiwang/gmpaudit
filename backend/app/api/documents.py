@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import shutil
@@ -18,6 +19,18 @@ from app.utils.file_utils import get_file_size, get_file_type
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+def _parse_metadata(raw) -> dict | None:
+    """Parse doc_metadata from DB (stored as JSON string in Text column)."""
+    if not raw:
+        return None
+    if isinstance(raw, dict):
+        return raw
+    try:
+        return json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        return None
 
 
 def _generate_safe_filename(original_filename: str) -> str:
@@ -69,6 +82,7 @@ async def _process_document_bg(document_id: int):
                 document = result.scalar_one_or_none()
                 if document:
                     document.process_status = DocumentStatus.FAILED
+                    document.doc_metadata = json.dumps({"error": str(exc)[:500]}, ensure_ascii=False)
                     await db.commit()
             except Exception:
                 logger.exception("Failed to persist failure state for document %s", document_id)
@@ -178,6 +192,7 @@ async def list_documents(page: int = 1, page_size: int = 20, db: AsyncSession = 
                 "upload_time": document.upload_time.replace(tzinfo=timezone.utc).isoformat() if document.upload_time else None,
                 "created_at": document.upload_time.replace(tzinfo=timezone.utc).isoformat() if document.upload_time else None,
                 "process_status": document.process_status.value,
+                "doc_metadata": _parse_metadata(document.doc_metadata),
             }
             for document in documents
         ],
@@ -202,6 +217,7 @@ async def get_document(document_id: int, db: AsyncSession = Depends(get_db)):
         "upload_time": document.upload_time.replace(tzinfo=timezone.utc).isoformat() if document.upload_time else None,
         "created_at": document.upload_time.replace(tzinfo=timezone.utc).isoformat() if document.upload_time else None,
         "process_status": document.process_status.value,
+        "doc_metadata": _parse_metadata(document.doc_metadata),
         "content_text": document.content_text,
     }
 

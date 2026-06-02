@@ -519,7 +519,7 @@ const AuditTasksPage: React.FC = () => {
             })() : null}
 
             {/* Agent Thinking Panel */}
-            {selectedTask.status === 'running' && (
+            {thinkingEvents.length > 0 && (
               <AgentThinkingPanel
                 thinkingEvents={thinkingEvents}
                 currentStage={currentStage}
