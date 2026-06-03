@@ -273,14 +273,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(documents.router, prefix="/api/documents", tags=["documents"])
-app.include_router(audit.router, prefix="/api/audit", tags=["audit"])
-app.include_router(reports.router, prefix="/api/reports", tags=["reports"])
-app.include_router(config.router, prefix="/api/config", tags=["config"])
-app.include_router(alerts.router, prefix="/api/alerts", tags=["alerts"])
-app.include_router(agent_audit.router, prefix="/api/agent-audit", tags=["agent-audit"])
-app.include_router(kg.router, prefix="/api/kg", tags=["knowledge-graph"])
-app.include_router(health.router, prefix="/api/health", tags=["health"])
+_routers = [
+    (documents, "/api/documents", "documents"),
+    (audit, "/api/audit", "audit"),
+    (reports, "/api/reports", "reports"),
+    (config, "/api/config", "config"),
+    (alerts, "/api/alerts", "alerts"),
+    (agent_audit, "/api/agent-audit", "agent-audit"),
+    (kg, "/api/kg", "knowledge-graph"),
+    (health, "/api/health", "health"),
+]
+for _mod, _prefix, _tag in _routers:
+    _router = getattr(_mod, "router", None)
+    if _router is None:
+        logging.warning("Router not found in module %s — skipping %s", _mod.__name__, _prefix)
+    else:
+        app.include_router(_router, prefix=_prefix, tags=[_tag])
+        logging.info("Registered router: %s (%d routes)", _prefix, len(_router.routes))
 
 
 # Mount static files for frontend (PyInstaller packaging)
