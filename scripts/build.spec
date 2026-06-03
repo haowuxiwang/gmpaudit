@@ -98,7 +98,6 @@ a = Analysis(
     datas=[
         (os.path.join(PROJECT_ROOT, 'backend', 'static'), 'static'),
         (os.path.join(PROJECT_ROOT, 'config', '.env.example'), 'config'),
-        *([(os.path.join(PROJECT_ROOT, 'config', '.env'), 'config')] if os.path.exists(os.path.join(PROJECT_ROOT, 'config', '.env')) else []),
         (os.path.join(PROJECT_ROOT, 'agent'), 'agent'),
         (os.path.join(PROJECT_ROOT, 'scripts', 'download_model.py'), 'scripts'),
         (os.path.join(PROJECT_ROOT, 'tools', 'ffmpeg'), 'tools/ffmpeg'),
@@ -227,7 +226,7 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    console=True,
+    console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,

@@ -45,10 +45,12 @@ if FROZEN:
     _default_model = str(_bundled_model if _bundled_model.is_dir() else APP_DIR / "model")
 else:
     _default_model = str(APP_DIR / "model")
-MODEL_DIR = Path(os.getenv("EMBEDDING_MODEL_PATH", _default_model))
+MODEL_DIR = Path(os.getenv("EMBEDDING_MODEL_PATH") or _default_model)
 
 # --- Writable data paths (always under APP_DIR, never inside _internal) ---
-DATA_DIR = APP_DIR / "data"
+# AUDITBEE_DATA_DIR can be set via --data-dir CLI flag to override the default data directory
+_data_dir_override = os.getenv("AUDITBEE_DATA_DIR")
+DATA_DIR = Path(_data_dir_override) if _data_dir_override else APP_DIR / "data"
 DB_DIR = DATA_DIR / "database"
 LOG_DIR = DATA_DIR / "logs"
 DOCS_DIR = DATA_DIR / "documents"

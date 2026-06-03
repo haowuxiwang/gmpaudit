@@ -10,7 +10,6 @@ import hashlib
 import logging
 import os
 import shutil
-import threading
 import time
 from pathlib import Path
 
@@ -46,7 +45,7 @@ except ImportError:
 
 # Module-level singleton for embedding model
 _embedding_model = None
-_embedding_lock = threading.Lock()
+_embedding_lock = asyncio.Lock()
 
 
 def _get_embedding_func():
@@ -56,13 +55,16 @@ def _get_embedding_func():
     async def embed(texts: list[str]) -> list[list[float]]:
         global _embedding_model
         if _embedding_model is None:
-            with _embedding_lock:
+            async with _embedding_lock:
                 if _embedding_model is None:
                     from sentence_transformers import SentenceTransformer
                     logger.info("Loading embedding model from %s", MODEL_DIR)
                     _embedding_model = SentenceTransformer(str(MODEL_DIR), device="cpu")
         import numpy as np
-        embeddings = _embedding_model.encode(texts, normalize_embeddings=True)
+        loop = asyncio.get_running_loop()
+        embeddings = await loop.run_in_executor(
+            None, lambda: _embedding_model.encode(texts, normalize_embeddings=True)
+        )
         return np.array(embeddings)
 
     return EmbeddingFunc(
@@ -372,13 +374,16 @@ async def preload_embedding_model():
     if _embedding_model is not None:
         return
 
-    with _embedding_lock:
+    async with _embedding_lock:
         if _embedding_model is not None:
             return
         try:
             from sentence_transformers import SentenceTransformer
             logger.info("Preloading embedding model from %s", MODEL_DIR)
-            _embedding_model = SentenceTransformer(str(MODEL_DIR), device="cpu")
+            loop = asyncio.get_running_loop()
+            _embedding_model = await loop.run_in_executor(
+                None, lambda: SentenceTransformer(str(MODEL_DIR), device="cpu")
+            )
             logger.info("Embedding model preloaded successfully")
         except Exception as e:
             logger.warning("Failed to preload embedding model: %s", e)

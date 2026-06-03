@@ -2,6 +2,7 @@ import asyncio
 import logging
 import os
 import re
+import sys
 from pathlib import Path
 from typing import Dict
 
@@ -118,6 +119,26 @@ async def _apply_setting(key: str, value: str):
             pass
 
 
+def _atomic_write_text(path, content: str, encoding: str = "utf-8"):
+    """Atomically write text to a file using write-to-temp-then-rename."""
+    import tempfile
+    tmp_fd, tmp_path = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
+    try:
+        with os.fdopen(tmp_fd, "w", encoding=encoding) as f:
+            f.write(content)
+        # On Windows, rename fails if target exists; remove first
+        if sys.platform == "win32" and path.exists():
+            path.unlink()
+        os.rename(tmp_path, path)
+    except Exception:
+        # Clean up temp file on failure
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise
+
+
 def _update_env_file(attr: str, value: str):
     """Update a single key in config/.env file."""
     from app.core.paths import ENV_FILE
@@ -135,7 +156,7 @@ def _update_env_file(attr: str, value: str):
                 break
         if not updated:
             lines.append(f"{attr}={value}")
-        env_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        _atomic_write_text(env_path, "\n".join(lines) + "\n")
     except Exception as e:
         logger.warning("Failed to persist %s to .env: %s", attr, e)
 
@@ -159,7 +180,7 @@ def _batch_update_env_file(updates: dict[str, str]):
         for key, value in updates.items():
             if key not in updated_keys:
                 lines.append(f"{key}={value}")
-        env_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        _atomic_write_text(env_path, "\n".join(lines) + "\n")
     except Exception as e:
         logger.warning("Failed to batch persist to .env: %s", e)
 

@@ -159,10 +159,16 @@ async def regulation_expert_node(state: AuditState) -> dict:
         # Single query with content summary (first 2000 chars)
         reg_results, source = await _search_regulations(full_content[:2000])
     else:
-        # Map-Reduce: query KG per chunk in parallel for better coverage
+        # Map-Reduce: query KG per chunk in parallel with concurrency limit
         chunks = chunk_document(full_content)
-        logger.info("Map-Reduce: %d chunks, querying KG per chunk (parallel)", len(chunks))
-        tasks = [_search_regulations(chunk.content[:500]) for chunk in chunks]
+        logger.info("Map-Reduce: %d chunks, querying KG per chunk (parallel, max 3 concurrent)", len(chunks))
+        _sem = asyncio.Semaphore(3)
+
+        async def _limited_search(chunk):
+            async with _sem:
+                return await _search_regulations(chunk.content[:500])
+
+        tasks = [_limited_search(chunk) for chunk in chunks]
         results_list = await asyncio.gather(*tasks)
         all_regs = []
         for chunk_regs, _ in results_list:

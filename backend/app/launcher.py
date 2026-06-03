@@ -57,6 +57,10 @@ def main() -> None:
 
     setup_signal_handlers()
 
+    # --- Handle --data-dir before any paths import (paths.py reads this env var at import time) ---
+    if args.data_dir:
+        os.environ["AUDITBEE_DATA_DIR"] = args.data_dir
+
     # --- Tkinter launcher (before backend starts) ---
     if not args.no_launcher:
         from app.core import paths
@@ -108,9 +112,6 @@ def main() -> None:
         current_path = os.environ.get("PATH", "")
         if ffmpeg_dir not in current_path:
             os.environ["PATH"] = ffmpeg_dir + os.pathsep + current_path
-
-    if args.data_dir:
-        os.environ["AUDITBEE_DATA_DIR"] = args.data_dir
 
     if args.open_browser:
         open_browser(args.port)

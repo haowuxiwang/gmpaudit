@@ -276,7 +276,9 @@ async def stream_task_events(task_id: int, request: Request, db: AsyncSession = 
         queue = await event_bus.subscribe(task_id)
         try:
             # Re-check status after subscribing to catch transitions that happened between request and subscribe
-            refreshed = (await db.execute(select(AuditTask).where(AuditTask.id == task_id))).scalar_one_or_none()
+            # Use a fresh session (not the dependency-injected one) to avoid session lifecycle issues
+            async with get_db_session() as db_session:
+                refreshed = (await db_session.execute(select(AuditTask).where(AuditTask.id == task_id))).scalar_one_or_none()
             if refreshed is None:
                 yield f"event: done\ndata: {json.dumps({'type': 'done', 'status': 'failed'})}\n\n"
                 return

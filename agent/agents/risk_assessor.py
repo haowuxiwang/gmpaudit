@@ -102,16 +102,19 @@ async def risk_assessor_node(state: AuditState) -> dict:
                 llm, prompt_template, doc_for_llm, regulation_context, doc_type, ""
             )
         else:
-            # Map-Reduce: analyze chunks in parallel
+            # Map-Reduce: analyze chunks in parallel with concurrency limit
             chunks = chunk_document(full_content)
-            logger.info("Map-Reduce: analyzing %d chunks (parallel)", len(chunks))
-            tasks = [
-                _analyze_chunk(
-                    llm, prompt_template, chunk.content, regulation_context, doc_type,
-                    chunk.section_path,
-                )
-                for chunk in chunks
-            ]
+            logger.info("Map-Reduce: analyzing %d chunks (parallel, max 3 concurrent)", len(chunks))
+            _sem = asyncio.Semaphore(3)
+
+            async def _limited_analyze(chunk):
+                async with _sem:
+                    return await _analyze_chunk(
+                        llm, prompt_template, chunk.content, regulation_context, doc_type,
+                        chunk.section_path,
+                    )
+
+            tasks = [_limited_analyze(chunk) for chunk in chunks]
             results = await asyncio.gather(*tasks, return_exceptions=True)
             all_findings = []
             for result in results:

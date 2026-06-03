@@ -96,6 +96,24 @@ def _read_env(path: Path) -> Dict[str, str]:
     return result
 
 
+def _atomic_write_text(path: Path, content: str, encoding: str = "utf-8") -> None:
+    """Atomically write text to a file using write-to-temp-then-rename."""
+    import tempfile
+    tmp_fd, tmp_path = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
+    try:
+        with os.fdopen(tmp_fd, "w", encoding=encoding) as f:
+            f.write(content)
+        if sys.platform == "win32" and path.exists():
+            path.unlink()
+        os.rename(tmp_path, path)
+    except Exception:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise
+
+
 def write_env(path: Path, updates: Dict[str, str]) -> None:
     """Update specific keys in .env file, preserving comments and order."""
     lines: List[str] = []
@@ -116,7 +134,7 @@ def write_env(path: Path, updates: Dict[str, str]) -> None:
         if key not in updated_keys:
             lines.append(f"{key}={value}")
 
-    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    _atomic_write_text(path, "\n".join(lines) + "\n")
 
 
 # ---------------------------------------------------------------------------
