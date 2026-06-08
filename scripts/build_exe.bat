@@ -93,11 +93,11 @@ echo   Done.
 
 echo.
 echo [6/7] Copying pre-built LightRAG index...
-if exist graphrag_index\lightrag_output (
-    xcopy /E /I /Y graphrag_index\lightrag_output dist\AuditBee\_internal\graphrag_index\lightrag_output >nul
+if exist lightrag_index\lightrag_output (
+    xcopy /E /I /Y lightrag_index\lightrag_output dist\AuditBee\_internal\lightrag_index\lightrag_output >nul
     echo   Pre-built LightRAG index copied.
 ) else (
-    echo   WARNING: graphrag_index/lightrag_output/ not found. Knowledge graph will need to be rebuilt.
+    echo   WARNING: lightrag_index/lightrag_output/ not found. Knowledge graph will need to be rebuilt.
 )
 
 echo.
@@ -141,7 +141,7 @@ if not exist dist\AuditBee\model\pytorch_model.bin (
 ) else (
     echo   OK: embedding model
 )
-if not exist dist\AuditBee\_internal\graphrag_index\lightrag_output (
+if not exist dist\AuditBee\_internal\lightrag_index\lightrag_output (
     echo   WARNING: LightRAG pre-built index not bundled. Knowledge graph will need rebuild.
 ) else (
     echo   OK: LightRAG pre-built index

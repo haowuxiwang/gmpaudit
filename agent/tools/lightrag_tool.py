@@ -75,7 +75,20 @@ def _get_embedding_func():
 
 
 def _get_llm_func():
-    """Create LLM function using the project's configured provider via OpenAI API."""
+    """Create LLM function using the project's configured provider via OpenAI API.
+
+    Integrates with the agent trace system for observability.
+    Enforces Chinese output for entity extraction tasks.
+    """
+    from agent.trace import get_current_trace, LLMTraceEvent, now_ms
+
+    # System prompt to enforce Chinese output for GMP domain
+    _CHINESE_SYSTEM_PROMPT = """你是一个专业的药品生产质量管理规范（GMP）法规专家。
+重要要求：
+1. 所有实体名称必须使用中文表述（如"质量保证体系"而非"Quality Assurance System"）
+2. 所有关系描述必须使用中文
+3. 不要将中文术语翻译为英文，保持原文的中文表述
+4. 实体类型使用中文（如"法规"、"条款"、"概念"、"流程"等）"""
 
     async def llm_complete(
         prompt: str,
@@ -83,10 +96,20 @@ def _get_llm_func():
         history_messages: list = None,
         **kwargs,
     ) -> str:
-        from agent.config import get_llm_config, get_default_provider
+        from agent.config import get_llm_config, get_default_provider, LLMAuthError
+
+        # Inject Chinese system prompt for entity extraction tasks
+        is_extraction = "entity" in prompt.lower() and "relationship" in prompt.lower()
+        if is_extraction:
+            system_prompt = _CHINESE_SYSTEM_PROMPT + (f"\n\n{system_prompt}" if system_prompt else "")
+
+        provider = get_default_provider()
+        trace = get_current_trace()
+        t0 = now_ms()
+        total_retries = 0
 
         # Anthropic uses a different API format — delegate to LangChain adapter
-        if get_default_provider() == "anthropic":
+        if provider == "anthropic":
             from agent.config import get_llm_with_fallback
             from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
             llm = get_llm_with_fallback(temperature=0.3)
@@ -100,15 +123,33 @@ def _get_llm_func():
                     elif m.get("role") == "assistant":
                         lc_messages.append(AIMessage(content=m["content"]))
             lc_messages.append(HumanMessage(content=prompt))
-            resp = await llm.ainvoke(lc_messages)
-            return resp.content
+            try:
+                resp = await llm.ainvoke(lc_messages)
+                latency = now_ms() - t0
+                if trace:
+                    trace.llm_events.append(LLMTraceEvent(
+                        provider="anthropic", model=getattr(llm, "_model", "unknown"),
+                        node="lightrag", prompt_length=len(prompt),
+                        prompt_preview=prompt[:200], response_length=len(resp.content),
+                        latency_ms=round(latency, 1), success=True,
+                    ))
+                return resp.content
+            except Exception as e:
+                latency = now_ms() - t0
+                if trace:
+                    trace.llm_events.append(LLMTraceEvent(
+                        provider="anthropic", model=getattr(llm, "_model", "unknown"),
+                        node="lightrag", prompt_length=len(prompt),
+                        prompt_preview=prompt[:200], response_length=0,
+                        latency_ms=round(latency, 1), success=False, error=str(e)[:500],
+                    ))
+                raise
 
         config = get_llm_config()
 
         # Ensure model name is not empty (fallback to provider default)
         if not config.get("model"):
             from agent.config import MODEL_ENDPOINTS
-            provider = get_default_provider()
             config["model"] = MODEL_ENDPOINTS.get(provider, {}).get("default_model", "mimo-v2.5-pro")
             logger.warning("LLM model name was empty, falling back to default: %s", config["model"])
 
@@ -125,6 +166,7 @@ def _get_llm_func():
 
         base_url = config.get("base_url", "https://api.xiaomimimo.com/v1").rstrip("/")
         url = f"{base_url}/chat/completions"
+        model_name = config.get("model", "mimo-v2.5-pro")
 
         client = await _get_llm_client()
         for _attempt in range(3):
@@ -132,7 +174,7 @@ def _get_llm_func():
                 resp = await client.post(
                     url,
                     json={
-                        "model": config.get("model", "mimo-v2.5-pro"),
+                        "model": model_name,
                         "messages": messages,
                         "temperature": 0.3,
                         "max_tokens": kwargs.get("max_tokens", 4096),
@@ -141,8 +183,19 @@ def _get_llm_func():
                 )
                 resp.raise_for_status()
                 data = resp.json()
-                return data["choices"][0]["message"]["content"]
+                content = data["choices"][0]["message"]["content"]
+                latency = now_ms() - t0
+                if trace:
+                    trace.llm_events.append(LLMTraceEvent(
+                        provider=provider, model=model_name,
+                        node="lightrag", prompt_length=len(prompt),
+                        prompt_preview=prompt[:200], response_length=len(content),
+                        latency_ms=round(latency, 1), success=True,
+                        retry_count=total_retries,
+                    ))
+                return content
             except httpx.HTTPStatusError as e:
+                total_retries = _attempt
                 resp_body = ""
                 try:
                     resp_body = e.response.text[:500]
@@ -152,17 +205,49 @@ def _get_llm_func():
                 logger.error(
                     "LLM HTTP %d (attempt %d/3): %s | model=%s msgs=%d chars=%d max_tokens=%d | body: %s",
                     e.response.status_code, _attempt + 1, url,
-                    config.get("model"), len(messages), total_chars,
+                    model_name, len(messages), total_chars,
                     kwargs.get("max_tokens", 4096), resp_body,
                 )
+                # Auth errors: wrap with LLMAuthError for consistent handling
+                if e.response.status_code in (401, 403):
+                    latency = now_ms() - t0
+                    if trace:
+                        trace.llm_events.append(LLMTraceEvent(
+                            provider=provider, model=model_name,
+                            node="lightrag", prompt_length=len(prompt),
+                            prompt_preview=prompt[:200], response_length=0,
+                            latency_ms=round(latency, 1), success=False,
+                            error=f"HTTP {e.response.status_code}", retry_count=total_retries,
+                        ))
+                    raise LLMAuthError(provider, str(e)) from e
                 if e.response.status_code in (429, 500, 502, 503, 504) and _attempt < 2:
                     await asyncio.sleep(2 ** _attempt)
                     continue
+                # Non-retryable error
+                latency = now_ms() - t0
+                if trace:
+                    trace.llm_events.append(LLMTraceEvent(
+                        provider=provider, model=model_name,
+                        node="lightrag", prompt_length=len(prompt),
+                        prompt_preview=prompt[:200], response_length=0,
+                        latency_ms=round(latency, 1), success=False,
+                        error=f"HTTP {e.response.status_code}", retry_count=total_retries,
+                    ))
                 raise
-            except (httpx.TimeoutException, httpx.ConnectError):
+            except (httpx.TimeoutException, httpx.ConnectError) as e:
+                total_retries = _attempt
                 if _attempt < 2:
                     await asyncio.sleep(2 ** _attempt)
                     continue
+                latency = now_ms() - t0
+                if trace:
+                    trace.llm_events.append(LLMTraceEvent(
+                        provider=provider, model=model_name,
+                        node="lightrag", prompt_length=len(prompt),
+                        prompt_preview=prompt[:200], response_length=0,
+                        latency_ms=round(latency, 1), success=False,
+                        error=str(e)[:500], retry_count=total_retries,
+                    ))
                 raise
 
     return llm_complete
@@ -328,7 +413,10 @@ async def lightrag_search(query: str, method: str = "local") -> list[dict]:
         from lightrag.base import QueryParam
         rag = await get_lightrag()
         mode = "local" if method == "local" else "global"
-        result = await rag.aquery(query, param=QueryParam(mode=mode))
+        result = await asyncio.wait_for(
+            rag.aquery(query, param=QueryParam(mode=mode)),
+            timeout=60,
+        )
 
         if not result or not result.strip():
             _set_cached(query, method, [])

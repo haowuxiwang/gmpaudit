@@ -2,7 +2,7 @@ import asyncio
 import json
 from datetime import timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -58,8 +58,8 @@ async def create_audit_task(
 @router.get("/tasks")
 async def list_audit_tasks(
     status: TaskStatus | None = None,
-    page: int = 1,
-    page_size: int = 20,
+    page: int = Query(1, ge=1, le=10000),
+    page_size: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
 ):
     query = select(AuditTask)
@@ -99,13 +99,24 @@ async def run_audit_task(
     request: Request,
     db: AsyncSession = Depends(get_db),
 ):
-    task = (await db.execute(select(AuditTask).where(AuditTask.id == task_id))).scalar_one_or_none()
-    if task is None:
-        raise HTTPException(status_code=404, detail="Task not found")
-    if task.status == TaskStatus.RUNNING:
-        raise HTTPException(status_code=400, detail="Task is already running")
     if not AGENT_AVAILABLE:
         raise HTTPException(status_code=503, detail="Agent audit system is unavailable")
+
+    # Atomic check-and-set to prevent TOCTOU race condition
+    from sqlalchemy import update as sa_update
+    result = await db.execute(
+        sa_update(AuditTask)
+        .where(AuditTask.id == task_id, AuditTask.status != TaskStatus.RUNNING)
+        .values(status=TaskStatus.PENDING, progress=0, error_message=None)
+    )
+    if result.rowcount == 0:
+        # Use select() instead of db.get() to bypass identity map cache
+        task = (await db.execute(select(AuditTask).where(AuditTask.id == task_id))).scalar_one_or_none()
+        if task is None:
+            raise HTTPException(status_code=404, detail="Task not found")
+        raise HTTPException(status_code=400, detail="Task is already running")
+
+    task = (await db.execute(select(AuditTask).where(AuditTask.id == task_id))).scalar_one()
 
     for doc_id in task.document_ids or []:
         document = (await db.execute(select(Document).where(Document.id == doc_id))).scalar_one_or_none()
@@ -114,9 +125,6 @@ async def run_audit_task(
         if document.process_status != DocumentStatus.PROCESSED:
             raise HTTPException(status_code=400, detail=f"Document is not processed: {document.filename}")
 
-    task.status = TaskStatus.PENDING
-    task.progress = 0
-    task.error_message = None
     set_stage(task, "queued")
     append_event(task, "Task queued for execution", stage="queued")
     await db.commit()
@@ -162,21 +170,50 @@ async def approve_task(
         raise HTTPException(status_code=400, detail="Task not in review state")
 
     from datetime import datetime, timezone
-    task.status = TaskStatus.PENDING
+    # Report and findings are already in DB from the initial run.
+    # No need to re-run the entire pipeline — just mark as completed.
+    task.status = TaskStatus.COMPLETED
+    task.progress = 100
     task.review_comment = body.comment
     task.reviewed_at = datetime.now(timezone.utc)
     task.auto_approve = True
-    task.progress = 0
+    task.completed_at = datetime.now(timezone.utc)
     task.error_message = None
-    set_stage(task, "queued")
-    append_event(task, f"Task approved: {body.comment}", stage="queued")
+    set_stage(task, "completed")
+    append_event(task, f"Task approved: {body.comment}", stage="completed")
     await db.commit()
 
-    runner = request.app.state.task_runner_factory()
+    # Notify via EventBus
     try:
-        runner.enqueue(task.id)
-    except RuntimeError as e:
-        raise HTTPException(status_code=503, detail=str(e))
+        from app.services.event_bus import EventBus
+        event_bus = getattr(request.app.state, 'event_bus', None)
+        if event_bus:
+            await event_bus.publish(task_id, {
+                "type": "event",
+                "data": {
+                    "time": datetime.now(timezone.utc).isoformat(),
+                    "stage": "completed",
+                    "level": "info",
+                    "message": f"Task approved: {body.comment}",
+                },
+            })
+            await event_bus.publish_done(task_id, "completed")
+    except Exception:
+        pass  # Non-critical
+
+    # Send Feishu notification
+    try:
+        from app.services.notification import notify_audit_complete, is_feishu_configured
+        if is_feishu_configured():
+            from sqlalchemy import select as sa_select
+            from app.models.finding import Finding, SeverityLevel
+            findings = (await db.execute(sa_select(Finding).where(Finding.task_id == task.id))).scalars().all()
+            high_count = sum(1 for f in findings if f.severity == SeverityLevel.HIGH)
+            medium_count = sum(1 for f in findings if f.severity == SeverityLevel.MEDIUM)
+            top_findings = [{"title": f.title, "severity": f.severity.value} for f in findings if f.severity == SeverityLevel.HIGH][:3]
+            await notify_audit_complete(task.task_name, len(findings), high_count, medium_count, top_findings, task_id=task.id)
+    except Exception:
+        pass  # Non-critical
 
     return {"status": "approved", "task_id": task_id}
 

@@ -16,7 +16,7 @@ echo   - GraphRAG logs and cache
 echo.
 echo WILL BE PRESERVED:
 echo   - Embedding model (model\)
-echo   - Knowledge graph index (graphrag_index\)
+echo   - Knowledge graph index (lightrag_index\)
 echo   - Config template (config\.env.example)
 echo   - FFmpeg tools (tools\)
 echo.
@@ -53,10 +53,10 @@ if exist config\.env del /f config\.env
 echo   Done.
 
 echo.
-echo [4/5] Cleaning GraphRAG cache and logs...
-if exist graphrag_index\.env del /f graphrag_index\.env
-if exist graphrag_index\logs del /s /f /q graphrag_index\logs\* 2>nul
-if exist graphrag_index\lightrag_output\kv_store_llm_response_cache.json del /f graphrag_index\lightrag_output\kv_store_llm_response_cache.json
+echo [4/5] Cleaning LightRAG cache and logs...
+if exist lightrag_index\.env del /f lightrag_index\.env
+if exist lightrag_index\logs del /s /f /q lightrag_index\logs\* 2>nul
+if exist lightrag_index\lightrag_output\kv_store_llm_response_cache.json del /f lightrag_index\lightrag_output\kv_store_llm_response_cache.json
 echo   Done.
 
 echo.
@@ -70,7 +70,7 @@ echo Factory reset complete!
 echo.
 echo Preserved:
 echo   - model\ (Embedding model)
-echo   - graphrag_index\ (Knowledge graph)
+echo   - lightrag_index\ (Knowledge graph)
 echo   - tools\ffmpeg\ (FFmpeg)
 echo.
 echo Next steps:

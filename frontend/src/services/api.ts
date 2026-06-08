@@ -82,6 +82,9 @@ export interface LLMModel {
   name: string;
   model: string;
   available: boolean;
+  base_url: string;
+  default_model: string;
+  available_models: string[];
 }
 
 export const configApi = {

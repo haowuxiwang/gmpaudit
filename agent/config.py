@@ -7,6 +7,7 @@ Anthropic uses langchain_anthropic.ChatAnthropic.
 
 import asyncio
 import os
+import re
 import logging
 from typing import Optional
 
@@ -85,6 +86,9 @@ MODEL_ENDPOINTS = {
         "default_model": "mimo-v2.5-pro",
     },
 }
+
+# Anthropic uses Messages API (not OpenAI-compatible), tracked separately
+ANTHROPIC_DEFAULT_MODEL = "claude-sonnet-4-20250514"
 
 # Document content truncation limit (chars) for LLM analysis.
 # Override via MAX_DOCUMENT_CHARS env var for longer documents.
@@ -209,6 +213,9 @@ def get_llm(
     )
     llm._provider = provider
     llm._model = resolved_model
+    # Evict oldest entry if cache is full
+    if len(_llm_cache) >= 50:
+        _llm_cache.pop(next(iter(_llm_cache)))
     _llm_cache[cache_key] = llm
     return llm
 
@@ -230,7 +237,7 @@ def get_llm_with_fallback(
     for provider in providers:
         try:
             return get_llm(provider, model, temperature, max_tokens)
-        except (ValueError, ImportError) as e:
+        except (ValueError, ImportError, ConnectionError, RuntimeError) as e:
             last_error = e
             logger.warning("Provider %s unavailable: %s", provider, e)
             continue
@@ -241,7 +248,7 @@ def _get_anthropic_llm(model: Optional[str], temperature: float, max_tokens: int
     """Create Anthropic ChatAnthropic instance (cached)."""
     resolved_model = model or os.getenv("ANTHROPIC_MODEL")
     if not resolved_model or resolved_model.startswith("your_"):
-        resolved_model = "claude-sonnet-4-20250514"
+        resolved_model = ANTHROPIC_DEFAULT_MODEL
     cache_key = ("anthropic", resolved_model, temperature, max_tokens)
     if cache_key in _llm_cache:
         return _llm_cache[cache_key]
@@ -261,17 +268,25 @@ def _get_anthropic_llm(model: Optional[str], temperature: float, max_tokens: int
         temperature=temperature,
         max_tokens=max_tokens,
     )
+    llm._provider = "anthropic"
+    llm._model = resolved_model
+    # Evict oldest entry if cache is full
+    if len(_llm_cache) >= 50:
+        _llm_cache.pop(next(iter(_llm_cache)))
     _llm_cache[cache_key] = llm
     return llm
 
 
 def _is_retryable_error(exc: Exception) -> bool:
     """Check if an LLM error is retryable (rate limit, server error, timeout)."""
+    # asyncio.TimeoutError is always retryable
+    if isinstance(exc, asyncio.TimeoutError):
+        return True
     error_str = str(exc).lower()
-    # Non-retryable: auth errors, bad request
-    if any(kw in error_str for kw in ("401", "403", "invalid api key", "invalid_key", "unauthorized")):
+    # Non-retryable: auth errors (use regex to avoid false positives on model names)
+    if re.search(r'\b40[13]\b', error_str) or any(kw in error_str for kw in ("invalid api key", "invalid_key", "unauthorized")):
         return False
-    if any(kw in error_str for kw in ("400", "bad request", "invalid_request")):
+    if re.search(r'\b400\b', error_str) or any(kw in error_str for kw in ("bad request", "invalid_request")):
         return False
     # Retryable: rate limit, server error, timeout, network
     if any(kw in error_str for kw in ("429", "500", "502", "503", "504", "rate limit", "timeout", "connection", "overloaded")):
@@ -287,7 +302,6 @@ def _is_auth_error(exc: Exception) -> bool:
     if any(kw in error_str for kw in ("invalid api key", "invalid_key", "unauthorized")):
         return True
     # Check for status code patterns (not substrings like model names)
-    import re
     if re.search(r'(?:error code|status.?code|http)[:\s]*40[13]\b', error_str):
         return True
     if re.search(r'\b40[13]\b.*(?:api.?key|auth|token)', error_str):
@@ -325,7 +339,7 @@ async def call_llm_with_retry(llm, prompt: str, node: str = "unknown", max_retri
     for attempt in range(max_retries + 1):
         try:
             t0 = now_ms()
-            response = await llm.ainvoke(prompt)
+            response = await asyncio.wait_for(llm.ainvoke(prompt), timeout=90)
             latency = now_ms() - t0
 
             if trace:

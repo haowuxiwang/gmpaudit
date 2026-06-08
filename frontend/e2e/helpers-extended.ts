@@ -27,7 +27,7 @@ export function createTestFileMultiple(count: number): string[] {
  * Clean up KG test files from the input directory.
  */
 export function cleanupKGTestFiles(): void {
-  const kgInputDir = path.resolve(process.cwd(), '..', 'graphrag_index', 'input');
+  const kgInputDir = path.resolve(process.cwd(), '..', 'lightrag_index', 'input');
   if (!fs.existsSync(kgInputDir)) return;
 
   const files = fs.readdirSync(kgInputDir);

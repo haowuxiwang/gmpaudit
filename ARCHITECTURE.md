@@ -2,16 +2,22 @@
 
 ## System Goal
 
-AuditBee is an AI-powered GMP compliance audit system for pharmaceutical manufacturing. It combines multi-agent orchestration (LangGraph) with knowledge graph retrieval (LightRAG) to analyze documents, identify compliance risks, and generate structured audit reports. Distributed as an Electron desktop application.
+AuditBee is an AI-powered GMP compliance audit system for pharmaceutical manufacturing. It combines multi-agent orchestration (LangGraph) with knowledge graph retrieval (LightRAG) to analyze documents, identify compliance risks, and generate structured audit reports. Distributed as a PyInstaller-packaged local web application with a tkinter launcher.
 
 ## Architecture Overview
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│                  Electron Desktop                    │
+│              PyInstaller Desktop Package              │
 │  ┌──────────────────────────────────────────────┐   │
+│  │       tkinter Launcher (pre-startup)          │   │
+│  │  LLM Provider │ API Key │ Model Download      │   │
+│  └──────────────────┬───────────────────────────┘   │
+│                     │ Start uvicorn                   │
+│  ┌──────────────────┴───────────────────────────┐   │
 │  │         Frontend (React + Ant Design)        │   │
 │  │  Dashboard │ Documents │ Audit │ Reports │ KG│   │
+│  │           Served as static files              │   │
 │  └──────────────────┬───────────────────────────┘   │
 │                     │ HTTP (localhost:8000)           │
 │  ┌──────────────────┴───────────────────────────┐   │
@@ -27,6 +33,8 @@ AuditBee is an AI-powered GMP compliance audit system for pharmaceutical manufac
 │  └─────────────┘  └─────────────┘                   │
 └─────────────────────────────────────────────────────┘
 ```
+
+Note: The frontend runs in the user's system browser (not in an embedded webview). The tkinter launcher handles pre-startup configuration before the heavy Python backend loads.
 
 ## Agent Pipeline
 
@@ -71,13 +79,13 @@ All nodes communicate via a shared `AuditState` TypedDict:
 ### LightRAG Pipeline
 
 ```
-Regulation texts (graphrag_index/input/)
+Regulation texts (lightrag_index/input/)
     ↓ Chunking (1200 tokens, 100 overlap)
     ↓ Entity extraction (LLM)
     ↓ Embedding (BAAI/bge-large-zh-v1.5, 1024-dim)
     ↓ Graph construction (entities + relations)
     ↓ Vector storage (NanoVectorDB)
-Knowledge graph index (graphrag_index/lightrag_output/)
+Knowledge graph index (lightrag_index/lightrag_output/)
 ```
 
 ### Query Flow

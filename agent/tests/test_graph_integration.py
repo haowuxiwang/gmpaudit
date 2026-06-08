@@ -107,8 +107,6 @@ class TestBuildAuditGraph:
                 "document_type": "unknown",
                 "document_content": "",
                 "audit_focus": "",
-                "next_agent": "",
-                "supervisor_reasoning": "",
                 "matched_regulations": [],
                 "regulation_summary": "",
                 "regulation_checked": False,
@@ -120,7 +118,6 @@ class TestBuildAuditGraph:
                 "report_path": "",
                 "report_generated": False,
                 "messages": [],
-                "iteration": 0,
                 "status": "",
             }
 
@@ -131,12 +128,11 @@ class TestBuildAuditGraph:
             assert result["regulation_checked"] is True
             assert result["risk_assessed"] is True
             assert result["report_generated"] is True
-            assert result["iteration"] > 0
 
 
 @pytest.mark.asyncio
-class TestSupervisorRouting:
-    """Test supervisor routing in the graph context."""
+class TestPipelineErrorHandling:
+    """Test error handling in the pipeline."""
 
     async def test_error_state_stops_pipeline(self):
         """Error state in document parsing stops pipeline."""
@@ -148,8 +144,6 @@ class TestSupervisorRouting:
                 "document_type": "unknown",
                 "document_content": "",
                 "audit_focus": "",
-                "next_agent": "",
-                "supervisor_reasoning": "",
                 "matched_regulations": [],
                 "regulation_summary": "",
                 "regulation_checked": False,
@@ -161,7 +155,6 @@ class TestSupervisorRouting:
                 "report_path": "",
                 "report_generated": False,
                 "messages": [],
-                "iteration": 0,
                 "status": "",
             }
 

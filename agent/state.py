@@ -14,9 +14,6 @@ class AuditState(TypedDict):
     document_type: str
     audit_focus: str
 
-    next_agent: str
-    supervisor_reasoning: str
-
     matched_regulations: list[dict]
     regulation_summary: str
     regulation_checked: bool
@@ -32,5 +29,4 @@ class AuditState(TypedDict):
     report_source: str
 
     messages: Annotated[list, merge_lists]
-    iteration: int
     status: str

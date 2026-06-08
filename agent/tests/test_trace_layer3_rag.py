@@ -111,4 +111,7 @@ class TestKGTraceEvents:
         assert result["regulation_checked"] is True
         assert len(trace.kg_events) >= 1, "No KG events"
         assert len(trace.llm_events) >= 1, "No LLM events"
-        assert trace.llm_events[0].node == "regulation_expert"
+        # Query rewrite (regulation_expert_rewrite) runs before main analysis (regulation_expert)
+        llm_nodes = [e.node for e in trace.llm_events]
+        assert "regulation_expert_rewrite" in llm_nodes or "regulation_expert" in llm_nodes, \
+            f"Expected regulation_expert nodes, got: {llm_nodes}"

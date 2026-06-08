@@ -7,7 +7,7 @@ import uuid
 from datetime import timezone
 from typing import List
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, UploadFile
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -174,7 +174,7 @@ async def upload_documents_batch(files: List[UploadFile] = File(...), background
 
 
 @router.get("/")
-async def list_documents(page: int = 1, page_size: int = 20, db: AsyncSession = Depends(get_db)):
+async def list_documents(page: int = Query(1, ge=1, le=10000), page_size: int = Query(20, ge=1, le=100), db: AsyncSession = Depends(get_db)):
     from sqlalchemy import func
 
     count_result = await db.execute(select(func.count()).select_from(Document))

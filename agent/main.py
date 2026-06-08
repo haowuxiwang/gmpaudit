@@ -51,8 +51,6 @@ async def run_audit(file_path: str, doc_type: str = "unknown", focus: str = "") 
             "document_type": doc_type,
             "audit_focus": focus,
             "document_content": "",
-            "next_agent": "",
-            "supervisor_reasoning": "",
             "matched_regulations": [],
             "regulation_summary": "",
             "findings": [],
@@ -62,7 +60,6 @@ async def run_audit(file_path: str, doc_type: str = "unknown", focus: str = "") 
             "report_path": "",
             "report_source": "",
             "messages": [],
-            "iteration": 0,
             "status": "running",
             "regulation_checked": False,
             "risk_assessed": False,
@@ -93,7 +90,6 @@ async def run_audit(file_path: str, doc_type: str = "unknown", focus: str = "") 
 
         print(f"\n{'='*60}")
         print(f"Status: {status}")
-        print(f"Iterations: {final_state.get('iteration', 0)}")
         print(f"{'='*60}\n")
 
         # Print trace report

@@ -97,12 +97,31 @@ class EventBus:
                                    task_id, self._dropped_count)
 
     async def publish_done(self, task_id: int, status: str) -> None:
-        """Push terminal event and DONE sentinel to all subscribers."""
-        await self.publish(task_id, {"type": "done", "status": status})
+        """Push terminal event and DONE sentinel to all subscribers.
+
+        Inlines the done event push with the sentinel to prevent concurrent
+        publish() calls from interleaving between the done event and sentinel.
+        """
         async with self._lock:
             queues = list(self._subscribers.get(task_id, []))
+            self._last_activity[task_id] = time.monotonic()
+
+        done_event = {"type": "done", "status": status}
         for q in queues:
-            # Never drop the sentinel — drain if full so the SSE loop terminates
+            # Drain if full to make room for done event + sentinel
+            if q.full():
+                while not q.empty():
+                    try:
+                        q.get_nowait()
+                    except asyncio.QueueEmpty:
+                        break
+            try:
+                q.put_nowait(done_event)
+            except asyncio.QueueFull:
+                logger.warning("SSE queue still full after drain for task %d done event", task_id)
+
+        # Push sentinel — must succeed for SSE loop to terminate
+        for q in queues:
             if q.full():
                 while not q.empty():
                     try:
@@ -112,4 +131,4 @@ class EventBus:
             try:
                 q.put_nowait(DONE_SENTINEL)
             except asyncio.QueueFull:
-                logger.warning("SSE queue still full after drain for task %d", task_id)
+                logger.warning("SSE queue still full after drain for task %d sentinel", task_id)

@@ -25,8 +25,19 @@ const AgentFlowChart: React.FC<AgentFlowChartProps> = ({ currentStage, completed
     return 40;
   };
 
+  const isStartActive = currentStage === 'pending' || currentStage === 'queued' || currentStage === 'routing';
+
   const nodes = [
-    { name: 'start', x: 50, y: 200, symbolSize: 30, itemStyle: { color: '#52c41a' } },
+    {
+      name: 'start',
+      x: 50,
+      y: 200,
+      symbolSize: isStartActive ? 40 : 30,
+      itemStyle: {
+        color: isStartActive ? STAGE_COLORS.running : '#52c41a',
+        ...(isStartActive ? { shadowBlur: 12, shadowColor: STAGE_COLORS.running } : {}),
+      },
+    },
     ...STAGE_ORDER.map((stage, index) => ({
       name: STAGE_LABELS[stage] || stage,
       x: 150 + index * 150,

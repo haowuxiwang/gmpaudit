@@ -23,7 +23,11 @@ class ErrorBoundary extends React.Component<Props, State> {
     console.error('ErrorBoundary caught:', error, errorInfo);
   }
 
-  handleReset = () => {
+  handleRetry = () => {
+    this.setState({ hasError: false });
+  };
+
+  handleGoHome = () => {
     this.setState({ hasError: false });
     window.location.href = '/';
   };
@@ -34,11 +38,16 @@ class ErrorBoundary extends React.Component<Props, State> {
         <Result
           status="error"
           title="页面出错了"
-          subTitle="发生了意外错误，请刷新页面或返回首页"
+          subTitle="发生了意外错误，请重试或返回首页"
           extra={
-            <Button type="primary" onClick={this.handleReset}>
-              返回首页
-            </Button>
+            <>
+              <Button type="primary" onClick={this.handleRetry}>
+                重试
+              </Button>
+              <Button onClick={this.handleGoHome}>
+                返回首页
+              </Button>
+            </>
           }
         />
       );

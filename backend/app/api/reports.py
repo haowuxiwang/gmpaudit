@@ -1,14 +1,19 @@
+import asyncio
 import html as html_module
 import io
+import logging
 from datetime import timezone
+
+logger = logging.getLogger(__name__)
 
 import bleach
 import markdown
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import HTMLResponse, StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.models.audit_task import AuditTask
 from app.models.finding import Finding
@@ -34,8 +39,8 @@ def _sanitize_html(html_str: str) -> str:
 @router.get("/")
 async def list_reports(
     task_id: int | None = None,
-    page: int = 1,
-    page_size: int = 20,
+    page: int = Query(1, ge=1, le=10000),
+    page_size: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
 ):
     query = select(Report)
@@ -93,9 +98,14 @@ async def generate_report(
         for finding in findings
     ]
     try:
-        report_content = await llm.generate_report(findings_data)
+        report_content = await asyncio.wait_for(llm.generate_report(findings_data), timeout=settings.LLM_REQUEST_TIMEOUT)
     except ValueError as exc:
         raise HTTPException(status_code=503, detail=f"LLM 服务不可用: {exc}")
+    except asyncio.TimeoutError:
+        raise HTTPException(status_code=504, detail=f"LLM 调用超时（{settings.LLM_REQUEST_TIMEOUT}秒）")
+    except Exception as exc:
+        logger.exception("Report generation failed")
+        raise HTTPException(status_code=502, detail=f"LLM 调用失败: {type(exc).__name__}")
 
     report = Report(
         task_id=task_id,
@@ -232,7 +242,8 @@ async def export_report_pdf(
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"PDF 生成失败: {exc}")
 
-    safe_filename = (report.title or "report").replace(" ", "_")
+    import re
+    safe_filename = re.sub(r'[^\w一-鿿\-]', '_', (report.title or "report"))[:100]
     return StreamingResponse(
         io.BytesIO(pdf_bytes),
         media_type="application/pdf",

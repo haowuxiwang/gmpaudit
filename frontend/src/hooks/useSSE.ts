@@ -9,13 +9,25 @@ interface UseSSEOptions {
   enabled?: boolean;
 }
 
-export function useSSE({ url, onMessage, onEvent, onError, onOpen, enabled = true }: UseSSEOptions) {
+interface UseSSEReturn {
+  close: () => void;
+  readyState: number;
+  connectionError: boolean;
+  reconnectCount: number;
+}
+
+const MAX_RECONNECT_ATTEMPTS = 3;
+
+export function useSSE({ url, onMessage, onEvent, onError, onOpen, enabled = true }: UseSSEOptions): UseSSEReturn {
   const sourceRef = useRef<EventSource | null>(null);
   const onMessageRef = useRef(onMessage);
   const onErrorRef = useRef(onError);
   const onOpenRef = useRef(onOpen);
   const onEventRef = useRef(onEvent);
   const [readyState, setReadyState] = useState<number>(EventSource.CLOSED);
+  const [connectionError, setConnectionError] = useState(false);
+  const [reconnectCount, setReconnectCount] = useState(0);
+  const errorCountRef = useRef(0);
 
   useEffect(() => {
     onMessageRef.current = onMessage;
@@ -35,6 +47,9 @@ export function useSSE({ url, onMessage, onEvent, onError, onOpen, enabled = tru
   useEffect(() => {
     if (!url || !enabled) {
       close();
+      setConnectionError(false);
+      errorCountRef.current = 0;
+      setReconnectCount(0);
       return;
     }
 
@@ -50,6 +65,9 @@ export function useSSE({ url, onMessage, onEvent, onError, onOpen, enabled = tru
 
     source.onopen = () => {
       setReadyState(EventSource.OPEN);
+      setConnectionError(false);
+      errorCountRef.current = 0;
+      setReconnectCount(0);
       onOpenRef.current?.();
     };
 
@@ -84,6 +102,14 @@ export function useSSE({ url, onMessage, onEvent, onError, onOpen, enabled = tru
 
     source.onerror = (event) => {
       setReadyState(source.readyState);
+      errorCountRef.current += 1;
+      setReconnectCount(errorCountRef.current);
+
+      // After MAX_RECONNECT_ATTEMPTS, mark as connection error
+      if (errorCountRef.current >= MAX_RECONNECT_ATTEMPTS) {
+        setConnectionError(true);
+      }
+
       onErrorRef.current?.(event);
     };
 
@@ -95,5 +121,5 @@ export function useSSE({ url, onMessage, onEvent, onError, onOpen, enabled = tru
     };
   }, [url, enabled, close]);
 
-  return { close, readyState };
+  return { close, readyState, connectionError, reconnectCount };
 }

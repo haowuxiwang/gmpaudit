@@ -30,7 +30,8 @@ function isFallbackSource(source?: string): boolean {
 
 const ReportsPage: React.FC = () => {
   const [searchParams] = useSearchParams();
-  const taskId = searchParams.get('task_id') ? Number(searchParams.get('task_id')) : undefined;
+  const rawTaskId = searchParams.get('task_id');
+  const taskId = rawTaskId && Number.isFinite(Number(rawTaskId)) ? Number(rawTaskId) : undefined;
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -209,7 +210,8 @@ const ReportsPage: React.FC = () => {
           setDetailOpen(false);
           setDetailContent(null);
         }}
-        width={900}
+        width="90%"
+        style={{ maxWidth: 900 }}
         footer={
           <Space>
             <Button onClick={() => setDetailOpen(false)}>关闭</Button>

@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { Modal, Input, Spin, message } from 'antd';
+import React, { useState, useEffect, useRef } from 'react';
+import { Modal, Input, Spin, message, Typography } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import { documentApi } from '../services/api';
+
+const { Text } = Typography;
 
 interface DocumentPreviewProps {
   documentId: number;
@@ -10,13 +12,108 @@ interface DocumentPreviewProps {
   onClose: () => void;
 }
 
+const CONTEXT_WINDOW = 500; // chars before/after highlight
+
+/**
+ * Normalize text for fuzzy matching: remove whitespace, punctuation, newlines.
+ */
+function normalizeForMatch(text: string): string {
+  return text.replace(/[\s\n\r\t.,;:!?，。；：！？、\-\(\)\[\]\{\}「」『』""''"]+/g, '');
+}
+
+/**
+ * Extract a window of text around the highlighted portion.
+ * Tries exact match first, then fuzzy match (ignoring whitespace/punctuation).
+ */
+function getWindowAroundHighlight(
+  text: string,
+  highlight: string,
+): { before: string; match: string; after: string } | null {
+  if (!highlight || !text) return null;
+
+  // Try exact match
+  let idx = text.toLowerCase().indexOf(highlight.toLowerCase());
+  if (idx >= 0) {
+    const start = Math.max(0, idx - CONTEXT_WINDOW);
+    const end = Math.min(text.length, idx + highlight.length + CONTEXT_WINDOW);
+    return {
+      before: start > 0 ? '...' + text.slice(start, idx) : text.slice(0, idx),
+      match: text.slice(idx, idx + highlight.length),
+      after: text.slice(idx + highlight.length, end) + (end < text.length ? '...' : ''),
+    };
+  }
+
+  // Try fuzzy match: normalize both and find position
+  const normalizedHighlight = normalizeForMatch(highlight);
+  if (normalizedHighlight.length < 5) return null; // too short for fuzzy
+
+  // Sliding window: find where the normalized highlight appears in normalized text
+  const normalizedText = normalizeForMatch(text);
+  const fuzzyIdx = normalizedText.indexOf(normalizedHighlight);
+  if (fuzzyIdx < 0) {
+    // Try partial match with decreasing lengths for better Chinese text matching
+    const tryLengths = [
+      Math.ceil(normalizedHighlight.length * 0.7),
+      Math.ceil(normalizedHighlight.length * 0.5),
+      Math.min(20, normalizedHighlight.length),
+    ];
+    let partialIdx = -1;
+    for (const len of tryLengths) {
+      const partial = normalizedHighlight.slice(0, len);
+      partialIdx = normalizedText.indexOf(partial);
+      if (partialIdx >= 0) break;
+    }
+    if (partialIdx < 0) return null;
+
+    // Map back to original text position (approximate)
+    // Count non-whitespace chars up to partialIdx in normalized text
+    let charCount = 0;
+    let origIdx = 0;
+    for (let i = 0; i < text.length && charCount < partialIdx; i++) {
+      if (!/[\s\n\r\t.,;:!?，。；：！？、\-\(\)\[\]\{\}「」『』""''"]/.test(text[i])) {
+        charCount++;
+      }
+      origIdx = i;
+    }
+
+    const start = Math.max(0, origIdx - CONTEXT_WINDOW);
+    const end = Math.min(text.length, origIdx + highlight.length + CONTEXT_WINDOW);
+    return {
+      before: start > 0 ? '...' + text.slice(start, origIdx) : text.slice(0, origIdx),
+      match: text.slice(origIdx, Math.min(origIdx + highlight.length, text.length)),
+      after: text.slice(Math.min(origIdx + highlight.length, text.length), end) + (end < text.length ? '...' : ''),
+    };
+  }
+
+  // Map fuzzy index back to original text position
+  let charCount = 0;
+  let origIdx = 0;
+  for (let i = 0; i < text.length && charCount < fuzzyIdx; i++) {
+    if (!/[\s\n\r\t.,;:!?，。；：！？、\-\(\)\[\]\{\}「」『』""''"]/.test(text[i])) {
+      charCount++;
+    }
+    origIdx = i;
+  }
+
+  const start = Math.max(0, origIdx - CONTEXT_WINDOW);
+  const end = Math.min(text.length, origIdx + highlight.length + CONTEXT_WINDOW);
+  return {
+    before: start > 0 ? '...' + text.slice(start, origIdx) : text.slice(0, origIdx),
+    match: text.slice(origIdx, Math.min(origIdx + highlight.length, text.length)),
+    after: text.slice(Math.min(origIdx + highlight.length, text.length), end) + (end < text.length ? '...' : ''),
+  };
+}
+
 const DocumentPreview: React.FC<DocumentPreviewProps> = ({ documentId, highlightText, visible, onClose }) => {
   const [content, setContent] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState(highlightText || '');
+  const [showFull, setShowFull] = useState(false);
+  const highlightRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!visible) return;
+    setShowFull(false); // Reset to focused view on open
 
     const loadDocument = async () => {
       setLoading(true);
@@ -40,18 +137,32 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({ documentId, highlight
     }
   }, [highlightText]);
 
+  // Auto-scroll to highlight when content loads
+  useEffect(() => {
+    if (!loading && highlightRef.current) {
+      setTimeout(() => {
+        highlightRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 100);
+    }
+  }, [loading, content, searchText]);
+
   const highlightContent = (text: string, highlight: string) => {
     if (!highlight || !text) return text;
 
     const parts = text.split(new RegExp(`(${highlight.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'));
     return parts.map((part, index) =>
       part.toLowerCase() === highlight.toLowerCase() ? (
-        <mark key={index} style={{ backgroundColor: '#fff3b0', padding: '0 2px', borderRadius: 2 }}>
+        <mark key={index} ref={highlightRef} style={{ backgroundColor: '#fff3b0', padding: '0 2px', borderRadius: 2 }}>
           {part}
         </mark>
       ) : part
     );
   };
+
+  // Check if we should show focused view
+  const hasHighlightText = Boolean(searchText?.trim());
+  const windowData = hasHighlightText ? getWindowAroundHighlight(content, searchText) : null;
+  const hasHighlight = Boolean(windowData);
 
   return (
     <Modal
@@ -75,23 +186,65 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({ documentId, highlight
         <div style={{ textAlign: 'center', padding: 40 }}>
           <Spin />
         </div>
+      ) : hasHighlight && !showFull && windowData ? (
+        <>
+          {/* Focused view: only the relevant section */}
+          <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              显示相关段落
+            </Text>
+            <a onClick={() => setShowFull(true)} style={{ fontSize: 12 }}>
+              查看完整文档
+            </a>
+          </div>
+          <div
+            style={{
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+              fontSize: 13,
+              lineHeight: 1.8,
+              maxHeight: '50vh',
+              overflow: 'auto',
+              padding: 16,
+              background: '#fafafa',
+              borderRadius: 8,
+              border: '1px solid #f0f0f0',
+            }}
+          >
+            {windowData.before}
+            <mark style={{ backgroundColor: '#fff3b0', padding: '2px 4px', borderRadius: 2, fontWeight: 500 }}>
+              {windowData.match}
+            </mark>
+            {windowData.after}
+          </div>
+        </>
       ) : (
-        <pre
-          style={{
-            whiteSpace: 'pre-wrap',
-            wordBreak: 'break-word',
-            fontSize: 13,
-            lineHeight: 1.6,
-            maxHeight: '50vh',
-            overflow: 'auto',
-            padding: 16,
-            background: '#fafafa',
-            borderRadius: 8,
-            border: '1px solid #f0f0f0',
-          }}
-        >
-          {highlightContent(content, searchText)}
-        </pre>
+        <>
+          {/* Full document view (or no highlight) */}
+          {hasHighlightText && !hasHighlight && (
+            <div style={{ marginBottom: 12 }}>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                未在文档中找到匹配文本，显示完整文档
+              </Text>
+            </div>
+          )}
+          <pre
+            style={{
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+              fontSize: 13,
+              lineHeight: 1.6,
+              maxHeight: '50vh',
+              overflow: 'auto',
+              padding: 16,
+              background: '#fafafa',
+              borderRadius: 8,
+              border: '1px solid #f0f0f0',
+            }}
+          >
+            {highlightContent(content, searchText)}
+          </pre>
+        </>
       )}
     </Modal>
   );

@@ -9,6 +9,7 @@ import {
   Modal,
   Row,
   Space,
+  Spin,
   Statistic,
   Table,
   Tag,
@@ -397,8 +398,8 @@ const KnowledgeGraphPage: React.FC = () => {
             {queryResults.length > 0 ? (
               <List
                 dataSource={queryResults}
-                renderItem={(item) => (
-                  <List.Item>
+                renderItem={(item, index) => (
+                  <List.Item key={index}>
                     <Space direction="vertical" size={4} style={{ width: '100%' }}>
                       <Space wrap>
                         <Tag color="blue">{item.regulation}</Tag>
@@ -432,7 +433,7 @@ const KnowledgeGraphPage: React.FC = () => {
         extra={<Button type="link" icon={<SearchOutlined />} onClick={() => void loadGraphData()}>刷新图谱</Button>}
       >
         {graphLoading ? (
-          <div style={{ height: 520, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>加载图谱中...</div>
+          <div style={{ height: 520, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Spin tip="加载图谱中..." /></div>
         ) : chartOption ? (
           <div style={{ height: 520 }}>
             <ReactECharts

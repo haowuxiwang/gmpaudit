@@ -113,7 +113,7 @@ const FindingDetailCard: React.FC<FindingDetailCardProps> = ({ finding, onGraphT
       {finding.document_id && (
         <DocumentPreview
           documentId={finding.document_id}
-          highlightText={finding.evidence || finding.location}
+          highlightText={finding.evidence || finding.title || finding.location}
           visible={docPreviewVisible}
           onClose={() => setDocPreviewVisible(false)}
         />

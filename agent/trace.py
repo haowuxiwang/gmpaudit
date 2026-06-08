@@ -216,5 +216,5 @@ def _utcnow() -> str:
 
 
 def now_ms() -> float:
-    """Current time in milliseconds."""
-    return time.time() * 1000
+    """Current time in milliseconds (monotonic, immune to clock adjustments)."""
+    return time.monotonic() * 1000

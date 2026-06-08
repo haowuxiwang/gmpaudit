@@ -3,6 +3,7 @@ import {
   Alert,
   Button,
   Card,
+  Empty,
   Modal,
   Space,
   Steps,
@@ -38,45 +39,52 @@ const STATUS_LABELS: Record<string, string> = {
 
 const DocumentsPage: React.FC = () => {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const documentsRef = useRef<Document[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const pageRef = useRef(1);
 
-  const loadDocuments = useCallback(async (nextPage = page) => {
+  const loadDocuments = useCallback(async (nextPage?: number) => {
+    const p = nextPage ?? pageRef.current;
     try {
-      const result = await documentApi.list(nextPage, 10);
-      setDocuments(result?.items || []);
+      const result = await documentApi.list(p, 10);
+      const items = result?.items || [];
+      documentsRef.current = items;
+      setDocuments(items);
       setTotal(result?.total || 0);
     } catch {
       message.error('加载文档失败');
     }
-  }, [page]);
+  }, []);
 
+  // Initial load and page change
   useEffect(() => {
+    pageRef.current = page;
     setLoading(true);
-    loadDocuments().finally(() => setLoading(false));
-  }, [loadDocuments]);
+    loadDocuments(page).finally(() => setLoading(false));
+  }, [page, loadDocuments]);
 
+  // Polling for pending documents — starts/stops based on document status
+  const hasPending = documents.some((doc) => ['uploaded', 'processing'].includes(doc.process_status));
   useEffect(() => {
-    const hasPending = documents.some((doc) => ['uploaded', 'processing'].includes(doc.process_status));
-    if (hasPending && !pollRef.current) {
-      pollRef.current = setInterval(() => {
-        void loadDocuments();
-      }, 3000);
-    } else if (!hasPending && pollRef.current) {
-      clearInterval(pollRef.current);
-      pollRef.current = null;
+    if (!hasPending) {
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+      return;
     }
-
+    pollRef.current = setInterval(() => { void loadDocuments(); }, 3000);
     return () => {
       if (pollRef.current) {
         clearInterval(pollRef.current);
         pollRef.current = null;
       }
     };
-  }, [documents, loadDocuments]);
+  }, [hasPending, loadDocuments]);
 
   const customRequest: UploadProps['customRequest'] = async (options) => {
     const { file, onSuccess, onError } = options;
@@ -228,13 +236,13 @@ const DocumentsPage: React.FC = () => {
           dataSource={documents}
           loading={loading}
           rowKey="id"
+          locale={{ emptyText: <Empty description="暂无文档，请上传文件" /> }}
           pagination={{
             current: page,
             pageSize: 10,
             total,
             onChange: (nextPage) => {
-              setPage(nextPage);
-              void loadDocuments(nextPage);
+              setPage(nextPage); // useEffect handles loading
             },
           }}
         />

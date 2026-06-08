@@ -34,8 +34,6 @@ class TestGraphTrace:
             "document_type": "deviation",
             "audit_focus": "",
             "document_content": "偏差处理程序 DEV-2024-0156",
-            "next_agent": "",
-            "supervisor_reasoning": "",
             "matched_regulations": [],
             "regulation_summary": "",
             "findings": [],
@@ -44,7 +42,6 @@ class TestGraphTrace:
             "report_markdown": "",
             "report_path": "",
             "messages": [],
-            "iteration": 0,
             "status": "running",
             "regulation_checked": False,
             "risk_assessed": False,
@@ -74,7 +71,7 @@ class TestGraphTrace:
 
         # Verify all expected nodes were traced
         traced_nodes = [e.node for e in trace.node_events]
-        expected_nodes = {"parse_doc", "supervisor", "regulation_expert", "risk_assessor", "report_writer"}
+        expected_nodes = {"parse_doc", "regulation_expert", "risk_assessor", "report_writer"}
         assert expected_nodes.issubset(set(traced_nodes)), f"Missing nodes: {expected_nodes - set(traced_nodes)}"
 
         # Verify pipeline completed
@@ -94,8 +91,6 @@ class TestGraphTrace:
             "document_type": "unknown",
             "audit_focus": "",
             "document_content": "",
-            "next_agent": "",
-            "supervisor_reasoning": "",
             "matched_regulations": [],
             "regulation_summary": "",
             "findings": [],
@@ -104,7 +99,6 @@ class TestGraphTrace:
             "report_markdown": "",
             "report_path": "",
             "messages": [],
-            "iteration": 0,
             "status": "running",
             "regulation_checked": False,
             "risk_assessed": False,
@@ -132,8 +126,6 @@ class TestGraphTrace:
             "document_type": "deviation",
             "audit_focus": "",
             "document_content": "偏差处理程序",
-            "next_agent": "",
-            "supervisor_reasoning": "",
             "matched_regulations": [],
             "regulation_summary": "",
             "findings": [],
@@ -142,7 +134,6 @@ class TestGraphTrace:
             "report_markdown": "",
             "report_path": "",
             "messages": [],
-            "iteration": 0,
             "status": "running",
             "regulation_checked": False,
             "risk_assessed": False,

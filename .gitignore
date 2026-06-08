@@ -28,7 +28,7 @@ yarn-error.log*
 .env.local
 .env.*.local
 config/.env
-graphrag_index/.env
+lightrag_index/.env
 
 # Data
 data/documents/*
@@ -57,9 +57,9 @@ tools/日志.txt
 # Local model files (large, download separately)
 model/
 
-# GraphRAG build artifacts
-graphrag_index/output/
-graphrag_index/logs/
+# LightRAG build artifacts
+lightrag_index/output/
+lightrag_index/logs/
 
 # Test artifacts
 test.db
@@ -90,7 +90,7 @@ data/logs/
 .playwright-mcp/
 
 # LightRAG cache
-graphrag_index/lightrag_output/kv_store_llm_response_cache.json
+lightrag_index/lightrag_output/kv_store_llm_response_cache.json
 
 # Screenshots
 openwebui-home.png
@@ -98,3 +98,5 @@ openwebui-home.png
 # Session summaries
 docs/2026052*.md
 docs/2026052*.txt
+20260604summary.md
+config/.env.bak

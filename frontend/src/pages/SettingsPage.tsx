@@ -1,27 +1,22 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
-  Badge,
+  AutoComplete,
   Button,
   Card,
   Collapse,
-  Col,
   Form,
   Input,
   InputNumber,
-  Row,
   Select,
   Space,
   Spin,
   Tabs,
-  Tag,
-  Tooltip,
   Typography,
   message,
 } from 'antd';
 import {
   ApiOutlined,
-  CheckCircleFilled,
   SaveOutlined,
   SendOutlined,
   SettingOutlined,
@@ -33,26 +28,20 @@ import { THEME } from '../constants/theme';
 
 const { Title, Text, Paragraph } = Typography;
 
-const PROVIDER_DEFAULTS: Record<string, { defaultUrl: string; defaultModel: string; keyPlaceholder: string; color: string; icon: string }> = {
-  mimo: { defaultUrl: 'https://api.xiaomimimo.com/v1', defaultModel: 'mimo-v2.5-pro', keyPlaceholder: 'sk-...', color: '#FF6B35', icon: 'M' },
-  deepseek: { defaultUrl: 'https://api.deepseek.com/v1', defaultModel: 'deepseek-chat', keyPlaceholder: 'sk-...', color: '#4F46E5', icon: 'D' },
-  qwen: { defaultUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', defaultModel: 'qwen-plus', keyPlaceholder: 'sk-...', color: '#7C3AED', icon: 'Q' },
-  glm: { defaultUrl: 'https://open.bigmodel.cn/api/paas/v4', defaultModel: 'glm-4-flash', keyPlaceholder: 'token', color: '#059669', icon: 'G' },
-  siliconflow: { defaultUrl: 'https://api.siliconflow.cn/v1', defaultModel: 'deepseek-ai/DeepSeek-V3.2', keyPlaceholder: 'sk-...', color: '#0EA5E9', icon: 'S' },
-  openai: { defaultUrl: 'https://api.openai.com/v1', defaultModel: 'gpt-4o', keyPlaceholder: 'sk-...', color: '#10A37F', icon: 'O' },
-  anthropic: { defaultUrl: 'https://api.anthropic.com', defaultModel: 'claude-sonnet-4-20250514', keyPlaceholder: 'sk-ant-...', color: '#D97706', icon: 'A' },
-  openrouter: { defaultUrl: 'https://openrouter.ai/api/v1', defaultModel: 'deepseek/deepseek-chat', keyPlaceholder: 'sk-or-...', color: '#6366F1', icon: 'R' },
-};
-
-const PROVIDER_MODELS: Record<string, string[]> = {
-  mimo: ['mimo-v2.5-pro'],
-  deepseek: ['deepseek-chat', 'deepseek-reasoner'],
-  qwen: ['qwen-plus', 'qwen-turbo', 'qwen-max', 'qwen-long'],
-  glm: ['glm-4-flash', 'glm-4-plus', 'glm-4-long'],
-  siliconflow: ['deepseek-ai/DeepSeek-V3.2', 'Qwen/Qwen2.5-72B-Instruct', 'meta-llama/Meta-Llama-3.1-70B-Instruct'],
-  openai: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'o1-mini'],
-  anthropic: ['claude-sonnet-4-20250514', 'claude-haiku-4-5-20251001', 'claude-opus-4-20250514'],
-  openrouter: ['deepseek/deepseek-chat', 'anthropic/claude-sonnet-4', 'openai/gpt-4o'],
+// Model descriptions for the combobox
+const MODEL_DESCRIPTIONS: Record<string, string> = {
+  'deepseek-chat': '通用对话',
+  'deepseek-reasoner': '深度推理',
+  'qwen-plus': '均衡性能',
+  'qwen-turbo': '高速响应',
+  'qwen-max': '最强能力',
+  'glm-4-flash': '快速响应',
+  'mimo-v2.5-pro': '推荐',
+  'gpt-4o': '多模态',
+  'gpt-4o-mini': '轻量快速',
+  'claude-sonnet-4-20250514': '均衡',
+  'claude-haiku-4-5-20251001': '快速',
+  'claude-opus-4-20250514': '最强能力',
 };
 
 interface TestResult {
@@ -96,14 +85,13 @@ const SettingsPage: React.FC = () => {
 
       const isPlaceholder = (v: string) => !v || /^your_/i.test(v);
       for (const p of models) {
-        const defaults = PROVIDER_DEFAULTS[p.id] || {};
         const modelKey = `${p.id}_model`;
         const urlKey = `${p.id}_base_url`;
-        if (isPlaceholder(flat[modelKey] || '') && defaults.defaultModel) {
-          flat[modelKey] = defaults.defaultModel;
+        if (isPlaceholder(flat[modelKey] || '') && p.default_model) {
+          flat[modelKey] = p.default_model;
         }
-        if (isPlaceholder(flat[urlKey] || '') && defaults.defaultUrl) {
-          flat[urlKey] = defaults.defaultUrl;
+        if (isPlaceholder(flat[urlKey] || '') && p.base_url) {
+          flat[urlKey] = p.base_url;
         }
       }
 
@@ -122,7 +110,6 @@ const SettingsPage: React.FC = () => {
     setDraft((prev) => ({ ...prev, [key]: value }));
   };
 
-  // Track dirty keys per provider
   const dirtyKeys = useMemo(() => {
     const keys = new Set<string>();
     for (const [key, value] of Object.entries(draft)) {
@@ -132,14 +119,6 @@ const SettingsPage: React.FC = () => {
     }
     return keys;
   }, [draft, config]);
-
-  const providerDirtyCount = (providerId: string) => {
-    let count = 0;
-    for (const key of Array.from(dirtyKeys)) {
-      if (key.startsWith(`${providerId}_`) || key === 'agent_llm_provider') count++;
-    }
-    return count;
-  };
 
   const handleSave = async () => {
     try {
@@ -152,7 +131,6 @@ const SettingsPage: React.FC = () => {
       }
 
       // For any provider with an API key, always include model and base_url
-      // to ensure they are persisted even when auto-filled (not dirty)
       for (const p of providers) {
         const apiKey = draft[`${p.id}_api_key`] || '';
         if (apiKey && !apiKey.startsWith('your_')) {
@@ -218,31 +196,31 @@ const SettingsPage: React.FC = () => {
     }
   };
 
-  const handleTestProvider = async (provider: LLMModel) => {
-    const apiKey = getVal(`${provider.id}_api_key`);
+  const handleTestProvider = async (providerId: string) => {
+    const apiKey = getVal(`${providerId}_api_key`);
     if (!apiKey) {
       message.warning('请先输入 API Key');
       return;
     }
 
-    const defaults = PROVIDER_DEFAULTS[provider.id] || {};
-    setTestingProvider(provider.id);
+    const provider = providers.find((p) => p.id === providerId);
+    setTestingProvider(providerId);
     setProviderTestResult(null);
     try {
       const raw = await configApi.testLLM({
-        provider: provider.id,
+        provider: providerId,
         api_key: apiKey,
-        base_url: getVal(`${provider.id}_base_url`, defaults.defaultUrl || ''),
-        model: getVal(`${provider.id}_model`, provider.model || defaults.defaultModel || ''),
+        base_url: getVal(`${providerId}_base_url`, provider?.base_url || ''),
+        model: getVal(`${providerId}_model`, provider?.model || provider?.default_model || ''),
       });
-      const result: TestResult = { ...raw, provider: provider.id };
+      const result: TestResult = { ...raw, provider: providerId };
       setProviderTestResult(result);
       if (result.success) {
-        message.success(`${provider.name} 连接成功 (${result.latency_ms}ms)`);
+        message.success(`连接成功 (${result.latency_ms}ms)`);
       }
     } catch (error: unknown) {
       setProviderTestResult({
-        provider: provider.id,
+        provider: providerId,
         success: false,
         error: error instanceof Error ? error.message : '连接失败',
       });
@@ -251,138 +229,33 @@ const SettingsPage: React.FC = () => {
     }
   };
 
-  const isConfigured = (provider: LLMModel) => {
-    const key = getVal(`${provider.id}_api_key`);
+  const isConfigured = (providerId: string) => {
+    const key = getVal(`${providerId}_api_key`);
     return Boolean(key) && !key.startsWith('your_');
   };
+
   const defaultProvider = getVal('agent_llm_provider', 'mimo');
-
-  const renderProviderPanel = (provider: LLMModel) => {
-    const defaults = PROVIDER_DEFAULTS[provider.id] || {};
-    const configured = isConfigured(provider);
-    const isDefault = defaultProvider === provider.id;
-    const testResult = providerTestResult?.provider === provider.id ? providerTestResult : null;
-    const dirty = providerDirtyCount(provider.id) > 0;
-    const modelOptions = (PROVIDER_MODELS[provider.id] || []).map((m) => ({ value: m, label: m }));
-
-    return {
-      key: provider.id,
-      className: 'provider-panel',
-      label: (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', paddingRight: 8 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <Badge dot={dirty} color="orange" offset={[-2, 2]}>
-              <div
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 8,
-                  background: `${defaults.color || THEME.primary}15`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 16,
-                  fontWeight: 700,
-                  color: defaults.color || THEME.primary,
-                }}
-              >
-                {defaults.icon || provider.id[0].toUpperCase()}
-              </div>
-            </Badge>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Text strong style={{ fontSize: 14 }}>{provider.name}</Text>
-                {isDefault && <Tag color="orange" style={{ margin: 0, fontSize: 11 }}>默认</Tag>}
-              </div>
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                {configured ? `模型: ${getVal(`${provider.id}_model`, defaults.defaultModel)}` : '未配置'}
-              </Text>
-            </div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Tooltip title={configured ? '已配置' : '未配置'}>
-              <CheckCircleFilled style={{ fontSize: 16, color: configured ? THEME.success : THEME.pending }} />
-            </Tooltip>
-            {!isDefault && (
-              <Button
-                size="small"
-                type="link"
-                onClick={(e) => { e.stopPropagation(); setVal('agent_llm_provider', provider.id); }}
-                style={{ padding: 0, fontSize: 12 }}
-              >
-                设为默认
-              </Button>
-            )}
-          </div>
-        </div>
-      ),
-      children: (
-        <Form layout="vertical" size="small">
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item label={<Text type="secondary" style={{ fontSize: 12 }}>模型</Text>} style={{ marginBottom: 12 }}>
-                <Select
-                  showSearch
-                  allowClear
-                  value={getVal(`${provider.id}_model`, defaults.defaultModel || provider.model) || undefined}
-                  onChange={(value) => setVal(`${provider.id}_model`, value || '')}
-                  placeholder={defaults.defaultModel || provider.model}
-                  options={modelOptions}
-                  style={{ width: '100%' }}
-                  popupMatchSelectWidth={false}
-                />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item label={<Text type="secondary" style={{ fontSize: 12 }}>接口地址</Text>} style={{ marginBottom: 12 }}>
-                <Input
-                  value={getVal(`${provider.id}_base_url`, defaults.defaultUrl || '')}
-                  onChange={(e) => setVal(`${provider.id}_base_url`, e.target.value)}
-                  placeholder={defaults.defaultUrl || ''}
-                  style={{ borderRadius: 8 }}
-                />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Form.Item label={<Text type="secondary" style={{ fontSize: 12 }}>API 密钥</Text>} style={{ marginBottom: 12 }}>
-            <Input.Password
-              value={getVal(`${provider.id}_api_key`)}
-              onChange={(e) => setVal(`${provider.id}_api_key`, e.target.value)}
-              placeholder={defaults.keyPlaceholder || 'sk-...'}
-              style={{ borderRadius: 8 }}
-            />
-          </Form.Item>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Button
-              size="small"
-              icon={<ApiOutlined />}
-              loading={testingProvider === provider.id}
-              onClick={() => void handleTestProvider(provider)}
-              style={{ borderRadius: 8 }}
-            >
-              测试连接
-            </Button>
-          </div>
-          {testResult && (
-            <Alert
-              type={testResult.success ? 'success' : 'error'}
-              showIcon
-              message={
-                <Text style={{ fontSize: 12 }}>
-                  {testResult.success
-                    ? `${testResult.model_used} - ${testResult.latency_ms}ms`
-                    : testResult.error}
-                </Text>
-              }
-              style={{ marginTop: 8, borderRadius: 8 }}
-            />
-          )}
-        </Form>
-      ),
-    };
-  };
+  const currentProvider = providers.find((p) => p.id === defaultProvider);
+  const anthropicProvider = providers.find((p) => p.id === 'anthropic');
 
   const totalDirty = dirtyKeys.size;
+
+  // Build model options from current provider
+  const currentModelOptions = useMemo(() => {
+    if (!currentProvider) return [];
+    return (currentProvider.available_models || []).map((m) => ({
+      value: m,
+      label: MODEL_DESCRIPTIONS[m] ? `${m} · ${MODEL_DESCRIPTIONS[m]}` : m,
+    }));
+  }, [currentProvider]);
+
+  const anthropicModelOptions = useMemo(() => {
+    if (!anthropicProvider) return [];
+    return (anthropicProvider.available_models || []).map((m) => ({
+      value: m,
+      label: MODEL_DESCRIPTIONS[m] ? `${m} · ${MODEL_DESCRIPTIONS[m]}` : m,
+    }));
+  }, [anthropicProvider]);
 
   if (loading) {
     return <Spin size="large" style={{ display: 'block', margin: '100px auto' }} />;
@@ -403,7 +276,7 @@ const SettingsPage: React.FC = () => {
           系统设置
         </Title>
         <Paragraph style={{ color: THEME.textSecondary, fontSize: 16, marginBottom: 0 }}>
-          选择审计任务的默认大模型，配置各模型的密钥和参数
+          配置审计任务使用的大模型
         </Paragraph>
       </Card>
 
@@ -421,38 +294,172 @@ const SettingsPage: React.FC = () => {
             key: 'llm',
             label: '大模型配置',
             children: (
-              <>
+              <Card bordered={false} style={{ borderRadius: 12 }}>
                 {/* Default provider selector */}
-                <Card
-                  bordered={false}
-                  style={{ borderRadius: 12, marginBottom: 16, background: THEME.bgWarm }}
-                  styles={{ body: { padding: '12px 20px' } }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ marginBottom: 24 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
                     <SettingOutlined style={{ color: THEME.primary, fontSize: 16 }} />
-                    <Text strong>默认审计模型</Text>
+                    <Text strong style={{ fontSize: 15 }}>默认模型</Text>
                     <Select
                       value={defaultProvider}
                       onChange={(value) => setVal('agent_llm_provider', value)}
-                      style={{ width: 200 }}
-                      options={providers.map((p) => ({
-                        value: p.id,
-                        label: `${p.name}${isConfigured(p) ? ' ✓' : ''}`,
-                      }))}
+                      style={{ width: 240 }}
+                      options={providers
+                        .filter((p) => p.id !== 'anthropic')
+                        .map((p) => ({
+                          value: p.id,
+                          label: `${p.name}${isConfigured(p.id) ? ' ✓' : ''}`,
+                        }))}
                     />
-                    <Text type="secondary" style={{ fontSize: 12 }}>
-                      审计任务将使用此模型进行分析
-                    </Text>
                   </div>
-                </Card>
+                </div>
 
-                {/* Provider collapse panels */}
+                {/* Primary provider form */}
+                {currentProvider && (
+                  <div style={{ marginBottom: 24 }}>
+                    <Text strong style={{ display: 'block', marginBottom: 12, fontSize: 14 }}>
+                      {currentProvider.name}
+                    </Text>
+                    <Form layout="vertical" style={{ maxWidth: 560 }}>
+                      <Form.Item
+                        label="API Key"
+                        style={{ marginBottom: 16 }}
+                      >
+                        <Input.Password
+                          value={getVal(`${defaultProvider}_api_key`)}
+                          onChange={(e) => setVal(`${defaultProvider}_api_key`, e.target.value)}
+                          placeholder="sk-..."
+                          style={{ borderRadius: 8 }}
+                        />
+                      </Form.Item>
+                      <Form.Item
+                        label="模型名称"
+                        style={{ marginBottom: 16 }}
+                      >
+                        <AutoComplete
+                          value={getVal(`${defaultProvider}_model`, currentProvider.default_model || currentProvider.model)}
+                          onChange={(value) => setVal(`${defaultProvider}_model`, value)}
+                          placeholder={currentProvider.default_model || currentProvider.model}
+                          options={currentModelOptions}
+                          style={{ width: '100%' }}
+                          filterOption={(inputValue, option) =>
+                            (option?.label ?? '').toLowerCase().includes(inputValue.toLowerCase())
+                          }
+                        />
+                      </Form.Item>
+                      <Form.Item
+                        label="接口地址"
+                        style={{ marginBottom: 16 }}
+                      >
+                        <Input
+                          value={getVal(`${defaultProvider}_base_url`, currentProvider.base_url || '')}
+                          onChange={(e) => setVal(`${defaultProvider}_base_url`, e.target.value)}
+                          placeholder={currentProvider.base_url || ''}
+                          style={{ borderRadius: 8 }}
+                        />
+                      </Form.Item>
+                      <Form.Item style={{ marginBottom: 0 }}>
+                        <Button
+                          icon={<ApiOutlined />}
+                          loading={testingProvider === defaultProvider}
+                          onClick={() => void handleTestProvider(defaultProvider)}
+                          style={{ borderRadius: 8 }}
+                        >
+                          测试连接
+                        </Button>
+                      </Form.Item>
+                    </Form>
+
+                    {/* Test result */}
+                    {providerTestResult?.provider === defaultProvider && (
+                      <Alert
+                        type={providerTestResult.success ? 'success' : 'error'}
+                        showIcon
+                        message={
+                          <Text style={{ fontSize: 13 }}>
+                            {providerTestResult.success
+                              ? `${providerTestResult.model_used} - ${providerTestResult.latency_ms}ms`
+                              : providerTestResult.error}
+                          </Text>
+                        }
+                        style={{ marginTop: 12, maxWidth: 560, borderRadius: 8 }}
+                      />
+                    )}
+                  </div>
+                )}
+
+                {/* Anthropic (collapsible) */}
                 <Collapse
-                  defaultActiveKey={[defaultProvider]}
-                  items={providers.map(renderProviderPanel)}
-                  style={{ background: THEME.bgContainer, borderRadius: 12, border: `1px solid ${THEME.border}` }}
+                  bordered={false}
+                  style={{ background: 'transparent' }}
+                  items={[
+                    {
+                      key: 'anthropic',
+                      label: (
+                        <Text type="secondary" style={{ fontSize: 13 }}>
+                          Anthropic 配置（可选，如需使用 Claude）
+                        </Text>
+                      ),
+                      children: anthropicProvider ? (
+                        <Form layout="vertical" style={{ maxWidth: 560 }}>
+                          <Form.Item label="API Key" style={{ marginBottom: 16 }}>
+                            <Input.Password
+                              value={getVal('anthropic_api_key')}
+                              onChange={(e) => setVal('anthropic_api_key', e.target.value)}
+                              placeholder="sk-ant-..."
+                              style={{ borderRadius: 8 }}
+                            />
+                          </Form.Item>
+                          <Form.Item label="模型名称" style={{ marginBottom: 16 }}>
+                            <AutoComplete
+                              value={getVal('anthropic_model', anthropicProvider.default_model || '')}
+                              onChange={(value) => setVal('anthropic_model', value)}
+                              placeholder={anthropicProvider.default_model || ''}
+                              options={anthropicModelOptions}
+                              style={{ width: '100%' }}
+                              filterOption={(inputValue, option) =>
+                                (option?.label ?? '').toLowerCase().includes(inputValue.toLowerCase())
+                              }
+                            />
+                          </Form.Item>
+                          <Form.Item label="接口地址" style={{ marginBottom: 16 }}>
+                            <Input
+                              value={getVal('anthropic_base_url', anthropicProvider.base_url || '')}
+                              onChange={(e) => setVal('anthropic_base_url', e.target.value)}
+                              placeholder={anthropicProvider.base_url || ''}
+                              style={{ borderRadius: 8 }}
+                            />
+                          </Form.Item>
+                          <Form.Item style={{ marginBottom: 0 }}>
+                            <Button
+                              icon={<ApiOutlined />}
+                              loading={testingProvider === 'anthropic'}
+                              onClick={() => void handleTestProvider('anthropic')}
+                              style={{ borderRadius: 8 }}
+                            >
+                              测试连接
+                            </Button>
+                          </Form.Item>
+                          {providerTestResult?.provider === 'anthropic' && (
+                            <Alert
+                              type={providerTestResult.success ? 'success' : 'error'}
+                              showIcon
+                              message={
+                                <Text style={{ fontSize: 13 }}>
+                                  {providerTestResult.success
+                                    ? `${providerTestResult.model_used} - ${providerTestResult.latency_ms}ms`
+                                    : providerTestResult.error}
+                                </Text>
+                              }
+                              style={{ marginTop: 12, borderRadius: 8 }}
+                            />
+                          )}
+                        </Form>
+                      ) : null,
+                    },
+                  ]}
                 />
-              </>
+              </Card>
             ),
           },
           {

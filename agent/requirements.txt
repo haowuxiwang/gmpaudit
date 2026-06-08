@@ -1,4 +1,6 @@
-# Agent system dependencies
+# Agent system dependencies (standalone agent development)
+# For full project dependencies, see backend/requirements.txt
+# This file is a subset used when running agent/ independently
 langgraph>=0.2.0
 langchain>=0.3.0
 langchain-openai>=0.2.0

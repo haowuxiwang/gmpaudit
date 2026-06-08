@@ -11,7 +11,7 @@ Supports two strategies based on document size:
 import asyncio
 import logging
 
-from agent.config import get_llm_with_fallback, call_llm_with_retry, MAX_DOCUMENT_CHARS
+from agent.config import get_llm_with_fallback, call_llm_with_retry
 from agent.tools.document_chunker import select_strategy, chunk_document, deduplicate_findings
 from agent.tools.json_parser import parse_llm_json as _parse_llm_json
 from agent.tools.prompt_loader import load_prompt
@@ -92,6 +92,11 @@ async def risk_assessor_node(state: AuditState) -> dict:
 
     regulation_context = _format_regulations(regulations)
 
+    # Coverage tracking (used in map_reduce path, defaulted for stuff)
+    coverage_ratio = 1.0
+    failed = 0
+    total_chunks = 1
+
     try:
         llm = get_llm_with_fallback(temperature=0.2)
         prompt_template = load_prompt("risk_assessor.txt")
@@ -117,15 +122,23 @@ async def risk_assessor_node(state: AuditState) -> dict:
             tasks = [_limited_analyze(chunk) for chunk in chunks]
             results = await asyncio.gather(*tasks, return_exceptions=True)
             all_findings = []
+            succeeded = 0
+            failed = 0
             for result in results:
                 if isinstance(result, list):
                     all_findings.extend(result)
+                    succeeded += 1
                 elif isinstance(result, Exception):
+                    failed += 1
                     logger.warning("Chunk analysis failed: %s", result)
+
+            total_chunks = len(chunks)
+            coverage_ratio = succeeded / total_chunks if total_chunks > 0 else 0
 
             # Deduplicate findings across chunks
             findings = deduplicate_findings(all_findings)
-            logger.info("Map-Reduce: %d raw findings → %d after dedup", len(all_findings), len(findings))
+            logger.info("Map-Reduce: %d raw findings → %d after dedup (coverage: %d/%d)",
+                        len(all_findings), len(findings), succeeded, total_chunks)
     except Exception as e:
         logger.warning("Risk Assessor LLM call failed: %s, using empty findings", e)
         return {
@@ -139,7 +152,7 @@ async def risk_assessor_node(state: AuditState) -> dict:
 
     if not findings:
         logger.warning("Risk Assessor: no findings generated")
-        return {
+        result = {
             "findings": [],
             "risk_score": 0,
             "risk_level": "not_assessed",
@@ -147,8 +160,14 @@ async def risk_assessor_node(state: AuditState) -> dict:
             "status": "running",
             "messages": ["Risk Assessor: no findings identified"],
         }
+        if strategy == "map_reduce" and failed > 0:
+            result["coverage_ratio"] = coverage_ratio
+            result["messages"].append(
+                f"Warning: {failed}/{total_chunks} chunks failed analysis (coverage: {coverage_ratio:.0%})"
+            )
+        return result
 
-    # Ensure each finding has required fields
+    # Ensure each finding has required fields (before dedup for consistent comparison)
     findings = _ensure_finding_defaults(findings)
 
     # Calculate risk score
@@ -156,13 +175,23 @@ async def risk_assessor_node(state: AuditState) -> dict:
 
     logger.info("Risk Assessor: %d findings, score=%d, level=%s", len(findings), risk_score, risk_level)
 
-    return {
+    messages = [
+        f"Risk Assessor: identified {len(findings)} findings ({strategy})",
+        f"Risk score: {risk_score}/100, level: {risk_level}",
+    ]
+    # Warn about low coverage in map-reduce mode
+    if strategy == "map_reduce" and failed > 0:
+        messages.append(
+            f"Warning: {failed}/{total_chunks} chunks failed analysis (coverage: {coverage_ratio:.0%}), results may be incomplete"
+        )
+
+    result = {
         "findings": findings,
         "risk_score": risk_score,
         "risk_level": risk_level,
         "risk_assessed": True,
-        "messages": [
-            f"Risk Assessor: identified {len(findings)} findings ({strategy})",
-            f"Risk score: {risk_score}/100, level: {risk_level}",
-        ],
+        "messages": messages,
     }
+    if strategy == "map_reduce" and failed > 0:
+        result["coverage_ratio"] = coverage_ratio
+    return result

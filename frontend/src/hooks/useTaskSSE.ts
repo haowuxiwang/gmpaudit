@@ -3,11 +3,12 @@ import { useSSE } from './useSSE';
 import { API_BASE_URL } from '../services/api';
 import type { TaskEvent, AgentThinkingEvent } from '../types/api';
 
+// Must match backend task_runner.py NODE_PROGRESS_MAP
 const STAGE_PROGRESS_MAP: Record<string, number> = {
-  parsing: 10,
-  regulation: 35,
-  risk: 60,
-  report: 80,
+  parsing: 5,
+  regulation: 25,
+  risk: 50,
+  report: 70,
   completed: 100,
 };
 
@@ -17,9 +18,12 @@ interface UseTaskSSEReturn {
   events: TaskEvent[];
   thinkingEvents: AgentThinkingEvent[];
   currentStage: string;
+  lastActiveStage: string;
   progress: number;
   status: string;
   isConnected: boolean;
+  connectionError: boolean;
+  resetProgress: () => void;
 }
 
 export function useTaskSSE(taskId: number | null, isActive: boolean): UseTaskSSEReturn {
@@ -29,9 +33,12 @@ export function useTaskSSE(taskId: number | null, isActive: boolean): UseTaskSSE
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState('pending');
   const eventsRef = useRef<TaskEvent[]>([]);
+  const lastActiveStageRef = useRef('pending');
 
-  // Reset state when task changes
+  // Reset state when task changes OR when re-activated (same task re-run)
+  const prevIsActiveRef = useRef(false);
   useEffect(() => {
+    // Reset on task change
     setEvents([]);
     setThinkingEvents([]);
     setCurrentStage('pending');
@@ -40,11 +47,24 @@ export function useTaskSSE(taskId: number | null, isActive: boolean): UseTaskSSE
     eventsRef.current = [];
   }, [taskId]);
 
+  // Also reset when isActive transitions from false to true (same task re-run)
+  useEffect(() => {
+    if (isActive && !prevIsActiveRef.current) {
+      setEvents([]);
+      setThinkingEvents([]);
+      setCurrentStage('pending');
+      setProgress(0);
+      setStatus('pending');
+      eventsRef.current = [];
+    }
+    prevIsActiveRef.current = isActive;
+  }, [isActive]);
+
   const url = taskId && isActive
     ? `${API_BASE_URL}/audit/tasks/${taskId}/stream`
     : null;
 
-  useSSE({
+  const { connectionError } = useSSE({
     url,
     onEvent: {
       event: (data: TaskEvent) => {
@@ -65,12 +85,14 @@ export function useTaskSSE(taskId: number | null, isActive: boolean): UseTaskSSE
         });
         if (data.stage && data.status === 'started') {
           setCurrentStage(data.stage);
+          lastActiveStageRef.current = data.stage;
         }
       },
       progress: (data: { percent: number; stage: string }) => {
         setProgress(prev => Math.max(prev, data.percent));
         if (data.stage) {
           setCurrentStage(data.stage);
+          lastActiveStageRef.current = data.stage;
         }
       },
       done: (data: { status: string }) => {
@@ -81,6 +103,9 @@ export function useTaskSSE(taskId: number | null, isActive: boolean): UseTaskSSE
         } else if (data.status === 'failed' || data.status === 'cancelled') {
           setProgress(prev => prev); // keep current progress
           setCurrentStage('failed');
+        } else if (data.status === 'awaiting_review') {
+          setProgress(90);
+          setCurrentStage('awaiting_review');
         } else {
           setProgress(90);
         }
@@ -92,12 +117,26 @@ export function useTaskSSE(taskId: number | null, isActive: boolean): UseTaskSSE
     enabled: isActive,
   });
 
+  // Reset progress — call when task restarts (e.g. after approve)
+  const resetProgress = () => {
+    setProgress(0);
+    setCurrentStage('pending');
+    setStatus('pending');
+    lastActiveStageRef.current = 'pending';
+    setEvents([]);
+    setThinkingEvents([]);
+    eventsRef.current = [];
+  };
+
   return {
     events,
     thinkingEvents,
     currentStage,
+    lastActiveStage: lastActiveStageRef.current,
     progress,
     status,
     isConnected: !!url,
+    connectionError,
+    resetProgress,
   };
 }

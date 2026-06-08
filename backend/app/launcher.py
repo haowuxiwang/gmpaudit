@@ -29,10 +29,37 @@ def setup_signal_handlers() -> None:
         signal.signal(signal.SIGBREAK, _handler)
 
 
+class _NullStream:
+    """A no-op stream that absorbs all writes without errors.
+
+    Used to replace stdout/stderr in frozen GUI mode so that
+    uvicorn's logging (which calls isatty(), write(), etc.)
+    does not crash when no console is attached.
+    """
+    def write(self, s):
+        pass
+    def flush(self):
+        pass
+    def isatty(self):
+        return False
+    def fileno(self):
+        raise OSError("No console")
+    def close(self):
+        pass
+
+
 def main() -> None:
+    # --- Suppress console output in frozen GUI mode to prevent black window ---
+    _is_frozen = getattr(sys, 'frozen', False)
+    if _is_frozen and sys.platform == "win32":
+        # Replace stdout/stderr with a null stream before any print/logging.
+        # This prevents Windows from allocating a visible console window.
+        # Logs still go to file via RotatingFileHandler in main.py.
+        sys.stdout = _NullStream()
+        sys.stderr = _NullStream()
+
     # --- Global crash handler: write to crash.log before process exits ---
     import traceback as _traceback
-    _is_frozen = getattr(sys, 'frozen', False)
     _app_dir = os.path.dirname(sys.executable) if _is_frozen else os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
     def _excepthook(exc_type, exc_value, exc_tb):

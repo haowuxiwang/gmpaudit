@@ -1,12 +1,11 @@
 """LangGraph workflow definition for GMP audit.
 
 Defines the StateGraph with nodes and edges for the audit workflow.
-Phase 2: full graph with all 4 agents (supervisor pattern).
 
 Flow:
-    parse_doc -> supervisor -> regulation_expert -> supervisor
-                             -> risk_assessor    -> supervisor
-                             -> report_writer    -> supervisor -> END
+    parse_doc -> regulation_expert -> risk_assessor -> report_writer -> END
+
+Each node handles its own errors gracefully (returns fallback results).
 """
 
 import logging
@@ -15,7 +14,6 @@ from langgraph.graph import StateGraph, END
 
 from agent.state import AuditState
 from agent.parsers import parse_file
-from agent.agents.supervisor import supervisor_node
 from agent.agents.regulation_expert import regulation_expert_node
 from agent.agents.risk_assessor import risk_assessor_node
 from agent.agents.report_writer import report_writer_node
@@ -31,7 +29,6 @@ def traced_node(node_func, node_name: str = ""):
     import asyncio
     from agent.trace import get_current_trace, NodeTraceEvent, now_ms
 
-    import inspect
     is_async = asyncio.iscoroutinefunction(node_func)
 
     async def wrapper(state: AuditState) -> dict:
@@ -109,21 +106,19 @@ def parse_document_node(state: AuditState) -> dict:
 def build_audit_graph():
     """Build and compile the LangGraph workflow.
 
-    Architecture: Supervisor pattern
+    Architecture: Sequential pipeline with error handling
     - parse_doc: entry node, parses document
-    - supervisor: routes to specialized agents
     - regulation_expert: finds relevant GMP clauses
     - risk_assessor: identifies compliance issues
     - report_writer: generates final report
 
-    Each agent returns to supervisor after completion.
-    Supervisor decides next step or terminates.
+    Each node handles its own errors gracefully (returns fallback results).
+    Pipeline stops if document parsing fails.
     """
     graph = StateGraph(AuditState)
 
     # Register all nodes with trace wrappers
     graph.add_node("parse_doc", traced_node(parse_document_node, "parse_doc"))
-    graph.add_node("supervisor", traced_node(supervisor_node, "supervisor"))
     graph.add_node("regulation_expert", traced_node(regulation_expert_node, "regulation_expert"))
     graph.add_node("risk_assessor", traced_node(risk_assessor_node, "risk_assessor"))
     graph.add_node("report_writer", traced_node(report_writer_node, "report_writer"))
@@ -131,24 +126,19 @@ def build_audit_graph():
     # Entry point
     graph.set_entry_point("parse_doc")
 
-    # parse_doc -> supervisor
-    graph.add_edge("parse_doc", "supervisor")
-
-    # Supervisor conditional routing
+    # Conditional edge: stop on parse error, continue otherwise
     graph.add_conditional_edges(
-        "supervisor",
-        lambda state: state.get("next_agent", "FINISH"),
+        "parse_doc",
+        lambda state: "END" if state.get("status") == "error" else "regulation_expert",
         {
             "regulation_expert": "regulation_expert",
-            "risk_assessor": "risk_assessor",
-            "report_writer": "report_writer",
-            "FINISH": END,
+            "END": END,
         },
     )
 
-    # All agents return to supervisor after completion
-    graph.add_edge("regulation_expert", "supervisor")
-    graph.add_edge("risk_assessor", "supervisor")
-    graph.add_edge("report_writer", "supervisor")
+    # Sequential pipeline
+    graph.add_edge("regulation_expert", "risk_assessor")
+    graph.add_edge("risk_assessor", "report_writer")
+    graph.add_edge("report_writer", END)
 
     return graph.compile()

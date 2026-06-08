@@ -40,8 +40,6 @@ def sample_state():
         "document_name": "test_deviation.txt",
         "document_type": "deviation",
         "audit_focus": "GMP compliance",
-        "next_agent": "",
-        "supervisor_reasoning": "",
         "matched_regulations": [],
         "regulation_summary": "",
         "regulation_checked": False,
@@ -53,7 +51,6 @@ def sample_state():
         "report_path": "",
         "report_generated": False,
         "messages": [],
-        "iteration": 0,
         "status": "",
     }
 

@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -11,7 +11,7 @@ from app.models.risk_alert import RiskAlert, AlertStatus
 router = APIRouter()
 
 @router.get("/")
-async def list_alerts(status: str = None, page: int = 1, page_size: int = 20, db: AsyncSession = Depends(get_db)):
+async def list_alerts(status: str = None, page: int = Query(1, ge=1, le=10000), page_size: int = Query(20, ge=1, le=100), db: AsyncSession = Depends(get_db)):
     from sqlalchemy import func
     query = select(RiskAlert).options(selectinload(RiskAlert.finding))
     count_q = select(func.count()).select_from(RiskAlert)
@@ -49,6 +49,8 @@ async def acknowledge_alert(alert_id: int, db: AsyncSession = Depends(get_db)):
     alert = result.scalar_one_or_none()
     if not alert:
         raise HTTPException(status_code=404, detail="警报不存在")
+    if alert.status == AlertStatus.RESOLVED:
+        raise HTTPException(status_code=400, detail="已解决的告警不能重新确认")
     alert.status = AlertStatus.ACKNOWLEDGED
     await db.commit()
     return {"status": "success"}
@@ -59,6 +61,8 @@ async def resolve_alert(alert_id: int, db: AsyncSession = Depends(get_db)):
     alert = result.scalar_one_or_none()
     if not alert:
         raise HTTPException(status_code=404, detail="警报不存在")
+    if alert.status == AlertStatus.RESOLVED:
+        raise HTTPException(status_code=400, detail="告警已经是解决状态")
     alert.status = AlertStatus.RESOLVED
     alert.resolved_at = datetime.now(timezone.utc)
     await db.commit()

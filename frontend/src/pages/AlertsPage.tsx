@@ -48,6 +48,7 @@ const SEVERITY_LABELS: Record<string, string> = {
 const AlertsPage: React.FC = () => {
   const navigate = useNavigate();
   const [alerts, setAlerts] = useState<RiskAlert[]>([]);
+  const [allAlerts, setAllAlerts] = useState<RiskAlert[]>([]); // unfiltered for statistics
   const [loading, setLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
   const [bannerDismissed, setBannerDismissed] = useState(() => {
@@ -57,8 +58,12 @@ const AlertsPage: React.FC = () => {
   const loadAlerts = useCallback(async () => {
     try {
       setLoading(true);
-      const result = await alertsApi.list(statusFilter);
-      setAlerts(result?.items || []);
+      const [filtered, unfiltered] = await Promise.all([
+        alertsApi.list(statusFilter),
+        alertsApi.list(), // always fetch all for statistics
+      ]);
+      setAlerts(filtered?.items || []);
+      setAllAlerts(unfiltered?.items || []);
     } catch {
       message.error('加载告警失败');
     } finally {
@@ -155,7 +160,6 @@ const AlertsPage: React.FC = () => {
       title: '操作',
       key: 'action',
       width: 200,
-      responsive: ['md'] as ('md')[],
       render: (_: unknown, record: RiskAlert) => (
         <Space>
           {record.task_id && (
@@ -213,7 +217,7 @@ const AlertsPage: React.FC = () => {
           <Card bordered={false} style={{ borderRadius: 12 }}>
             <Statistic
               title="严重告警"
-              value={alerts.filter((a) => a.alert_level === 'critical').length}
+              value={allAlerts.filter((a) => a.alert_level === 'critical').length}
               valueStyle={{ color: '#f5222d' }}
             />
           </Card>
@@ -222,7 +226,7 @@ const AlertsPage: React.FC = () => {
           <Card bordered={false} style={{ borderRadius: 12 }}>
             <Statistic
               title="警告"
-              value={alerts.filter((a) => a.alert_level === 'warning').length}
+              value={allAlerts.filter((a) => a.alert_level === 'warning').length}
               valueStyle={{ color: '#fa8c16' }}
             />
           </Card>
@@ -231,7 +235,7 @@ const AlertsPage: React.FC = () => {
           <Card bordered={false} style={{ borderRadius: 12 }}>
             <Statistic
               title="信息"
-              value={alerts.filter((a) => a.alert_level === 'info').length}
+              value={allAlerts.filter((a) => a.alert_level === 'info').length}
               valueStyle={{ color: '#1890ff' }}
             />
           </Card>

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,4 +26,5 @@ async def db_health(db: AsyncSession = Depends(get_db)):
     except Exception as e:
         result["status"] = "error"
         result["error"] = str(e)
+        raise HTTPException(status_code=503, detail=result)
     return result

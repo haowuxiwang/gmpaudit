@@ -134,10 +134,10 @@ class OpenAICompatibleAdapter(BaseLLMAdapter):
 class AnthropicAdapter(BaseLLMAdapter):
     """Anthropic适配器 (Messages API, not OpenAI-compatible)"""
 
-    def __init__(self, api_key: str, base_url: str = "https://api.anthropic.com", model: str = "claude-sonnet-4-20250514"):
+    def __init__(self, api_key: str, base_url: str = "https://api.anthropic.com", model: str = None):
         self.api_key = api_key
         self.base_url = base_url.rstrip("/")
-        self.model = model
+        self.model = model or PROVIDER_REGISTRY["anthropic"]["default_model"]
         self._client = httpx.AsyncClient(timeout=120)
 
     async def close(self):
@@ -271,7 +271,7 @@ class LLMEngine:
         if settings.ANTHROPIC_API_KEY:
             base_url = getattr(settings, "ANTHROPIC_BASE_URL", "https://api.anthropic.com")
             raw_model = getattr(settings, "ANTHROPIC_MODEL", None)
-            model = raw_model if raw_model and not raw_model.startswith("your_") else "claude-sonnet-4-20250514"
+            model = raw_model if raw_model and not raw_model.startswith("your_") else PROVIDER_REGISTRY["anthropic"]["default_model"]
             self.adapters["anthropic"] = AnthropicAdapter(
                 api_key=settings.ANTHROPIC_API_KEY,
                 base_url=base_url,
@@ -282,13 +282,14 @@ class LLMEngine:
         if not self.adapters:
             logger.warning("No LLM adapters initialized — check API keys in config/.env")
 
-    async def analyze(self, document: str, prompt: str, model: str = "deepseek") -> LLMResponse:
-        adapter = self.adapters.get(model)
+    async def analyze(self, document: str, prompt: str, model: str = None) -> LLMResponse:
+        provider = model or settings.AGENT_LLM_PROVIDER
+        adapter = self.adapters.get(provider)
         if not adapter:
             available = list(self.adapters.keys())
-            raise ValueError(f"不支持的模型: {model}，可用: {available}")
+            raise ValueError(f"不支持的模型: {provider}，可用: {available}")
 
-        logger.info(f"LLM analyze: provider={model}, doc_len={len(document)}")
+        logger.info(f"LLM analyze: provider={provider}, doc_len={len(document)}")
         messages = [
             {"role": "system", "content": prompt},
             {"role": "user", "content": document},
@@ -296,17 +297,18 @@ class LLMEngine:
         t0 = time.time()
         try:
             response = await adapter.chat(messages, timeout=settings.LLM_REQUEST_TIMEOUT)
-            logger.info(f"LLM analyze complete: provider={model}, latency={time.time() - t0:.2f}s, usage={response.usage}")
+            logger.info(f"LLM analyze complete: provider={provider}, latency={time.time() - t0:.2f}s, usage={response.usage}")
             return response
         except Exception as e:
-            logger.error(f"LLM analyze failed: provider={model}, latency={time.time() - t0:.2f}s, error={e}")
+            logger.error(f"LLM analyze failed: provider={provider}, latency={time.time() - t0:.2f}s, error={e}")
             raise
 
-    async def generate_report(self, findings: List[Dict[str, Any]], model: str = "deepseek") -> str:
-        adapter = self.adapters.get(model)
+    async def generate_report(self, findings: List[Dict[str, Any]], model: str = None) -> str:
+        provider = model or settings.AGENT_LLM_PROVIDER
+        adapter = self.adapters.get(provider)
         if not adapter:
             available = list(self.adapters.keys())
-            raise ValueError(f"不支持的模型: {model}，可用: {available}")
+            raise ValueError(f"不支持的模型: {provider}，可用: {available}")
 
         findings_text = "\n".join([
             f"- [{f['severity']}] {f['title']}: {f['description']}"
@@ -331,14 +333,14 @@ class LLMEngine:
             {"role": "system", "content": "你是一个资深的GMP审计专家，擅长撰写专业的审计报告。"},
             {"role": "user", "content": prompt},
         ]
-        logger.info(f"LLM generate_report: provider={model}, findings_count={len(findings)}")
+        logger.info(f"LLM generate_report: provider={provider}, findings_count={len(findings)}")
         t0 = time.time()
         try:
             response = await adapter.chat(messages, timeout=settings.LLM_REQUEST_TIMEOUT)
-            logger.info(f"LLM generate_report complete: provider={model}, latency={time.time() - t0:.2f}s")
+            logger.info(f"LLM generate_report complete: provider={provider}, latency={time.time() - t0:.2f}s")
             return response.content
         except Exception as e:
-            logger.error(f"LLM generate_report failed: provider={model}, latency={time.time() - t0:.2f}s, error={e}")
+            logger.error(f"LLM generate_report failed: provider={provider}, latency={time.time() - t0:.2f}s, error={e}")
             raise
 
     def get_available_providers(self) -> List[Dict[str, Any]]:
@@ -371,7 +373,7 @@ class LLMEngine:
             if not api_key:
                 self.adapters.pop(name, None)
                 return
-            resolved_model = (model if model and not model.startswith("your_") else None) or "claude-sonnet-4-20250514"
+            resolved_model = (model if model and not model.startswith("your_") else None) or PROVIDER_REGISTRY["anthropic"]["default_model"]
             self.adapters[name] = AnthropicAdapter(
                 api_key=api_key,
                 base_url=base_url or "https://api.anthropic.com",

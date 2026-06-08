@@ -230,14 +230,44 @@ const DashboardPage: React.FC = () => {
         </Col>
       </Row>
 
-      {dashboard && (dashboard.task_counts.running || 0) > 0 && (
+      {dashboard && (dashboard?.task_counts?.running || 0) > 0 && (
         <Alert
           type="warning"
           showIcon
           style={{ marginBottom: 24, borderRadius: 8 }}
-          message={`${dashboard.task_counts.running} 个审计任务正在执行`}
+          message={`${dashboard?.task_counts?.running || 0} 个审计任务正在执行`}
           description="可在工作台监控阶段进度、查看发现项，任务完成后可直接查看报告。"
         />
+      )}
+
+      {/* Quick start */}
+      {stats.totalDocuments > 0 && (
+        <Card
+          bordered={false}
+          style={{
+            marginBottom: 16,
+            borderRadius: 12,
+            background: `linear-gradient(135deg, ${THEME.primary}08, ${THEME.primary}15)`,
+            border: `1px solid ${THEME.primary}30`,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+            <div>
+              <Text strong style={{ fontSize: 15 }}>开始审计</Text>
+              <Paragraph type="secondary" style={{ margin: '4px 0 0', fontSize: 13 }}>
+                选择文档，一键启动 GMP 合规审计
+              </Paragraph>
+            </div>
+            <Button
+              type="primary"
+              icon={<RobotOutlined />}
+              onClick={() => navigate('/audit')}
+              style={{ borderRadius: 8 }}
+            >
+              开始审计
+            </Button>
+          </div>
+        </Card>
       )}
 
       <Row gutter={[16, 16]}>
@@ -254,7 +284,7 @@ const DashboardPage: React.FC = () => {
               rowKey="id"
               pagination={false}
               loading={loading}
-              locale={{ emptyText: <Empty description="暂无任务记录" /> }}
+              locale={{ emptyText: <Empty description="暂无任务记录"><Button type="primary" onClick={() => navigate('/audit')}>创建审计任务</Button></Empty> }}
             />
           </Card>
         </Col>

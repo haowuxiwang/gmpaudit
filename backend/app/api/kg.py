@@ -184,7 +184,7 @@ async def build_index(
         raise HTTPException(status_code=409, detail="索引正在构建中")
 
     if not os.path.isdir(INPUT_DIR) or not any(f.endswith((".txt", ".md")) for f in os.listdir(INPUT_DIR)):
-        raise HTTPException(status_code=400, detail="没有输入文件，请先将法规文本放入 graphrag_index/input/ 目录")
+        raise HTTPException(status_code=400, detail="没有输入文件，请通过 Web 界面上传法规文档")
 
     # Persist "building: True" to DB immediately so frontend polls see correct state
     _build_status["building"] = True

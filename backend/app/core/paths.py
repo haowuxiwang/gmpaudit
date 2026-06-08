@@ -63,10 +63,10 @@ KG_OUTPUT_DIR = DATA_DIR / "kg_output"
 # KG input: writable so users can upload regulation documents at runtime
 KG_INPUT_DIR = DATA_DIR / "kg_input"
 # Pre-loaded regulation files bundled by PyInstaller (read-only source for first-run copy)
-_KG_INPUT_BUNDLED = RESOURCE_BASE / "graphrag_index" / "input"
+_KG_INPUT_BUNDLED = RESOURCE_BASE / "lightrag_index" / "input"
 
 # Pre-built LightRAG index bundled by PyInstaller (read-only source for first-run copy)
-_KG_OUTPUT_BUNDLED = RESOURCE_BASE / "graphrag_index" / "lightrag_output"
+_KG_OUTPUT_BUNDLED = RESOURCE_BASE / "lightrag_index" / "lightrag_output"
 
 # .env file location (writable, user edits via UI)
 ENV_FILE = CONFIG_DIR_WRITABLE / ".env"

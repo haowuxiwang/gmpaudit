@@ -7,7 +7,7 @@ All notable changes to AuditBee will be documented in this file.
 ### Bug Fixes
 
 - **LightRAG transitive dependencies**: Added `nano_vectordb`, `aiohttp`, `networkx`, `pandas`, `pypinyin`, `tenacity`, `xlsxwriter` to `build.spec` `collect_all()`. Fixes LightRAG initialization failure in packaged exe.
-- **Pre-built knowledge graph index bundling**: Added `graphrag_index/lightrag_output` to `build.spec` datas + manual copy in `build_exe.bat`. Pre-built index now ships with the exe.
+- **Pre-built knowledge graph index bundling**: Added `lightrag_index/lightrag_output` to `build.spec` datas + manual copy in `build_exe.bat`. Pre-built index now ships with the exe.
 - **KG index first-run seeding**: Added startup logic in `main.py` to copy bundled pre-built index to writable `KG_OUTPUT_DIR` on first run.
 - **asyncio.Lock race condition**: Fixed `lightrag_tool.py` creating `asyncio.Lock` lazily inside `get_lightrag()`, which allowed two concurrent coroutines to create separate locks. Now initialized at module level.
 - **risk_assessor silent failure**: Changed failed LLM call behavior from `risk_assessed=True, status="running"` to `risk_assessed=False, status="error"`, allowing supervisor to properly detect and stop the pipeline.
@@ -53,7 +53,7 @@ All notable changes to AuditBee will be documented in this file.
 
 - **LLM client caching**: `agent/config.py` now caches `ChatOpenAI` instances by `(provider, model, temperature, max_tokens)`, eliminating repeated TCP/TLS handshake overhead.
 - **Startup warmup**: Embedding model preloading and LightRAG initialization run in background thread at startup.
-- **Build config**: `graphrag_index/input/` bundled (source regulation files); stale output data excluded from bundle; `data/` directory structure created at exe level; `.env` auto-created from `.env.example` on first run. Added `docx`, `lxml`, `numpy`, `onnxruntime` to hiddenimports. Added `tkinter`, `_tkinter`, `tkinter.ttk` to hiddenimports for GUI launcher.
+- **Build config**: `lightrag_index/input/` bundled (source regulation files); stale output data excluded from bundle; `data/` directory structure created at exe level; `.env` auto-created from `.env.example` on first run. Added `docx`, `lxml`, `numpy`, `onnxruntime` to hiddenimports. Added `tkinter`, `_tkinter`, `tkinter.ttk` to hiddenimports for GUI launcher.
 - **Entry point**: PyInstaller entry point changed from `main.py` to `launcher.py` (CLI wrapper that optionally shows tkinter GUI before starting uvicorn).
 - **Test coverage**: Added `test_paths.py` (path module) and `test_api_reports_export.py` (PDF/HTML export). Total: 181 tests passing.
 

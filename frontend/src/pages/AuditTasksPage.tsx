@@ -1,5 +1,6 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Alert,
   Button,
   Card,
   Divider,
@@ -88,6 +89,9 @@ const AuditTasksPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [elapsed, setElapsed] = useState('');
+  const [reviewComment, setReviewComment] = useState('');
+  const lastMergedSseCount = useRef(0);
+  const prevTaskStatusRef = useRef<string | null>(null);
 
   const taskIdParam = searchParams.get('task_id');
 
@@ -96,8 +100,12 @@ const AuditTasksPage: React.FC = () => {
     [tasks],
   );
 
-  const selectedTaskIsRunning = selectedTask?.status === 'running' || selectedTask?.stage === 'queued';
-  const { events: sseEvents, thinkingEvents, currentStage, status: sseStatus } = useTaskSSE(
+  const selectedTaskIsRunning = !!selectedTask && (
+    selectedTask.status === 'running' ||
+    selectedTask.status === 'pending' ||
+    selectedTask.stage === 'queued'
+  );
+  const { events: sseEvents, thinkingEvents, currentStage, lastActiveStage, progress: sseProgress, status: sseStatus, connectionError, resetProgress } = useTaskSSE(
     selectedTaskId,
     selectedTaskIsRunning,
   );
@@ -108,7 +116,19 @@ const AuditTasksPage: React.FC = () => {
       (preferred ? items.find((task) => task.id === preferred) : undefined) ||
       items[0] ||
       null;
-    setSelectedTask(nextTask);
+    setSelectedTask(prev => {
+      if (!nextTask) return null;
+      // Preserve SSE-enriched fields for running tasks to prevent flicker
+      if (prev && prev.id === nextTask.id && prev.status === 'running') {
+        return {
+          ...nextTask,
+          stage: prev.stage,
+          progress: Math.max(prev.progress || 0, nextTask.progress || 0),
+          events: prev.events,
+        };
+      }
+      return nextTask;
+    });
     setSelectedTaskId(nextTask?.id || null);
     if (nextTask && taskIdParam !== String(nextTask.id)) {
       setSearchParams({ task_id: String(nextTask.id) }, { replace: true });
@@ -161,6 +181,7 @@ const AuditTasksPage: React.FC = () => {
   }, [loadTasks, taskIdParam]);
 
   useEffect(() => {
+    lastMergedSseCount.current = 0;
     if (!selectedTaskId) {
       setFindings([]);
       return;
@@ -168,19 +189,24 @@ const AuditTasksPage: React.FC = () => {
     void loadTaskDetails(selectedTaskId);
   }, [loadTaskDetails, selectedTaskId]);
 
-  // Merge SSE events into selectedTask display
+  // Merge SSE events into selectedTask display (when running or awaiting review)
   useEffect(() => {
+    if (!selectedTask || (selectedTask.status !== 'running' && selectedTask.status !== 'awaiting_review')) return;
+    const newEvents = sseEvents.slice(lastMergedSseCount.current);
+    if (newEvents.length === 0 && !currentStage && sseProgress === 0) return;
+    lastMergedSseCount.current = sseEvents.length;
     setSelectedTask(prev => {
       if (!prev) return prev;
       return {
         ...prev,
         stage: currentStage || prev.stage,
-        events: sseEvents.length > 0
-          ? [...(prev.events || []), ...sseEvents].slice(-200)
+        progress: Math.max(prev.progress || 0, sseProgress),
+        events: newEvents.length > 0
+          ? [...(prev.events || []), ...newEvents].slice(-200)
           : prev.events,
       };
     });
-  }, [sseEvents, currentStage, selectedTask?.id]);
+  }, [sseEvents, currentStage, sseProgress, selectedTask?.id, selectedTask?.status]);
 
   // On SSE "done", do one final refresh
   useEffect(() => {
@@ -201,21 +227,28 @@ const AuditTasksPage: React.FC = () => {
     return () => clearInterval(interval);
   }, [hasRunning, loadTasks, selectedTaskId]);
 
-  // Elapsed time timer
+  // Track status changes for UI updates
   useEffect(() => {
-    if (!selectedTask || selectedTask.status !== 'running' || !selectedTask.started_at) {
+    prevTaskStatusRef.current = selectedTask?.status || null;
+  }, [selectedTask?.status]);
+
+  // Elapsed time timer — depend on primitives to avoid re-creating interval on SSE updates
+  const startedAt = selectedTask?.started_at;
+  const taskStatus = selectedTask?.status;
+  useEffect(() => {
+    if (taskStatus !== 'running' || !startedAt) {
       setElapsed('');
       return;
     }
     const updateElapsed = () => {
-      const start = new Date(selectedTask.started_at!).getTime();
+      const start = new Date(startedAt).getTime();
       const diff = Math.floor((Date.now() - start) / 1000);
       setElapsed(`已运行 ${Math.floor(diff / 60)}m ${diff % 60}s`);
     };
     updateElapsed();
     const interval = setInterval(updateElapsed, 1000);
     return () => clearInterval(interval);
-  }, [selectedTask]);
+  }, [startedAt, taskStatus]);
 
   // Completion notification
   useEffect(() => {
@@ -246,9 +279,18 @@ const AuditTasksPage: React.FC = () => {
       const result = await auditApi.createTask(values);
       setShowModal(false);
       form.resetFields();
-      message.success('审计任务已创建');
+      message.success('审计任务已创建，正在启动...');
       setDrawerOpen(true);
       await loadTasks(true, result.id);
+      // Auto-run the task
+      try {
+        await auditApi.runTask(result.id);
+        message.success('审计任务已启动');
+        await loadTasks(true, result.id);
+        await loadTaskDetails(result.id);
+      } catch {
+        message.warning('自动启动失败，请手动点击"运行"');
+      }
     } catch {
       message.error('创建审计任务失败');
     } finally {
@@ -311,7 +353,7 @@ const AuditTasksPage: React.FC = () => {
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => { setShowModal(true); void loadDocuments(); }}>
-            新建任务
+            开始审计
           </Button>
           <Select
             value={statusFilter}
@@ -392,9 +434,11 @@ const AuditTasksPage: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Stage tag */}
+                  {/* Stage tag — use SSE currentStage for selected running task */}
                   <Tag style={{ borderRadius: 999, margin: 0 }}>
-                    {STAGE_LABELS[task.stage || 'pending'] || task.stage || '等待执行'}
+                    {STAGE_LABELS[
+                      (isSelected && selectedTaskIsRunning ? (currentStage || task.stage) : task.stage) || 'pending'
+                    ] || task.stage || '等待执行'}
                   </Tag>
 
                   {/* Status tag */}
@@ -441,7 +485,15 @@ const AuditTasksPage: React.FC = () => {
                         size="small"
                         danger
                         icon={<StopOutlined />}
-                        onClick={() => void handleCancel(task.id)}
+                        onClick={() => {
+                          Modal.confirm({
+                            title: '取消任务',
+                            content: '确定要取消正在运行的任务吗？',
+                            okText: '确定取消',
+                            okButtonProps: { danger: true },
+                            onOk: () => void handleCancel(task.id),
+                          });
+                        }}
                       >
                         取消
                       </Button>
@@ -467,7 +519,7 @@ const AuditTasksPage: React.FC = () => {
         title={selectedTask?.task_name || '任务详情'}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        width={480}
+        width={window.innerWidth < 640 ? '100%' : 480}
         styles={{ body: { padding: '16px 24px' } }}
       >
         {selectedTask ? (
@@ -483,13 +535,13 @@ const AuditTasksPage: React.FC = () => {
                 </Tag>
                 {selectedTask.stage && (
                   <Tag style={{ borderRadius: 999 }}>
-                    {STAGE_LABELS[selectedTask.stage] || selectedTask.stage}
+                    {STAGE_LABELS[selectedTask.status === 'running' ? (currentStage || selectedTask.stage) : selectedTask.stage] || selectedTask.stage}
                   </Tag>
                 )}
                 {elapsed && <Text type="secondary" style={{ fontSize: 12 }}>{elapsed}</Text>}
               </Space>
               <Progress
-                percent={selectedTask.progress || 0}
+                percent={selectedTask.status === 'running' ? Math.max(selectedTask.progress || 0, sseProgress) : (selectedTask.progress || 0)}
                 strokeColor={THEME.primary}
                 trailColor={THEME.border}
                 status={selectedTask.status === 'failed' ? 'exception' : selectedTask.status === 'completed' ? 'success' : 'active'}
@@ -497,9 +549,16 @@ const AuditTasksPage: React.FC = () => {
             </div>
 
             {/* Agent Flow Chart */}
-            {selectedTask.status === 'running' || selectedTask.status === 'completed' || selectedTask.status === 'failed' ? (() => {
+            {(() => {
               const STAGE_ORDER = ['parsing', 'regulation', 'risk', 'report'];
-              const currentIdx = STAGE_ORDER.indexOf(selectedTask.stage || '');
+              // Use SSE currentStage when running (real-time), fallback to API stage
+              const stage = selectedTask.status === 'running' ? (currentStage || selectedTask.stage || '') : (selectedTask.stage || '');
+              const currentIdx = STAGE_ORDER.indexOf(stage);
+              // Determine the effective stage for the chart
+              const chartStage = currentIdx >= 0 ? stage
+                : selectedTask.status === 'completed' ? 'report'
+                : selectedTask.status === 'failed' ? (stage || 'parsing')
+                : 'pending';
               const completedStages = selectedTask.status === 'completed'
                 ? STAGE_ORDER
                 : currentIdx > 0
@@ -507,22 +566,35 @@ const AuditTasksPage: React.FC = () => {
                   : [];
               return (
                 <AgentFlowChart
-                  currentStage={selectedTask.stage || 'pending'}
+                  currentStage={chartStage}
                   completedStages={completedStages}
-                  failedStage={selectedTask.status === 'failed' ? selectedTask.stage : undefined}
-                  onNodeClick={(stage) => {
+                  failedStage={selectedTask.status === 'failed' ? chartStage : undefined}
+                  onNodeClick={(s) => {
                     const el = document.getElementById('task-timeline');
                     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
                   }}
                 />
               );
-            })() : null}
+            })()}
+
+            {/* SSE Connection Error Alert */}
+            {connectionError && selectedTask.status === 'running' && (
+              <Alert
+                type="warning"
+                showIcon
+                message="实时连接中断"
+                description="与服务器的实时连接已断开，进度信息可能不是最新的。请刷新页面或检查网络连接。"
+                style={{ marginBottom: 16 }}
+                closable
+              />
+            )}
 
             {/* Agent Thinking Panel */}
             {thinkingEvents.length > 0 && (
               <AgentThinkingPanel
                 thinkingEvents={thinkingEvents}
                 currentStage={currentStage}
+                lastActiveStage={lastActiveStage}
                 isRunning={selectedTask.status === 'running'}
               />
             )}
@@ -627,7 +699,7 @@ const AuditTasksPage: React.FC = () => {
                     <Button
                       type="primary"
                       onClick={() => {
-                        let comment = '';
+                        setReviewComment('');
                         Modal.confirm({
                           title: '批准任务',
                           content: (
@@ -636,15 +708,17 @@ const AuditTasksPage: React.FC = () => {
                               <Input.TextArea
                                 placeholder="审核意见（可选）"
                                 rows={3}
-                                onChange={(e) => { comment = e.target.value; }}
+                                value={reviewComment}
+                                onChange={(e) => setReviewComment(e.target.value)}
                               />
                             </div>
                           ),
                           onOk: async () => {
                             try {
-                              await auditApi.approveTask(selectedTask.id, comment);
+                              await auditApi.approveTask(selectedTask.id, reviewComment);
                               message.success('任务已批准');
-                              void loadTasks(false, selectedTaskId);
+                              await loadTasks(false, selectedTaskId);
+                              if (selectedTaskId) await loadTaskDetails(selectedTaskId);
                             } catch (err) {
                               message.error('批准失败，请重试');
                             }
@@ -657,7 +731,7 @@ const AuditTasksPage: React.FC = () => {
                     <Button
                       danger
                       onClick={() => {
-                        let comment = '';
+                        setReviewComment('');
                         Modal.confirm({
                           title: '驳回任务',
                           content: (
@@ -666,19 +740,21 @@ const AuditTasksPage: React.FC = () => {
                               <Input.TextArea
                                 placeholder="驳回原因（必填）"
                                 rows={3}
-                                onChange={(e) => { comment = e.target.value; }}
+                                value={reviewComment}
+                                onChange={(e) => setReviewComment(e.target.value)}
                               />
                             </div>
                           ),
                           onOk: async () => {
-                            if (!comment.trim()) {
+                            if (!reviewComment.trim()) {
                               message.warning('请填写驳回原因');
                               throw new Error('Missing comment');
                             }
                             try {
-                              await auditApi.rejectTask(selectedTask.id, comment);
+                              await auditApi.rejectTask(selectedTask.id, reviewComment);
                               message.success('任务已驳回');
-                              void loadTasks(false, selectedTaskId);
+                              await loadTasks(false, selectedTaskId);
+                              if (selectedTaskId) await loadTaskDetails(selectedTaskId);
                             } catch (err) {
                               message.error('驳回失败，请重试');
                             }

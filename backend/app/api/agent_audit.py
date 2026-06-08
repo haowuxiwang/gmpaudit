@@ -47,7 +47,9 @@ async def run_agent_audit(
     if document.process_status != DocumentStatus.PROCESSED:
         raise HTTPException(status_code=400, detail="Document is not processed")
 
-    audit_type = request.audit_type if request.audit_type in AUDIT_TYPE_TO_TASK_TYPE else "deviation"
+    if request.audit_type not in AUDIT_TYPE_TO_TASK_TYPE:
+        raise HTTPException(status_code=400, detail=f"无效的审计类型: {request.audit_type}，可选: {list(AUDIT_TYPE_TO_TASK_TYPE.keys())}")
+    audit_type = request.audit_type
     task = AuditTask(
         task_name=f"Agent audit - {document.filename}",
         task_type=AUDIT_TYPE_TO_TASK_TYPE[audit_type],

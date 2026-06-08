@@ -1,6 +1,6 @@
 # AuditBee
 
-基于 LangGraph 多 Agent + LightRAG 知识图谱的制药行业 GMP 合规性审计系统，支持文档解析、智能审计分析、法规检索和结构化报告生成。以 Electron 桌面应用形式分发。
+基于 LangGraph 多 Agent + LightRAG 知识图谱的制药行业 GMP 合规性审计系统，支持文档解析、智能审计分析、法规检索和结构化报告生成。以 PyInstaller 打包的本地 Web 应用形式分发，通过系统浏览器访问。
 
 ## 核心特性
 
@@ -16,7 +16,7 @@
 - **飞书通知**：Webhook Bot 群通知（HMAC-SHA256 签名卡片）
 - **浏览器通知**：任务完成/失败时自动推送浏览器通知
 - **容错降级设计**：LightRAG → 硬编码法规库、LLM → 模板报告、PDF → OCR 多级降级
-- **安全加固**：Electron contextIsolation、路径穿越防护、XSS 转义、Config 输入校验
+- **安全加固**：路径穿越防护、XSS 转义、Config 输入校验
 
 ## 技术栈
 
@@ -25,7 +25,7 @@
 | **前端框架** | React 18 + TypeScript + React Router 6 |
 | **UI 组件** | Ant Design 5 |
 | **图表** | ECharts (echarts-for-react) |
-| **桌面** | Electron 28 |
+| **桌面打包** | PyInstaller + tkinter 启动器 |
 | **后端框架** | Python FastAPI + Uvicorn |
 | **数据库** | SQLAlchemy 2.0 (async) + aiosqlite (SQLite) |
 | **Agent 系统** | LangGraph (StateGraph + Supervisor 模式) |
@@ -138,7 +138,7 @@ gmpaudit/
 │   ├── config.py      # LLM 多提供商配置
 │   ├── graph.py       # LangGraph StateGraph 定义
 │   └── state.py       # AuditState 共享状态
-├── graphrag_index/    # 知识图谱索引
+├── lightrag_index/    # 知识图谱索引
 │   ├── input/         # 法规文本文件 (GMP 14章 + ICH Q9/Q10)
 │   └── lightrag_output/ # LightRAG 构建产物
 ├── backend/           # FastAPI 后端 (API 网关)
@@ -237,7 +237,7 @@ dist\AuditBee\
 │   ├── reports\
 │   └── logs\
 ├── model\                # Embedding 模型（启动器中可选下载，~1.3GB）
-├── graphrag_index\       # 知识图谱索引（预构建）
+├── lightrag_index\       # 知识图谱索引（预构建）
 ├── agent\                # Agent 系统
 ├── tools\ffmpeg\         # FFmpeg 工具
 └── scripts\download_model.py  # 模型下载脚本（备用）

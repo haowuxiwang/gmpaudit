@@ -21,7 +21,7 @@ GMP Compliance Audit System - AI-powered document analysis and compliance checki
 - **UI Library:** Ant Design 5
 - **Charts:** ECharts (echarts-for-react)
 - **HTTP Client:** Axios
-- **Desktop:** Electron 28
+- **Desktop:** PyInstaller + tkinter launcher (frontend runs in system browser)
 - **Build:** react-scripts (CRA)
 
 ## Project Structure
@@ -42,7 +42,7 @@ gmpaudit/
     graph.py        # LangGraph StateGraph definition
     state.py        # AuditState TypedDict (shared state)
     main.py         # CLI entry point
-  graphrag_index/   # Knowledge graph index
+  lightrag_index/   # Knowledge graph index
     input/          # Regulation text files for indexing
     lightrag_output/# LightRAG built index artifacts
     settings.yaml   # GraphRAG config (legacy)
@@ -58,7 +58,7 @@ gmpaudit/
       utils/        # Helpers: agent_helpers, file_utils
     tests/          # pytest tests with conftest.py
   frontend/
-    electron/       # Electron main.ts + preload.js
+    electron/       # Electron main.ts + preload.js (dev only, not used in production)
     src/
       App.tsx       # Router setup, layout with lazy loading + ErrorBoundary
       pages/        # Dashboard, Documents, AuditTasks, Reports, Settings, Alerts, KnowledgeGraph, NotFound
@@ -166,9 +166,9 @@ cd backend && pytest tests/test_documents.py               # Run single test fil
 cd agent && python main.py --file data/test_documents/sample_deviation.txt --type deviation
 
 # Frontend
-cd frontend && npm start                                   # Start dev server
-cd frontend && npm run build                               # Production build
-cd frontend && npm run dev                                 # Start with Electron
+cd frontend && npm start                                   # Start dev server (port 3000)
+cd frontend && npm run build                               # Production build (output to build/)
+cd frontend && npm run dev                                 # Start dev server + Electron window (dev only)
 
 # Both
 scripts/start.sh    # or start.bat on Windows

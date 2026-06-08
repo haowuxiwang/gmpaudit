@@ -245,6 +245,6 @@ def my_tool(input_data: str) -> dict:
 
 ## Expanding the Regulation库
 
-1. Add regulation text files to `graphrag_index/input/` (`.txt` format)
+1. Add regulation text files to `lightrag_index/input/` (`.txt` format)
 2. Rebuild index: `POST /api/kg/build` or via Knowledge Graph page
 3. Update `agent/tools/regulation_db.py` fallback entries if needed

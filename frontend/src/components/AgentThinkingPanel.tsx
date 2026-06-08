@@ -28,13 +28,17 @@ const STAGE_ORDER = STEPS.map((s) => s.key);
 function getStepStatus(
   stepKey: string,
   currentStage: string,
+  lastActiveStage: string,
   isRunning: boolean,
 ): 'pending' | 'active' | 'done' | 'failed' {
   if (!isRunning && currentStage === 'completed') return 'done';
   if (!isRunning && currentStage === 'failed') {
-    const failedIdx = STAGE_ORDER.indexOf(stepKey);
-    // Steps before the failure point are marked done, failure step and after are failed/pending
-    // We don't know exactly which step failed, so mark the last active step as failed
+    // Use lastActiveStage to determine which step failed
+    const failedIdx = STAGE_ORDER.indexOf(lastActiveStage);
+    const stepIdx = STAGE_ORDER.indexOf(stepKey);
+    if (failedIdx < 0) return 'pending'; // unknown failure point
+    if (stepIdx < failedIdx) return 'done';
+    if (stepIdx === failedIdx) return 'failed';
     return 'pending';
   }
   const currentIdx = STAGE_ORDER.indexOf(currentStage);
@@ -59,12 +63,14 @@ function getLatestMessage(
 interface AgentThinkingPanelProps {
   thinkingEvents: AgentThinkingEvent[];
   currentStage: string;
+  lastActiveStage?: string;
   isRunning?: boolean;
 }
 
 const AgentThinkingPanel: React.FC<AgentThinkingPanelProps> = ({
   thinkingEvents,
   currentStage,
+  lastActiveStage = 'pending',
   isRunning = false,
 }) => {
   const [collapsed, setCollapsed] = useState(false);
@@ -88,7 +94,7 @@ const AgentThinkingPanel: React.FC<AgentThinkingPanelProps> = ({
   const summaryText = useMemo(() => {
     if (isRunning) {
       const activeStep = STEPS.find(
-        (s) => getStepStatus(s.key, currentStage, isRunning) === 'active',
+        (s) => getStepStatus(s.key, currentStage, lastActiveStage, isRunning) === 'active',
       );
       return activeStep ? `正在进行: ${activeStep.label}...` : '准备中...';
     }
@@ -124,6 +130,7 @@ const AgentThinkingPanel: React.FC<AgentThinkingPanelProps> = ({
                   const status = getStepStatus(
                     step.key,
                     currentStage,
+                    lastActiveStage,
                     isRunning,
                   );
                   return (
@@ -153,6 +160,7 @@ const AgentThinkingPanel: React.FC<AgentThinkingPanelProps> = ({
                 const status = getStepStatus(
                   step.key,
                   currentStage,
+                  lastActiveStage,
                   isRunning,
                 );
                 const message = getLatestMessage(step.key, thinkingEvents);
@@ -259,6 +267,7 @@ const AgentThinkingPanel: React.FC<AgentThinkingPanelProps> = ({
                                 getStepStatus(
                                   s.key,
                                   currentStage,
+                                  lastActiveStage,
                                   isRunning,
                                 ) === 'active',
                             )?.label || ''}

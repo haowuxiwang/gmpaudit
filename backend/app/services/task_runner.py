@@ -222,10 +222,6 @@ def _build_node_summary(node_name: str, output: dict) -> str:
         doc_type = output.get("document_type", "")
         return f"文档解析完成: {doc_name} (类型: {doc_type})"
 
-    if node_name == "supervisor":
-        reasoning = output.get("supervisor_reasoning", "")
-        return reasoning if reasoning else "任务调度完成"
-
     return f"{node_name} 完成"
 
 
@@ -250,12 +246,24 @@ class TaskRunner:
             await self._event_bus.publish_done(task_id, status)
 
     async def _publish_progress(self, task_id: int, percent: int, stage: str) -> None:
-        """Publish progress event to the in-memory event bus."""
+        """Publish progress event to the in-memory event bus and persist to DB."""
         if self._event_bus:
             await self._event_bus.publish(task_id, {
                 "type": "progress",
                 "data": {"percent": percent, "stage": stage},
             })
+        # Atomic UPDATE prevents read-modify-write race in parallel document processing
+        try:
+            from sqlalchemy import update as sa_update
+            async with self._session_factory() as db:
+                await db.execute(
+                    sa_update(AuditTask)
+                    .where(AuditTask.id == task_id, AuditTask.progress < percent)
+                    .values(progress=percent)
+                )
+                await db.commit()
+        except Exception:
+            logger.debug("Failed to persist progress for task %d (non-critical)", task_id)
 
     async def startup_recover(self) -> None:
         async with self._session_factory() as db:
@@ -366,21 +374,18 @@ class TaskRunner:
 
         NODE_STAGE_MAP = {
             "parse_doc": "parsing",
-            "supervisor": "routing",
             "regulation_expert": "regulation",
             "risk_assessor": "risk",
             "report_writer": "report",
         }
         NODE_PROGRESS_MAP = {
             "parse_doc": 5,
-            "supervisor": 5,
             "regulation_expert": 25,
             "risk_assessor": 50,
             "report_writer": 70,
         }
         NODE_START_MESSAGES = {
             "parse_doc": "正在解析文档...",
-            "supervisor": "正在分析任务...",
             "regulation_expert": "正在检索相关法规条款...",
             "risk_assessor": "正在评估合规风险...",
             "report_writer": "正在生成审计报告...",
@@ -483,10 +488,10 @@ class TaskRunner:
             for finding in doc_findings:
                 finding["document_id"] = document.id
 
-            await self._publish_progress(task_id, percent_end, "regulation")
+            await self._publish_progress(task_id, percent_end, "report")
             await self._publish(task_id, {"type": "event", "data": {
                 "time": datetime.now(timezone.utc).isoformat(),
-                "stage": "regulation", "level": "info",
+                "stage": "report", "level": "info",
                 "message": f"Completed document {document.filename}",
             }})
 
@@ -646,6 +651,7 @@ class TaskRunner:
             set_execution_meta(task, meta)
             task.progress = 80
             await db.commit()
+            await self._publish_progress(task_id, 80, "report")
 
             # Validate findings before persisting
             all_finding_dicts = [f for f, _ in findings_to_save]
@@ -688,6 +694,16 @@ class TaskRunner:
                 await db.execute(delete(Finding).where(Finding.id.in_(old_finding_ids)))
             if old_report_ids:
                 await db.execute(delete(Report).where(Report.id.in_(old_report_ids)))
+            await db.commit()
+
+            # Create RiskAlerts immediately after findings are committed (same as AWAITING_REVIEW path)
+            result = await db.execute(select(Finding).where(Finding.task_id == task.id))
+            saved_findings = result.scalars().all()
+            for finding in saved_findings:
+                if finding.severity == SeverityLevel.HIGH:
+                    db.add(RiskAlert(finding_id=finding.id, alert_level=AlertLevel.CRITICAL))
+                elif finding.severity == SeverityLevel.MEDIUM:
+                    db.add(RiskAlert(finding_id=finding.id, alert_level=AlertLevel.WARNING))
             await db.commit()
 
             # Pre-compute finding statistics for notification
@@ -737,15 +753,6 @@ class TaskRunner:
             await self._publish_progress(task_id, 100, "completed")
             await self._publish_done(task_id, "completed")
             await db.refresh(report)
-
-            result = await db.execute(select(Finding).where(Finding.task_id == task.id))
-            saved_findings = result.scalars().all()
-            for finding in saved_findings:
-                if finding.severity == SeverityLevel.HIGH:
-                    db.add(RiskAlert(finding_id=finding.id, alert_level=AlertLevel.CRITICAL))
-                elif finding.severity == SeverityLevel.MEDIUM:
-                    db.add(RiskAlert(finding_id=finding.id, alert_level=AlertLevel.WARNING))
-            await db.commit()
 
             if is_feishu_configured():
                 try:

@@ -1,9 +1,10 @@
 """Distribution artifact test suite for AuditBee.
 
 Tests the packaged dist/AuditBee/ build against all critical paths.
-Run with: python scripts/test_dist.py
+Run with: python scripts/test_dist.py [--port PORT]
 """
 
+import argparse
 import json
 import os
 import subprocess
@@ -15,7 +16,7 @@ from pathlib import Path
 
 DIST_DIR = Path(__file__).resolve().parent.parent / "dist" / "AuditBee"
 EXE_PATH = DIST_DIR / "AuditBee.exe"
-BASE_URL = "http://127.0.0.1:8000"
+BASE_URL = "http://127.0.0.1:8000"  # Overridden by --port arg in __main__
 
 # Test results collector
 results = []
@@ -129,11 +130,11 @@ def test_layer2():
 
     # 2.3 Static files (frontend)
     status, raw = api_get_raw("/")
-    is_html = raw is not None and b"<!DOCTYPE html>" in raw
+    is_html = raw is not None and b"<!doctype html>" in raw.lower()
     test("2.3 Frontend static files", is_html, f"status={status}, is_html={is_html}")
 
     # 2.4 Document list
-    status, data = api_get("/api/documents")
+    status, data = api_get("/api/documents/")
     test("2.4 Document list", status == 200, f"status={status}")
 
     # 2.5 Task list
@@ -141,15 +142,15 @@ def test_layer2():
     test("2.5 Task list", status == 200, f"status={status}")
 
     # 2.6 Report list
-    status, data = api_get("/api/reports")
+    status, data = api_get("/api/reports/")
     test("2.6 Report list", status == 200, f"status={status}")
 
     # 2.7 Config
-    status, data = api_get("/api/config")
+    status, data = api_get("/api/config/")
     test("2.7 Config list", status == 200, f"status={status}")
 
     # 2.8 Alerts
-    status, data = api_get("/api/alerts")
+    status, data = api_get("/api/alerts/")
     test("2.8 Alert list", status == 200, f"status={status}")
 
     # 2.9 KG status
@@ -230,12 +231,15 @@ def test_layer3():
 
     doc_id = upload_data.get("id") or (upload_data.get("documents", [{}])[0].get("id") if isinstance(upload_data, dict) and "documents" in upload_data else None)
 
-    # Wait for document processing
-    time.sleep(3)
-
-    # Check document status
-    status, doc_detail = api_get(f"/api/documents/{doc_id}")
-    doc_status = doc_detail.get("process_status") if isinstance(doc_detail, dict) else "unknown"
+    # Wait for document processing (poll up to 30s)
+    doc_status = "unknown"
+    for _i in range(10):
+        time.sleep(3)
+        status, doc_detail = api_get(f"/api/documents/{doc_id}")
+        if isinstance(doc_detail, dict):
+            doc_status = doc_detail.get("process_status", "unknown")
+            if doc_status in ("processed", "failed"):
+                break
     test("3.2 Document processed", doc_status == "processed",
          f"status={doc_status}")
 
@@ -259,9 +263,9 @@ def test_layer3():
     test("3.4 Task started", status == 200, f"status={status}")
 
     if status == 200:
-        # Wait for task completion (max 120s)
-        print("  Waiting for task completion (max 120s)...")
-        for i in range(24):
+        # Wait for task completion (max 600s — agent pipeline can take 5-8 min)
+        print("  Waiting for task completion (max 600s)...")
+        for i in range(120):
             time.sleep(5)
             status, task_detail = api_get(f"/api/audit/tasks/{task_id}")
             if isinstance(task_detail, dict):
@@ -280,9 +284,15 @@ def test_layer3():
         test("3.6 Findings generated", has_findings,
              f"count={len(findings) if isinstance(findings, list) else 0}")
 
-        # 3.7 Check reports
-        status, reports = api_get("/api/reports")
-        task_reports = [r for r in reports if isinstance(r, dict) and r.get("task_id") == task_id] if isinstance(reports, list) else []
+        # 3.7 Check reports (API returns paginated dict {items: [...]} or list)
+        status, reports = api_get(f"/api/reports/?task_id={task_id}")
+        if isinstance(reports, dict):
+            report_items = reports.get("items", [])
+        elif isinstance(reports, list):
+            report_items = reports
+        else:
+            report_items = []
+        task_reports = [r for r in report_items if isinstance(r, dict) and r.get("task_id") == task_id]
         test("3.7 Report generated", len(task_reports) > 0,
              f"report_count={len(task_reports)}")
 
@@ -313,8 +323,15 @@ def test_layer4():
 # ============================================================
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="AuditBee distribution test suite")
+    parser.add_argument("--port", type=int, default=8000, help="Server port (default: 8000)")
+    args = parser.parse_args()
+
+    BASE_URL = f"http://127.0.0.1:{args.port}"
+
     print("=" * 60)
     print("AuditBee Distribution Artifact Test Suite")
+    print(f"Target: {BASE_URL}")
     print("=" * 60)
 
     # Layer 1: Filesystem checks (no server needed)
@@ -327,17 +344,23 @@ if __name__ == "__main__":
     except Exception:
         server_running = False
 
+    proc = None
     if not server_running:
         print("\n" + "=" * 60)
         print("Server not running. Starting AuditBee.exe with --no-launcher...")
         print("=" * 60)
 
         exe = str(EXE_PATH)
+        # CREATE_NO_WINDOW prevents a visible console window on Windows
+        # Use DEVNULL for stdout/stderr to prevent pipe buffer overflow
+        # (uvicorn logs fill the pipe and block the server process)
+        creationflags = 0x08000000 if sys.platform == "win32" else 0  # CREATE_NO_WINDOW
         proc = subprocess.Popen(
-            [exe, "--no-launcher", "--port", "8000"],
+            [exe, "--no-launcher", "--port", str(args.port)],
             cwd=str(DIST_DIR),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            creationflags=creationflags,
         )
 
         # Wait for server to be ready
@@ -355,23 +378,18 @@ if __name__ == "__main__":
             proc.kill()
             sys.exit(1)
 
-        try:
-            # Layer 2-4: API tests
-            test_layer2()
-            test_layer3()
-            test_layer4()
-        finally:
+    try:
+        test_layer2()
+        test_layer3()
+        test_layer4()
+    finally:
+        if proc is not None:
             print("\nStopping server...")
             proc.terminate()
             try:
                 proc.wait(timeout=10)
             except subprocess.TimeoutExpired:
                 proc.kill()
-    else:
-        print("\nServer already running. Running API tests only...")
-        test_layer2()
-        test_layer3()
-        test_layer4()
 
     # Summary
     print("\n" + "=" * 60)

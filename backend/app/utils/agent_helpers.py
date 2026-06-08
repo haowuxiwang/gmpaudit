@@ -38,8 +38,6 @@ def build_initial_state(
         "document_type": document_type,
         "audit_focus": focus,
         "document_content": document_content,
-        "next_agent": "",
-        "supervisor_reasoning": "",
         "matched_regulations": [],
         "regulation_summary": "",
         "regulation_checked": False,
@@ -50,8 +48,8 @@ def build_initial_state(
         "report_markdown": "",
         "report_path": "",
         "report_generated": False,
+        "report_source": "",
         "messages": [],
-        "iteration": 0,
         "status": "running",
     }
 

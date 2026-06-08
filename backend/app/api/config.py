@@ -83,7 +83,6 @@ async def _apply_setting(key: str, value: str):
         raise HTTPException(status_code=422, detail=f"{key} 为占位符值，请填写真实配置")
 
     # Update settings singleton
-    old_val = getattr(settings, attr, None)
     # Cast to correct type
     current = getattr(settings, attr, None)
     if isinstance(current, int):
@@ -97,7 +96,7 @@ async def _apply_setting(key: str, value: str):
         except ValueError:
             raise HTTPException(status_code=422, detail=f"配置项 {key} 需要小数值，收到: {value}")
     setattr(settings, attr, value)
-    logger.info("Config updated: %s (was=%s)", attr, old_val)
+    logger.info("Config updated: %s", attr)
 
     # Sync to os.environ so agent/config.py's os.getenv() picks up the change
     os.environ[attr] = str(value)
@@ -223,7 +222,7 @@ async def get_config(db: AsyncSession = Depends(get_db)):
 @router.get("/llm/models")
 async def get_available_models():
     from app.services.llm_engine import get_llm_engine
-    from app.core.providers import get_provider_names
+    from app.core.providers import get_provider_names, PROVIDER_REGISTRY
     engine = get_llm_engine()
     providers = engine.get_available_providers()
     names = get_provider_names()
@@ -234,6 +233,9 @@ async def get_available_models():
             "name": names.get(p["name"], p["name"]),
             "model": p["model"],
             "available": p["available"],
+            "base_url": PROVIDER_REGISTRY.get(p["name"], {}).get("base_url", ""),
+            "default_model": PROVIDER_REGISTRY.get(p["name"], {}).get("default_model", ""),
+            "available_models": PROVIDER_REGISTRY.get(p["name"], {}).get("available_models", []),
         }
         for p in providers
     ]
