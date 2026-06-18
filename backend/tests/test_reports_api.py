@@ -3,9 +3,10 @@
 Targets uncovered code paths to increase coverage.
 """
 
+from unittest.mock import AsyncMock, patch
+
 import pytest
 from httpx import AsyncClient
-from unittest.mock import patch, AsyncMock, MagicMock
 
 from app.models.audit_task import AuditTask, TaskStatus, TaskType
 from app.models.finding import Finding, FindingType, SeverityLevel
@@ -245,6 +246,7 @@ class TestSanitizeHtml:
 
     def test_sanitize_allows_safe_tags(self):
         from app.api.reports import _sanitize_html
+
         html = "<h1>Title</h1><p>Content</p><strong>Bold</strong>"
         result = _sanitize_html(html)
         assert "<h1>" in result
@@ -253,6 +255,7 @@ class TestSanitizeHtml:
 
     def test_sanitize_strips_script_tags(self):
         from app.api.reports import _sanitize_html
+
         html = '<p>Safe</p><script>alert("xss")</script>'
         result = _sanitize_html(html)
         assert "<script>" not in result
@@ -260,6 +263,7 @@ class TestSanitizeHtml:
 
     def test_sanitize_strips_iframe_tags(self):
         from app.api.reports import _sanitize_html
+
         html = '<p>Content</p><iframe src="evil.com"></iframe>'
         result = _sanitize_html(html)
         assert "<iframe>" not in result

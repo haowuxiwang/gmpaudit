@@ -3,8 +3,6 @@
 from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
-import pytest
-
 from app.services.task_runner import (
     _build_node_summary,
     _utcnow,
@@ -152,7 +150,9 @@ class TestSetStage:
 
 class TestBuildAggregateReport:
     def test_empty_findings(self):
-        result = build_aggregate_report("Test Task", [{"filename": "a.pdf", "status": "ok", "findings_count": 0, "risk_level": "low"}], [])
+        result = build_aggregate_report(
+            "Test Task", [{"filename": "a.pdf", "status": "ok", "findings_count": 0, "risk_level": "low"}], []
+        )
         assert "未发现审计问题" in result
         assert "Test Task" in result
 
@@ -205,7 +205,9 @@ class TestChooseReportContent:
         assert meta["report_mode"] == "degraded"
 
     def test_empty_agent_reports_uses_aggregate(self):
-        content, meta = choose_report_content("T", [{"filename": "a.pdf", "status": "ok", "findings_count": 0, "risk_level": "low"}], [], [])
+        content, meta = choose_report_content(
+            "T", [{"filename": "a.pdf", "status": "ok", "findings_count": 0, "risk_level": "low"}], [], []
+        )
         assert meta["report_source"] == "task_runner_aggregate"
 
 

@@ -107,9 +107,7 @@ async def build_task_payload(
     _report_id: int | None = None,
 ) -> dict[str, Any]:
     if _findings_count is None:
-        _findings_count = len(
-            (await db.execute(select(Finding).where(Finding.task_id == task.id))).scalars().all()
-        )
+        _findings_count = len((await db.execute(select(Finding).where(Finding.task_id == task.id))).scalars().all())
     if _report_id is None:
         report = (
             (await db.execute(select(Report).where(Report.task_id == task.id).order_by(Report.created_at.desc())))

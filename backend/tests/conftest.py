@@ -43,6 +43,7 @@ async def setup_database():
 async def clean_database():
     # Reset cached audit graph to prevent test pollution
     import app.services.task_runner as _tr
+
     _tr._cached_audit_graph = None
     yield
     async with async_session() as session:

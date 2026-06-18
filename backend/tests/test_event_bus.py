@@ -4,7 +4,7 @@ import asyncio
 
 import pytest
 
-from app.services.event_bus import DONE_SENTINEL, EventBus, _DoneSentinel, _QUEUE_MAXSIZE, _STALE_TTL
+from app.services.event_bus import _QUEUE_MAXSIZE, _STALE_TTL, DONE_SENTINEL, EventBus, _DoneSentinel
 
 
 class TestConstants:

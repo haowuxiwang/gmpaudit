@@ -1,5 +1,4 @@
-from unittest.mock import MagicMock, patch, mock_open
-import io
+from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
 
@@ -497,6 +496,7 @@ def test_process_word_legacy_antword_general_error():
         patch.object(dp, "_extract_doc_text_olefile", return_value="olefile fallback"),
     ):
         import asyncio
+
         result = asyncio.get_event_loop().run_until_complete(dp._process_word_legacy("test.doc"))
         assert result == "olefile fallback"
 

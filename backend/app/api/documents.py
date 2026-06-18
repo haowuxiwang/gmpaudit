@@ -175,9 +175,9 @@ async def upload_documents_batch(
         safe_filename = _generate_safe_filename(file.filename)
         file_path = os.path.join(upload_dir, safe_filename)
 
-        def _write():
-            with open(file_path, "wb") as buffer:
-                shutil.copyfileobj(file.file, buffer)
+        def _write(fp=file_path, f=file):
+            with open(fp, "wb") as buffer:
+                shutil.copyfileobj(f.file, buffer)
 
         await asyncio.to_thread(_write)
 

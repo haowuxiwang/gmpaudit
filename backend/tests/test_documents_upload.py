@@ -4,9 +4,10 @@ Targets specific uncovered lines in documents.py to increase coverage.
 """
 
 import io
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
 from httpx import AsyncClient
-from unittest.mock import patch, AsyncMock, MagicMock
 
 from app.models.document import Document, DocumentStatus
 
@@ -45,7 +46,13 @@ class TestDocumentUpload:
     async def test_upload_docx_file(self, client: AsyncClient):
         """Upload a DOCX file."""
         file_content = b"PK test docx content"
-        files = {"file": ("test.docx", io.BytesIO(file_content), "application/vnd.openxmlformats-officedocument.wordprocessingml.document")}
+        files = {
+            "file": (
+                "test.docx",
+                io.BytesIO(file_content),
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            )
+        }
         resp = await client.post("/api/documents/upload", files=files)
         assert resp.status_code == 200
 
@@ -98,11 +105,13 @@ class TestDocumentProcess:
 
         with patch("app.services.document_processor.get_document_processor") as mock_proc:
             mock_processor = MagicMock()
-            mock_processor.process_document = AsyncMock(return_value={
-                "content": "Processed content",
-                "char_count": 17,
-                "chunk_count": 1,
-            })
+            mock_processor.process_document = AsyncMock(
+                return_value={
+                    "content": "Processed content",
+                    "char_count": 17,
+                    "chunk_count": 1,
+                }
+            )
             mock_proc.return_value = mock_processor
 
             resp = await client.post(f"/api/documents/{doc.id}/process")

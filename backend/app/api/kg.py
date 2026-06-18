@@ -5,9 +5,9 @@ import contextlib
 import json
 import logging
 import os
-import defusedxml.ElementTree as ET
 from datetime import UTC, datetime
 
+import defusedxml.ElementTree as ET
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Request, UploadFile
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -30,6 +30,7 @@ def _write_bytes_sync(path: str, data: bytes) -> None:
     with open(path, "wb") as f:
         f.write(data)
 
+
 from app.core import paths
 
 INPUT_DIR = str(paths.KG_INPUT_DIR)
@@ -41,6 +42,7 @@ def _validate_path_within_input(filepath: str) -> bool:
     real_input = os.path.realpath(INPUT_DIR)
     real_file = os.path.realpath(filepath)
     return real_file.startswith(real_input + os.sep) or real_file == real_input
+
 
 # In-memory build status (fallback for when DB is not available)
 _build_status = {"building": False, "started_at": None, "error": None, "recent_logs": []}
@@ -268,8 +270,8 @@ async def query_kg(request: QueryRequest):
             timeout=90,
         )
         return {"results": results}
-    except asyncio.TimeoutError:
-        raise HTTPException(status_code=504, detail="图谱查询超时，请尝试更简短的查询词")
+    except TimeoutError:
+        raise HTTPException(status_code=504, detail="图谱查询超时，请尝试更简短的查询词") from None
     except Exception as exc:
         logger.exception("KG query failed")
         raise HTTPException(status_code=500, detail="图谱查询失败") from exc

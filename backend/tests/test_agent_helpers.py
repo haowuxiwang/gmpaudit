@@ -1,8 +1,6 @@
 """Tests for app.utils.agent_helpers — build_initial_state and normalize_finding."""
 
-import pytest
-
-from app.models.finding import Finding, FindingType, SeverityLevel
+from app.models.finding import FindingType, SeverityLevel
 from app.utils.agent_helpers import build_initial_state, normalize_finding
 
 
@@ -10,11 +8,24 @@ class TestBuildInitialState:
     def test_all_keys_present(self):
         state = build_initial_state("/path/to/doc.pdf", "deviation", focus="test focus", document_content="content")
         expected_keys = [
-            "document_name", "document_path", "document_type", "audit_focus",
-            "document_content", "matched_regulations", "regulation_summary",
-            "regulation_checked", "findings", "risk_score", "risk_level",
-            "risk_assessed", "report_markdown", "report_path", "report_generated",
-            "report_source", "messages", "status",
+            "document_name",
+            "document_path",
+            "document_type",
+            "audit_focus",
+            "document_content",
+            "matched_regulations",
+            "regulation_summary",
+            "regulation_checked",
+            "findings",
+            "risk_score",
+            "risk_level",
+            "risk_assessed",
+            "report_markdown",
+            "report_path",
+            "report_generated",
+            "report_source",
+            "messages",
+            "status",
         ]
         for key in expected_keys:
             assert key in state, f"Missing key: {key}"

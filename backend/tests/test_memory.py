@@ -1,9 +1,6 @@
 """Tests for app.services.memory — audit memory JSONL persistence."""
 
 import json
-import os
-import tempfile
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -37,10 +34,15 @@ class TestAppendFindings:
     async def test_risk_levels_extracted(self, tmp_path):
         memory_file = tmp_path / "audit_memory.jsonl"
         with patch("app.services.memory.MEMORY_FILE", memory_file):
-            await append_findings(1, "T", [], [
-                {"filename": "a.pdf", "risk_level": "high"},
-                {"filename": "b.pdf", "risk_level": "low"},
-            ])
+            await append_findings(
+                1,
+                "T",
+                [],
+                [
+                    {"filename": "a.pdf", "risk_level": "high"},
+                    {"filename": "b.pdf", "risk_level": "low"},
+                ],
+            )
             line = json.loads(memory_file.read_text(encoding="utf-8").strip())
             assert line["risk_levels"]["a.pdf"] == "high"
             assert line["risk_levels"]["b.pdf"] == "low"

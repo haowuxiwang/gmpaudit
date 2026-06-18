@@ -5,22 +5,29 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.finding import Finding, FindingType, SeverityLevel
 from app.models.risk_alert import AlertLevel, AlertStatus, RiskAlert
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
-async def _create_alert(db_session, severity=SeverityLevel.HIGH, alert_level=AlertLevel.CRITICAL, status=AlertStatus.ACTIVE):
+
+async def _create_alert(
+    db_session, severity=SeverityLevel.HIGH, alert_level=AlertLevel.CRITICAL, status=AlertStatus.ACTIVE
+):
     finding = Finding(
-        task_id=0, finding_type=FindingType.COMPLIANCE_RISK,
-        severity=severity, title="Test Finding", description="Test desc",
+        task_id=0,
+        finding_type=FindingType.COMPLIANCE_RISK,
+        severity=severity,
+        title="Test Finding",
+        description="Test desc",
     )
     db_session.add(finding)
     await db_session.commit()
     await db_session.refresh(finding)
 
     alert = RiskAlert(
-        finding_id=finding.id, alert_level=alert_level, status=status,
+        finding_id=finding.id,
+        alert_level=alert_level,
+        status=status,
     )
     db_session.add(alert)
     await db_session.commit()
@@ -31,6 +38,7 @@ async def _create_alert(db_session, severity=SeverityLevel.HIGH, alert_level=Ale
 # ---------------------------------------------------------------------------
 # List alerts
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_list_alerts_empty(client: AsyncClient):
@@ -117,6 +125,7 @@ async def test_list_alerts_invalid_status(client: AsyncClient):
 # Acknowledge alert
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_acknowledge_alert(client: AsyncClient, db_session: AsyncSession):
     alert, _ = await _create_alert(db_session, status=AlertStatus.ACTIVE)
@@ -153,6 +162,7 @@ async def test_acknowledge_already_acknowledged(client: AsyncClient, db_session:
 # ---------------------------------------------------------------------------
 # Resolve alert
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_resolve_alert(client: AsyncClient, db_session: AsyncSession):

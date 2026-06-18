@@ -3,14 +3,14 @@
 Targets specific uncovered lines in audit.py to increase coverage from 35% to 80%.
 """
 
+from unittest.mock import patch
+
 import pytest
 from httpx import AsyncClient
-from unittest.mock import patch, AsyncMock, MagicMock
 
 from app.models.audit_task import AuditTask, TaskStatus, TaskType
 from app.models.document import Document, DocumentStatus
 from app.models.finding import Finding, FindingType, SeverityLevel
-from app.models.report import Report, ReportType
 
 
 @pytest.mark.asyncio
@@ -30,11 +30,14 @@ class TestAuditTaskCreate:
         await db_session.commit()
         await db_session.refresh(doc)
 
-        resp = await client.post("/api/audit/tasks", json={
-            "task_name": "New Task",
-            "task_type": "deviation_analysis",
-            "document_ids": [doc.id],
-        })
+        resp = await client.post(
+            "/api/audit/tasks",
+            json={
+                "task_name": "New Task",
+                "task_type": "deviation_analysis",
+                "document_ids": [doc.id],
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["task_name"] == "New Task"
@@ -43,11 +46,14 @@ class TestAuditTaskCreate:
 
     async def test_create_task_invalid_type(self, client: AsyncClient):
         """Create task with invalid type."""
-        resp = await client.post("/api/audit/tasks", json={
-            "task_name": "Bad Task",
-            "task_type": "invalid_type",
-            "document_ids": [],
-        })
+        resp = await client.post(
+            "/api/audit/tasks",
+            json={
+                "task_name": "Bad Task",
+                "task_type": "invalid_type",
+                "document_ids": [],
+            },
+        )
         assert resp.status_code in (400, 422)
 
 

@@ -4,7 +4,6 @@ Imports and calls each API handler function directly, avoiding HTTP layer
 coverage-tracking bugs with coverage.py.
 """
 
-import asyncio
 import json
 import os
 import tempfile
@@ -531,7 +530,8 @@ class TestAuditGetFindingsDirect:
 
         task = await _create_task(db_session)
         finding = await _create_finding(
-            db_session, task.id,
+            db_session,
+            task.id,
             status=FindingStatus.APPROVED,
             reviewed_at=datetime.now(UTC),
         )
@@ -973,10 +973,7 @@ class TestReportsExportHtmlDirect:
         from app.api.reports import export_report_html
 
         task = await _create_task(db_session)
-        report = await _create_report(
-            db_session, task.id,
-            content="| A | B |\n|---|---|\n| 1 | 2 |"
-        )
+        report = await _create_report(db_session, task.id, content="| A | B |\n|---|---|\n| 1 | 2 |")
 
         result = await export_report_html(report.id, db_session)
         html_content = result.body.decode("utf-8") if hasattr(result, "body") else str(result)
@@ -1070,7 +1067,8 @@ class TestAlertsListDirect:
         task = await _create_task(db_session)
         finding = await _create_finding(db_session, task.id)
         await _create_alert(
-            db_session, finding.id,
+            db_session,
+            finding.id,
             status=AlertStatus.RESOLVED,
             resolved_at=datetime.now(UTC),
             resolved_by="admin",
@@ -1422,9 +1420,7 @@ class TestDocumentsUploadBatchDirect:
                 with patch("app.api.documents.get_file_size", return_value=100):
                     with patch("builtins.open", MagicMock()):
                         with patch("shutil.copyfileobj"):
-                            result = await upload_documents_batch(
-                                [mock_file1, mock_file2], mock_bg, db_session
-                            )
+                            result = await upload_documents_batch([mock_file1, mock_file2], mock_bg, db_session)
 
         assert len(result) == 2
         assert result[0]["filename"] == "doc1.pdf"
@@ -1452,9 +1448,7 @@ class TestDocumentsUploadBatchDirect:
                 with patch("app.api.documents.get_file_size", return_value=100):
                     with patch("builtins.open", MagicMock()):
                         with patch("shutil.copyfileobj"):
-                            result = await upload_documents_batch(
-                                [mock_file1, mock_file2], mock_bg, db_session
-                            )
+                            result = await upload_documents_batch([mock_file1, mock_file2], mock_bg, db_session)
 
         # Only 1 result - unknown type is skipped
         assert len(result) == 1

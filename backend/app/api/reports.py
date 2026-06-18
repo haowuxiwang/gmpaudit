@@ -102,11 +102,11 @@ async def generate_report(
 ):
     task = (await db.execute(select(AuditTask).where(AuditTask.id == task_id))).scalar_one_or_none()
     if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
+        raise HTTPException(status_code=404, detail="任务不存在")
 
     findings = (await db.execute(select(Finding).where(Finding.task_id == task_id))).scalars().all()
     if not findings:
-        raise HTTPException(status_code=400, detail="No findings available for this task")
+        raise HTTPException(status_code=400, detail="该任务暂无审计发现")
 
     llm = get_llm_engine()
     findings_data = [
@@ -163,7 +163,7 @@ async def get_report(
 ):
     report = (await db.execute(select(Report).where(Report.id == report_id))).scalar_one_or_none()
     if not report:
-        raise HTTPException(status_code=404, detail="Report not found")
+        raise HTTPException(status_code=404, detail="报告不存在")
 
     return {
         "id": report.id,
@@ -183,7 +183,7 @@ async def export_report_html(
 ):
     report = (await db.execute(select(Report).where(Report.id == report_id))).scalar_one_or_none()
     if not report:
-        raise HTTPException(status_code=404, detail="Report not found")
+        raise HTTPException(status_code=404, detail="报告不存在")
 
     safe_title = html_module.escape(report.title or "Untitled")
     created_display = report.created_at.replace(tzinfo=UTC).isoformat() if report.created_at else ""
@@ -222,7 +222,7 @@ async def export_report_pdf(
 ):
     report = (await db.execute(select(Report).where(Report.id == report_id))).scalar_one_or_none()
     if not report:
-        raise HTTPException(status_code=404, detail="Report not found")
+        raise HTTPException(status_code=404, detail="报告不存在")
 
     safe_title = html_module.escape(report.title or "Untitled")
     created_display = report.created_at.replace(tzinfo=UTC).isoformat() if report.created_at else ""

@@ -106,7 +106,8 @@ async def list_audit_tasks(
     items = []
     for task in tasks:
         payload = await build_task_payload(
-            db, task,
+            db,
+            task,
             _findings_count=findings_counts.get(task.id, 0),
             _report_id=report_ids.get(task.id),
         )
@@ -122,7 +123,7 @@ async def get_audit_task(
 ):
     task = (await db.execute(select(AuditTask).where(AuditTask.id == task_id))).scalar_one_or_none()
     if task is None:
-        raise HTTPException(status_code=404, detail="Task not found")
+        raise HTTPException(status_code=404, detail="任务不存在")
     payload = await build_task_payload(db, task)
     payload["document_ids"] = task.document_ids or []
     return payload
@@ -135,16 +136,14 @@ async def run_audit_task(
     db: AsyncSession = Depends(get_db),
 ):
     if not is_agent_available():
-        raise HTTPException(status_code=503, detail="Agent audit system is unavailable")
+        raise HTTPException(status_code=503, detail="Agent 审计系统不可用")
 
     # Check if LLM is configured
     from app.services.llm_engine import get_llm_engine
+
     engine = get_llm_engine()
     if not engine.adapters:
-        raise HTTPException(
-            status_code=400,
-            detail="未配置 LLM API Key，请在「设置」页面配置后再运行审计任务"
-        )
+        raise HTTPException(status_code=400, detail="未配置 LLM API Key，请在「设置」页面配置后再运行审计任务")
 
     # Atomic check-and-set to prevent TOCTOU race condition
     from sqlalchemy import update as sa_update
@@ -158,17 +157,17 @@ async def run_audit_task(
         # Use select() instead of db.get() to bypass identity map cache
         task = (await db.execute(select(AuditTask).where(AuditTask.id == task_id))).scalar_one_or_none()
         if task is None:
-            raise HTTPException(status_code=404, detail="Task not found")
-        raise HTTPException(status_code=400, detail="Task is already running")
+            raise HTTPException(status_code=404, detail="任务不存在")
+        raise HTTPException(status_code=400, detail="任务正在运行中")
 
     task = (await db.execute(select(AuditTask).where(AuditTask.id == task_id))).scalar_one()
 
     for doc_id in task.document_ids or []:
         document = (await db.execute(select(Document).where(Document.id == doc_id))).scalar_one_or_none()
         if document is None:
-            raise HTTPException(status_code=400, detail=f"Document {doc_id} not found")
+            raise HTTPException(status_code=400, detail=f"文档 {doc_id} 不存在")
         if document.process_status != DocumentStatus.PROCESSED:
-            raise HTTPException(status_code=400, detail=f"Document is not processed: {document.filename}")
+            raise HTTPException(status_code=400, detail=f"文档未处理完成: {document.filename}")
 
     set_stage(task, "queued")
     append_event(task, "Task queued for execution", stage="queued")
@@ -191,7 +190,7 @@ async def cancel_audit_task(
 ):
     task = (await db.execute(select(AuditTask).where(AuditTask.id == task_id))).scalar_one_or_none()
     if task is None:
-        raise HTTPException(status_code=404, detail="Task not found")
+        raise HTTPException(status_code=404, detail="任务不存在")
     if task.status != TaskStatus.RUNNING:
         raise HTTPException(status_code=400, detail="Task is not running")
     runner = request.app.state.task_runner_factory()
@@ -210,7 +209,7 @@ async def approve_task(
 ):
     task = (await db.execute(select(AuditTask).where(AuditTask.id == task_id))).scalar_one_or_none()
     if task is None:
-        raise HTTPException(status_code=404, detail="Task not found")
+        raise HTTPException(status_code=404, detail="任务不存在")
     if task.status != TaskStatus.AWAITING_REVIEW:
         raise HTTPException(status_code=400, detail="Task not in review state")
 
@@ -281,7 +280,7 @@ async def reject_task(
 ):
     task = (await db.execute(select(AuditTask).where(AuditTask.id == task_id))).scalar_one_or_none()
     if task is None:
-        raise HTTPException(status_code=404, detail="Task not found")
+        raise HTTPException(status_code=404, detail="任务不存在")
     if task.status != TaskStatus.AWAITING_REVIEW:
         raise HTTPException(status_code=400, detail="Task not in review state")
 
@@ -379,24 +378,12 @@ async def get_dashboard_stats(
     db: AsyncSession = Depends(get_db),
 ):
     # Single query: GROUP BY task status
-    status_result = await db.execute(
-        select(AuditTask.status, func.count(AuditTask.id))
-        .group_by(AuditTask.status)
-    )
-    task_counts = {
-        row[0].value if hasattr(row[0], "value") else row[0]: row[1]
-        for row in status_result.all()
-    }
+    status_result = await db.execute(select(AuditTask.status, func.count(AuditTask.id)).group_by(AuditTask.status))
+    task_counts = {row[0].value if hasattr(row[0], "value") else row[0]: row[1] for row in status_result.all()}
 
     # Single query: GROUP BY finding severity
-    severity_result = await db.execute(
-        select(Finding.severity, func.count(Finding.id))
-        .group_by(Finding.severity)
-    )
-    severity_counts = {
-        row[0].value if hasattr(row[0], "value") else row[0]: row[1]
-        for row in severity_result.all()
-    }
+    severity_result = await db.execute(select(Finding.severity, func.count(Finding.id)).group_by(Finding.severity))
+    severity_counts = {row[0].value if hasattr(row[0], "value") else row[0]: row[1] for row in severity_result.all()}
 
     return {
         "task_counts": task_counts,
@@ -410,7 +397,7 @@ async def get_dashboard_stats(
 async def stream_task_events(task_id: int, request: Request, db: AsyncSession = Depends(get_db)):
     task = (await db.execute(select(AuditTask).where(AuditTask.id == task_id))).scalar_one_or_none()
     if task is None:
-        raise HTTPException(status_code=404, detail="Task not found")
+        raise HTTPException(status_code=404, detail="任务不存在")
 
     event_bus = request.app.state.event_bus
     terminal_statuses = (TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.REJECTED, TaskStatus.AWAITING_REVIEW)
@@ -478,8 +465,9 @@ async def stream_all_tasks(request: Request):
             try:
                 async with get_db_session() as session:
                     result = await session.execute(
-                        select(AuditTask.id, AuditTask.status, AuditTask.progress, AuditTask.task_name)
-                        .order_by(AuditTask.created_at.desc())
+                        select(AuditTask.id, AuditTask.status, AuditTask.progress, AuditTask.task_name).order_by(
+                            AuditTask.created_at.desc()
+                        )
                     )
                     current_statuses = {row.id: row.status.value for row in result.all()}
 

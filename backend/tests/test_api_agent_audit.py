@@ -7,10 +7,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.audit_task import AuditTask, TaskStatus, TaskType
 from app.models.document import Document, DocumentStatus
 
-
 # ---------------------------------------------------------------------------
 # Run agent audit
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_agent_audit_document_not_found(client: AsyncClient):
@@ -24,8 +24,11 @@ async def test_agent_audit_document_not_found(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_agent_audit_document_not_processed(client: AsyncClient, db_session: AsyncSession):
     doc = Document(
-        filename="test.pdf", file_path="/tmp/test.pdf", file_type="pdf",
-        file_size=1024, process_status=DocumentStatus.UPLOADED,
+        filename="test.pdf",
+        file_path="/tmp/test.pdf",
+        file_type="pdf",
+        file_size=1024,
+        process_status=DocumentStatus.UPLOADED,
     )
     db_session.add(doc)
     await db_session.commit()
@@ -36,20 +39,22 @@ async def test_agent_audit_document_not_processed(client: AsyncClient, db_sessio
         json={"document_id": doc.id, "audit_type": "deviation"},
     )
     assert response.status_code == 400
-    assert "not processed" in response.json()["detail"].lower()
+    assert "未处理" in response.json()["detail"]
 
 
 @pytest.mark.asyncio
 async def test_agent_audit_unavailable(client: AsyncClient, db_session: AsyncSession):
     doc = Document(
-        filename="test.pdf", file_path="/tmp/test.pdf", file_type="pdf",
-        file_size=1024, process_status=DocumentStatus.PROCESSED,
+        filename="test.pdf",
+        file_path="/tmp/test.pdf",
+        file_type="pdf",
+        file_size=1024,
+        process_status=DocumentStatus.PROCESSED,
     )
     db_session.add(doc)
     await db_session.commit()
     await db_session.refresh(doc)
 
-    from unittest.mock import patch
     with patch("app.api.agent_audit.is_agent_available", return_value=False):
         response = await client.post(
             "/api/agent-audit/run",
@@ -61,8 +66,11 @@ async def test_agent_audit_unavailable(client: AsyncClient, db_session: AsyncSes
 @pytest.mark.asyncio
 async def test_agent_audit_invalid_type(client: AsyncClient, db_session: AsyncSession):
     doc = Document(
-        filename="test.pdf", file_path="/tmp/test.pdf", file_type="pdf",
-        file_size=1024, process_status=DocumentStatus.PROCESSED,
+        filename="test.pdf",
+        file_path="/tmp/test.pdf",
+        file_type="pdf",
+        file_size=1024,
+        process_status=DocumentStatus.PROCESSED,
     )
     db_session.add(doc)
     await db_session.commit()
@@ -79,8 +87,11 @@ async def test_agent_audit_invalid_type(client: AsyncClient, db_session: AsyncSe
 @pytest.mark.asyncio
 async def test_agent_audit_deviation_success(client: AsyncClient, db_session: AsyncSession):
     doc = Document(
-        filename="dev.pdf", file_path="/tmp/dev.pdf", file_type="pdf",
-        file_size=1024, process_status=DocumentStatus.PROCESSED,
+        filename="dev.pdf",
+        file_path="/tmp/dev.pdf",
+        file_type="pdf",
+        file_size=1024,
+        process_status=DocumentStatus.PROCESSED,
     )
     db_session.add(doc)
     await db_session.commit()
@@ -89,8 +100,9 @@ async def test_agent_audit_deviation_success(client: AsyncClient, db_session: As
     mock_runner = MagicMock()
     mock_factory = MagicMock(return_value=mock_runner)
 
-    from app.main import app
     from unittest.mock import patch as _patch
+
+    from app.main import app
 
     orig_factory = app.state.task_runner_factory
     app.state.task_runner_factory = mock_factory
@@ -111,8 +123,11 @@ async def test_agent_audit_deviation_success(client: AsyncClient, db_session: As
 @pytest.mark.asyncio
 async def test_agent_audit_sop_success(client: AsyncClient, db_session: AsyncSession):
     doc = Document(
-        filename="sop.pdf", file_path="/tmp/sop.pdf", file_type="pdf",
-        file_size=1024, process_status=DocumentStatus.PROCESSED,
+        filename="sop.pdf",
+        file_path="/tmp/sop.pdf",
+        file_type="pdf",
+        file_size=1024,
+        process_status=DocumentStatus.PROCESSED,
     )
     db_session.add(doc)
     await db_session.commit()
@@ -121,8 +136,9 @@ async def test_agent_audit_sop_success(client: AsyncClient, db_session: AsyncSes
     mock_runner = MagicMock()
     mock_factory = MagicMock(return_value=mock_runner)
 
-    from app.main import app
     from unittest.mock import patch as _patch
+
+    from app.main import app
 
     orig_factory = app.state.task_runner_factory
     app.state.task_runner_factory = mock_factory
@@ -140,8 +156,11 @@ async def test_agent_audit_sop_success(client: AsyncClient, db_session: AsyncSes
 @pytest.mark.asyncio
 async def test_agent_audit_change_control_success(client: AsyncClient, db_session: AsyncSession):
     doc = Document(
-        filename="cc.pdf", file_path="/tmp/cc.pdf", file_type="pdf",
-        file_size=1024, process_status=DocumentStatus.PROCESSED,
+        filename="cc.pdf",
+        file_path="/tmp/cc.pdf",
+        file_type="pdf",
+        file_size=1024,
+        process_status=DocumentStatus.PROCESSED,
     )
     db_session.add(doc)
     await db_session.commit()
@@ -150,8 +169,9 @@ async def test_agent_audit_change_control_success(client: AsyncClient, db_sessio
     mock_runner = MagicMock()
     mock_factory = MagicMock(return_value=mock_runner)
 
-    from app.main import app
     from unittest.mock import patch as _patch
+
+    from app.main import app
 
     orig_factory = app.state.task_runner_factory
     app.state.task_runner_factory = mock_factory
@@ -169,8 +189,11 @@ async def test_agent_audit_change_control_success(client: AsyncClient, db_sessio
 @pytest.mark.asyncio
 async def test_agent_audit_with_focus(client: AsyncClient, db_session: AsyncSession):
     doc = Document(
-        filename="focus.pdf", file_path="/tmp/focus.pdf", file_type="pdf",
-        file_size=1024, process_status=DocumentStatus.PROCESSED,
+        filename="focus.pdf",
+        file_path="/tmp/focus.pdf",
+        file_type="pdf",
+        file_size=1024,
+        process_status=DocumentStatus.PROCESSED,
     )
     db_session.add(doc)
     await db_session.commit()
@@ -179,8 +202,9 @@ async def test_agent_audit_with_focus(client: AsyncClient, db_session: AsyncSess
     mock_runner = MagicMock()
     mock_factory = MagicMock(return_value=mock_runner)
 
-    from app.main import app
     from unittest.mock import patch as _patch
+
+    from app.main import app
 
     orig_factory = app.state.task_runner_factory
     app.state.task_runner_factory = mock_factory
@@ -199,8 +223,11 @@ async def test_agent_audit_with_focus(client: AsyncClient, db_session: AsyncSess
 async def test_agent_audit_default_focus(client: AsyncClient, db_session: AsyncSession):
     """When focus is not provided, it should default to empty string."""
     doc = Document(
-        filename="nf.pdf", file_path="/tmp/nf.pdf", file_type="pdf",
-        file_size=1024, process_status=DocumentStatus.PROCESSED,
+        filename="nf.pdf",
+        file_path="/tmp/nf.pdf",
+        file_type="pdf",
+        file_size=1024,
+        process_status=DocumentStatus.PROCESSED,
     )
     db_session.add(doc)
     await db_session.commit()
@@ -209,8 +236,9 @@ async def test_agent_audit_default_focus(client: AsyncClient, db_session: AsyncS
     mock_runner = MagicMock()
     mock_factory = MagicMock(return_value=mock_runner)
 
-    from app.main import app
     from unittest.mock import patch as _patch
+
+    from app.main import app
 
     orig_factory = app.state.task_runner_factory
     app.state.task_runner_factory = mock_factory
@@ -229,6 +257,7 @@ async def test_agent_audit_default_focus(client: AsyncClient, db_session: AsyncS
 # Get agent audit status
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_get_agent_audit_status_not_found(client: AsyncClient):
     response = await client.get("/api/agent-audit/status/999")
@@ -238,8 +267,10 @@ async def test_get_agent_audit_status_not_found(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_get_agent_audit_status(client: AsyncClient, db_session: AsyncSession):
     task = AuditTask(
-        task_name="Agent Task", task_type=TaskType.DEVIATION_ANALYSIS,
-        status=TaskStatus.RUNNING, progress=50,
+        task_name="Agent Task",
+        task_type=TaskType.DEVIATION_ANALYSIS,
+        status=TaskStatus.RUNNING,
+        progress=50,
     )
     db_session.add(task)
     await db_session.commit()
@@ -256,8 +287,10 @@ async def test_get_agent_audit_status(client: AsyncClient, db_session: AsyncSess
 @pytest.mark.asyncio
 async def test_get_agent_audit_status_completed(client: AsyncClient, db_session: AsyncSession):
     task = AuditTask(
-        task_name="Done Task", task_type=TaskType.SOP_COMPLIANCE,
-        status=TaskStatus.COMPLETED, progress=100,
+        task_name="Done Task",
+        task_type=TaskType.SOP_COMPLIANCE,
+        status=TaskStatus.COMPLETED,
+        progress=100,
     )
     db_session.add(task)
     await db_session.commit()

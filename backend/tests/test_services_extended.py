@@ -18,16 +18,13 @@ import pytest
 
 from app.models.audit_task import AuditTask, TaskStatus, TaskType
 from app.models.document import Document, DocumentStatus
-from app.models.finding import Finding, FindingType, SeverityLevel
-from app.models.report import Report, ReportType
-from app.models.risk_alert import RiskAlert, AlertLevel
+from app.models.finding import SeverityLevel
 from app.services.event_bus import EventBus
 from app.services.task_runner import (
     TaskRunner,
     build_task_payload,
     get_task_runner_factory,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -199,6 +196,7 @@ class TestTaskRunnerShutdown:
     @pytest.mark.asyncio
     async def test_shutdown_cancels_active_tasks(self):
         runner = TaskRunner(session_factory=MagicMock(), max_concurrency=2)
+
         # Create a task that blocks
         async def _blocking_run(task_id):
             await asyncio.sleep(100)
@@ -538,7 +536,14 @@ class TestTaskRunnerExecuteTask:
 
         failed_result = {
             "findings": [],
-            "document_result": {"document_id": 1, "filename": "test.pdf", "status": "failed", "findings_count": 0, "risk_level": "unknown", "report_path": ""},
+            "document_result": {
+                "document_id": 1,
+                "filename": "test.pdf",
+                "status": "failed",
+                "findings_count": 0,
+                "risk_level": "unknown",
+                "report_path": "",
+            },
             "report": "",
             "report_source": "error",
             "trace": None,
@@ -621,8 +626,23 @@ class TestTaskRunnerExecuteTask:
         runner = TaskRunner(session_factory=factory, max_concurrency=1)
 
         doc_result_state = {
-            "findings": [{"title": "Critical Issue", "description": "A critical finding", "severity": "high", "type": "compliance_risk", "document_id": 1}],
-            "document_result": {"document_id": 1, "filename": "test.pdf", "status": "completed", "findings_count": 1, "risk_level": "high", "report_path": ""},
+            "findings": [
+                {
+                    "title": "Critical Issue",
+                    "description": "A critical finding",
+                    "severity": "high",
+                    "type": "compliance_risk",
+                    "document_id": 1,
+                }
+            ],
+            "document_result": {
+                "document_id": 1,
+                "filename": "test.pdf",
+                "status": "completed",
+                "findings_count": 1,
+                "risk_level": "high",
+                "report_path": "",
+            },
             "report": "# Report",
             "report_source": "agent_report_writer",
             "trace": None,
@@ -705,8 +725,23 @@ class TestTaskRunnerExecuteTask:
         runner = TaskRunner(session_factory=factory, max_concurrency=1)
 
         doc_result_state = {
-            "findings": [{"title": "Critical Issue", "description": "A critical finding", "severity": "high", "type": "compliance_risk", "document_id": 1}],
-            "document_result": {"document_id": 1, "filename": "test.pdf", "status": "completed", "findings_count": 1, "risk_level": "high", "report_path": ""},
+            "findings": [
+                {
+                    "title": "Critical Issue",
+                    "description": "A critical finding",
+                    "severity": "high",
+                    "type": "compliance_risk",
+                    "document_id": 1,
+                }
+            ],
+            "document_result": {
+                "document_id": 1,
+                "filename": "test.pdf",
+                "status": "completed",
+                "findings_count": 1,
+                "risk_level": "high",
+                "report_path": "",
+            },
             "report": "# Report",
             "report_source": "agent_report_writer",
             "trace": None,
@@ -752,9 +787,7 @@ class TestProcessSingleDocument:
         runner = TaskRunner(session_factory=factory, max_concurrency=1)
 
         mock_graph = MagicMock()
-        mock_graph.astream_events = MagicMock(
-            return_value=_AsyncErrorIterator(TimeoutError("timed out"))
-        )
+        mock_graph.astream_events = MagicMock(return_value=_AsyncErrorIterator(TimeoutError("timed out")))
 
         with (
             patch("app.services.task_runner.get_build_audit_graph", return_value=lambda: mock_graph),
@@ -779,9 +812,7 @@ class TestProcessSingleDocument:
         runner = TaskRunner(session_factory=factory, max_concurrency=1)
 
         mock_graph = MagicMock()
-        mock_graph.astream_events = MagicMock(
-            return_value=_AsyncErrorIterator(RuntimeError("LLM crashed"))
-        )
+        mock_graph.astream_events = MagicMock(return_value=_AsyncErrorIterator(RuntimeError("LLM crashed")))
 
         with (
             patch("app.services.task_runner.get_build_audit_graph", return_value=lambda: mock_graph),
@@ -838,11 +869,19 @@ class TestProcessSingleDocument:
 
         # Pre-populate cache
         import hashlib
-        cache_key_str = f"cached content:deviation:"
+
+        cache_key_str = "cached content:deviation:"
         cache_key = hashlib.md5(cache_key_str.encode()).hexdigest()
         cached_result = {
             "findings": [],
-            "document_result": {"document_id": 1, "filename": "test.pdf", "status": "completed", "findings_count": 0, "risk_level": "low", "report_path": ""},
+            "document_result": {
+                "document_id": 1,
+                "filename": "test.pdf",
+                "status": "completed",
+                "findings_count": 0,
+                "risk_level": "low",
+                "report_path": "",
+            },
             "report": "cached report",
             "report_source": "agent_report_writer",
             "trace": None,
@@ -998,7 +1037,9 @@ class TestLLMEngineReload:
         with patch("app.services.llm_engine.OpenAICompatibleAdapter") as mock_cls:
             mock_adapter = AsyncMock()
             mock_cls.return_value = mock_adapter
-            await engine.reload_provider("deepseek", api_key="sk-test", base_url="https://test.com/v1", model="test-model")
+            await engine.reload_provider(
+                "deepseek", api_key="sk-test", base_url="https://test.com/v1", model="test-model"
+            )
 
         assert "deepseek" in engine.adapters
         await engine.close()
@@ -1021,9 +1062,7 @@ class TestLLMEngineReload:
         from app.services.llm_engine import LLMEngine, OpenAICompatibleAdapter
 
         engine = LLMEngine()
-        adapter = OpenAICompatibleAdapter(
-            api_key="old-key", base_url="https://test.com/v1", model="m", name="deepseek"
-        )
+        adapter = OpenAICompatibleAdapter(api_key="old-key", base_url="https://test.com/v1", model="m", name="deepseek")
         engine.adapters["deepseek"] = adapter
 
         await engine.reload_provider("deepseek", api_key="")
@@ -1119,9 +1158,7 @@ class TestOpenAIAdapterStream:
     async def test_chat_stream_success(self):
         from app.services.llm_engine import OpenAICompatibleAdapter
 
-        adapter = OpenAICompatibleAdapter(
-            api_key="test-key", base_url="https://api.example.com/v1", model="test-model"
-        )
+        adapter = OpenAICompatibleAdapter(api_key="test-key", base_url="https://api.example.com/v1", model="test-model")
 
         # Mock the streaming response
         mock_response = AsyncMock()
@@ -1155,9 +1192,7 @@ class TestOpenAIAdapterStream:
     async def test_chat_stream_handles_invalid_json(self):
         from app.services.llm_engine import OpenAICompatibleAdapter
 
-        adapter = OpenAICompatibleAdapter(
-            api_key="test-key", base_url="https://api.example.com/v1", model="test-model"
-        )
+        adapter = OpenAICompatibleAdapter(api_key="test-key", base_url="https://api.example.com/v1", model="test-model")
 
         mock_response = AsyncMock()
         mock_response.status_code = 200
@@ -1286,9 +1321,7 @@ class TestOpenAIAdapterEdgeCases:
     async def test_chat_empty_choices_raises(self):
         from app.services.llm_engine import OpenAICompatibleAdapter
 
-        adapter = OpenAICompatibleAdapter(
-            api_key="test-key", base_url="https://api.example.com/v1", model="test-model"
-        )
+        adapter = OpenAICompatibleAdapter(api_key="test-key", base_url="https://api.example.com/v1", model="test-model")
 
         mock_response = MagicMock()
         mock_response.status_code = 200
@@ -1302,9 +1335,7 @@ class TestOpenAIAdapterEdgeCases:
     async def test_close_adapter(self):
         from app.services.llm_engine import OpenAICompatibleAdapter
 
-        adapter = OpenAICompatibleAdapter(
-            api_key="test-key", base_url="https://api.example.com/v1", model="test-model"
-        )
+        adapter = OpenAICompatibleAdapter(api_key="test-key", base_url="https://api.example.com/v1", model="test-model")
         with patch.object(adapter._client, "aclose", new_callable=AsyncMock) as mock_close:
             await adapter.close()
             mock_close.assert_called_once()

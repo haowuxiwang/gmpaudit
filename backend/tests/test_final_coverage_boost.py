@@ -5,14 +5,12 @@ Targets specific uncovered code paths to increase coverage from 61% to 80%.
 
 import pytest
 from httpx import AsyncClient
-from unittest.mock import patch, AsyncMock, MagicMock
 
 from app.models.audit_task import AuditTask, TaskStatus, TaskType
+from app.models.configuration import Configuration
 from app.models.document import Document, DocumentStatus
 from app.models.finding import Finding, FindingType, SeverityLevel
 from app.models.report import Report, ReportType
-from app.models.risk_alert import RiskAlert, AlertLevel, AlertStatus
-from app.models.configuration import Configuration
 
 
 @pytest.mark.asyncio
@@ -34,11 +32,14 @@ class TestAuditTaskLifecycle:
         await db_session.refresh(doc)
 
         # Create task
-        resp = await client.post("/api/audit/tasks", json={
-            "task_name": "Lifecycle Task",
-            "task_type": "deviation_analysis",
-            "document_ids": [doc.id],
-        })
+        resp = await client.post(
+            "/api/audit/tasks",
+            json={
+                "task_name": "Lifecycle Task",
+                "task_type": "deviation_analysis",
+                "document_ids": [doc.id],
+            },
+        )
         assert resp.status_code == 200
         task_id = resp.json()["id"]
 
@@ -64,11 +65,14 @@ class TestAuditTaskLifecycle:
         for doc in docs:
             await db_session.refresh(doc)
 
-        resp = await client.post("/api/audit/tasks", json={
-            "task_name": "Multi Doc Task",
-            "task_type": "sop_compliance",
-            "document_ids": [doc.id for doc in docs],
-        })
+        resp = await client.post(
+            "/api/audit/tasks",
+            json={
+                "task_name": "Multi Doc Task",
+                "task_type": "sop_compliance",
+                "document_ids": [doc.id for doc in docs],
+            },
+        )
         assert resp.status_code == 200
         assert resp.json()["task_name"] == "Multi Doc Task"
 

@@ -14,7 +14,6 @@ Covers:
 - Additional edge cases for existing endpoints
 """
 
-from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -23,9 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.audit_task import AuditTask, TaskStatus, TaskType
 from app.models.document import Document, DocumentStatus
-from app.models.finding import Finding, FindingStatus, FindingType, SeverityLevel
-from app.models.report import Report, ReportType
-
+from app.models.finding import Finding, FindingType, SeverityLevel
 
 # ---------------------------------------------------------------------------
 # Helper: create task + document + findings
@@ -94,8 +91,11 @@ class TestCreateAuditTask:
     @pytest.mark.asyncio
     async def test_create_task_with_document_ids(self, client: AsyncClient, db_session: AsyncSession):
         doc = Document(
-            filename="d.pdf", file_path="/tmp/d.pdf", file_type="pdf",
-            file_size=100, process_status=DocumentStatus.PROCESSED,
+            filename="d.pdf",
+            file_path="/tmp/d.pdf",
+            file_type="pdf",
+            file_size=100,
+            process_status=DocumentStatus.PROCESSED,
         )
         db_session.add(doc)
         await db_session.commit()
@@ -127,11 +127,13 @@ class TestListAuditTasks:
     @pytest.mark.asyncio
     async def test_list_with_pagination(self, client: AsyncClient, db_session: AsyncSession):
         for i in range(5):
-            db_session.add(AuditTask(
-                task_name=f"Task {i}",
-                task_type=TaskType.DEVIATION_ANALYSIS,
-                status=TaskStatus.COMPLETED,
-            ))
+            db_session.add(
+                AuditTask(
+                    task_name=f"Task {i}",
+                    task_type=TaskType.DEVIATION_ANALYSIS,
+                    status=TaskStatus.COMPLETED,
+                )
+            )
         await db_session.commit()
 
         resp = await client.get("/api/audit/tasks?page=1&page_size=2")
@@ -154,13 +156,15 @@ class TestListAuditTasks:
         await db_session.refresh(task)
 
         for i in range(3):
-            db_session.add(Finding(
-                task_id=task.id,
-                finding_type=FindingType.COMPLIANCE_RISK,
-                severity=SeverityLevel.HIGH,
-                title=f"Finding {i}",
-                description="Desc",
-            ))
+            db_session.add(
+                Finding(
+                    task_id=task.id,
+                    finding_type=FindingType.COMPLIANCE_RISK,
+                    severity=SeverityLevel.HIGH,
+                    title=f"Finding {i}",
+                    description="Desc",
+                )
+            )
         await db_session.commit()
 
         resp = await client.get("/api/audit/tasks")
@@ -412,7 +416,9 @@ class TestApproveFinding:
     @pytest.mark.asyncio
     async def test_approve_finding_success(self, client: AsyncClient, db_session: AsyncSession):
         task = AuditTask(
-            task_name="T", task_type=TaskType.DEVIATION_ANALYSIS, status=TaskStatus.COMPLETED,
+            task_name="T",
+            task_type=TaskType.DEVIATION_ANALYSIS,
+            status=TaskStatus.COMPLETED,
         )
         db_session.add(task)
         await db_session.commit()
@@ -430,7 +436,9 @@ class TestApproveFinding:
     @pytest.mark.asyncio
     async def test_approve_finding_no_body(self, client: AsyncClient, db_session: AsyncSession):
         task = AuditTask(
-            task_name="T", task_type=TaskType.DEVIATION_ANALYSIS, status=TaskStatus.COMPLETED,
+            task_name="T",
+            task_type=TaskType.DEVIATION_ANALYSIS,
+            status=TaskStatus.COMPLETED,
         )
         db_session.add(task)
         await db_session.commit()
@@ -456,7 +464,9 @@ class TestRejectFinding:
     @pytest.mark.asyncio
     async def test_reject_finding_success(self, client: AsyncClient, db_session: AsyncSession):
         task = AuditTask(
-            task_name="T", task_type=TaskType.DEVIATION_ANALYSIS, status=TaskStatus.COMPLETED,
+            task_name="T",
+            task_type=TaskType.DEVIATION_ANALYSIS,
+            status=TaskStatus.COMPLETED,
         )
         db_session.add(task)
         await db_session.commit()
@@ -576,11 +586,13 @@ class TestDashboard:
     async def test_dashboard_with_various_statuses(self, client: AsyncClient, db_session: AsyncSession):
         statuses = [TaskStatus.COMPLETED, TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.PENDING]
         for i, status in enumerate(statuses):
-            db_session.add(AuditTask(
-                task_name=f"Task {i}",
-                task_type=TaskType.DEVIATION_ANALYSIS,
-                status=status,
-            ))
+            db_session.add(
+                AuditTask(
+                    task_name=f"Task {i}",
+                    task_type=TaskType.DEVIATION_ANALYSIS,
+                    status=status,
+                )
+            )
         await db_session.commit()
 
         resp = await client.get("/api/audit/dashboard")
@@ -594,20 +606,24 @@ class TestDashboard:
     @pytest.mark.asyncio
     async def test_dashboard_with_severity_counts(self, client: AsyncClient, db_session: AsyncSession):
         task = AuditTask(
-            task_name="T", task_type=TaskType.DEVIATION_ANALYSIS, status=TaskStatus.COMPLETED,
+            task_name="T",
+            task_type=TaskType.DEVIATION_ANALYSIS,
+            status=TaskStatus.COMPLETED,
         )
         db_session.add(task)
         await db_session.commit()
         await db_session.refresh(task)
 
         for sev in [SeverityLevel.HIGH, SeverityLevel.HIGH, SeverityLevel.MEDIUM, SeverityLevel.LOW]:
-            db_session.add(Finding(
-                task_id=task.id,
-                finding_type=FindingType.COMPLIANCE_RISK,
-                severity=sev,
-                title=f"Finding {sev.value}",
-                description="Desc",
-            ))
+            db_session.add(
+                Finding(
+                    task_id=task.id,
+                    finding_type=FindingType.COMPLIANCE_RISK,
+                    severity=sev,
+                    title=f"Finding {sev.value}",
+                    description="Desc",
+                )
+            )
         await db_session.commit()
 
         resp = await client.get("/api/audit/dashboard")
@@ -628,7 +644,9 @@ class TestGetTaskFindings:
     @pytest.mark.asyncio
     async def test_findings_with_all_fields(self, client: AsyncClient, db_session: AsyncSession):
         task = AuditTask(
-            task_name="T", task_type=TaskType.DEVIATION_ANALYSIS, status=TaskStatus.COMPLETED,
+            task_name="T",
+            task_type=TaskType.DEVIATION_ANALYSIS,
+            status=TaskStatus.COMPLETED,
         )
         db_session.add(task)
         await db_session.commit()
@@ -666,20 +684,24 @@ class TestGetTaskFindings:
     @pytest.mark.asyncio
     async def test_findings_multiple(self, client: AsyncClient, db_session: AsyncSession):
         task = AuditTask(
-            task_name="T", task_type=TaskType.DEVIATION_ANALYSIS, status=TaskStatus.COMPLETED,
+            task_name="T",
+            task_type=TaskType.DEVIATION_ANALYSIS,
+            status=TaskStatus.COMPLETED,
         )
         db_session.add(task)
         await db_session.commit()
         await db_session.refresh(task)
 
         for sev in [SeverityLevel.HIGH, SeverityLevel.MEDIUM, SeverityLevel.LOW]:
-            db_session.add(Finding(
-                task_id=task.id,
-                finding_type=FindingType.COMPLIANCE_RISK,
-                severity=sev,
-                title=f"{sev.value} Finding",
-                description="Desc",
-            ))
+            db_session.add(
+                Finding(
+                    task_id=task.id,
+                    finding_type=FindingType.COMPLIANCE_RISK,
+                    severity=sev,
+                    title=f"{sev.value} Finding",
+                    description="Desc",
+                )
+            )
         await db_session.commit()
 
         resp = await client.get(f"/api/audit/tasks/{task.id}/findings")
@@ -696,7 +718,9 @@ class TestGetTaskRisk:
     @pytest.mark.asyncio
     async def test_risk_no_findings(self, client: AsyncClient, db_session: AsyncSession):
         task = AuditTask(
-            task_name="T", task_type=TaskType.DEVIATION_ANALYSIS, status=TaskStatus.COMPLETED,
+            task_name="T",
+            task_type=TaskType.DEVIATION_ANALYSIS,
+            status=TaskStatus.COMPLETED,
         )
         db_session.add(task)
         await db_session.commit()
@@ -840,9 +864,14 @@ class TestLLMEngineAdditional:
 
         engine = LLMEngine()
         mock_adapter = AsyncMock()
-        mock_adapter.chat = AsyncMock(return_value=LLMResponse(
-            content="result", model="test", usage={"prompt_tokens": 10}, finish_reason="stop",
-        ))
+        mock_adapter.chat = AsyncMock(
+            return_value=LLMResponse(
+                content="result",
+                model="test",
+                usage={"prompt_tokens": 10},
+                finish_reason="stop",
+            )
+        )
         engine.adapters["test"] = mock_adapter
 
         result = await engine.analyze("doc", "prompt", model="test")
@@ -854,9 +883,14 @@ class TestLLMEngineAdditional:
 
         engine = LLMEngine()
         mock_adapter = AsyncMock()
-        mock_adapter.chat = AsyncMock(return_value=LLMResponse(
-            content="# Report", model="test", usage={}, finish_reason="stop",
-        ))
+        mock_adapter.chat = AsyncMock(
+            return_value=LLMResponse(
+                content="# Report",
+                model="test",
+                usage={},
+                finish_reason="stop",
+            )
+        )
         engine.adapters["test"] = mock_adapter
 
         result = await engine.generate_report(

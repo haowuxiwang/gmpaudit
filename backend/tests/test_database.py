@@ -1,7 +1,7 @@
 """Tests for app.core.database — engine creation, pragma setup, get_db."""
 
-from unittest.mock import MagicMock, patch, AsyncMock
 from collections.abc import AsyncGenerator
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from sqlalchemy import event, text
@@ -14,6 +14,7 @@ class TestBase:
     def test_base_is_declarative_base(self):
         """Base should be a SQLAlchemy DeclarativeBase subclass."""
         from sqlalchemy.orm import DeclarativeBase
+
         assert issubclass(Base, DeclarativeBase)
 
     def test_base_has_metadata(self):
@@ -25,17 +26,21 @@ class TestEngineCreation:
     def test_engine_exists(self):
         """Module-level engine should be created."""
         from app.core.database import engine
+
         assert engine is not None
 
     def test_engine_is_async(self):
         """Engine should be an async engine."""
         from sqlalchemy.ext.asyncio import AsyncEngine
+
         from app.core.database import engine
+
         assert isinstance(engine, AsyncEngine)
 
     def test_async_session_factory_exists(self):
         """Module-level async_session should be created."""
         from app.core.database import async_session
+
         assert async_session is not None
 
 
@@ -69,7 +74,6 @@ class TestGetDb:
     @pytest.mark.asyncio
     async def test_get_db_yields_session(self):
         """get_db should yield an AsyncSession."""
-        from app.core.database import async_session
 
         gen = get_db()
         assert isinstance(gen, AsyncGenerator)

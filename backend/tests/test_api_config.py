@@ -1,4 +1,3 @@
-import re
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -7,10 +6,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.configuration import Configuration
 
-
 # ---------------------------------------------------------------------------
 # GET /config/
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_get_config(client: AsyncClient):
@@ -21,14 +20,22 @@ async def test_get_config(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_get_config_with_entries(client: AsyncClient, db_session: AsyncSession):
-    db_session.add(Configuration(
-        config_key="log_level", config_value="INFO",
-        config_type="string", description="Log level",
-    ))
-    db_session.add(Configuration(
-        config_key="deepseek_api_key", config_value="sk-12345678abcd",
-        config_type="string", description="API key",
-    ))
+    db_session.add(
+        Configuration(
+            config_key="log_level",
+            config_value="INFO",
+            config_type="string",
+            description="Log level",
+        )
+    )
+    db_session.add(
+        Configuration(
+            config_key="deepseek_api_key",
+            config_value="sk-12345678abcd",
+            config_type="string",
+            description="API key",
+        )
+    )
     await db_session.commit()
 
     resp = await client.get("/api/config/")
@@ -47,10 +54,13 @@ async def test_get_config_with_entries(client: AsyncClient, db_session: AsyncSes
 @pytest.mark.asyncio
 async def test_get_config_masks_short_key(client: AsyncClient, db_session: AsyncSession):
     """Short API key (<=8 chars) should be fully masked."""
-    db_session.add(Configuration(
-        config_key="test_api_key", config_value="short",
-        config_type="string",
-    ))
+    db_session.add(
+        Configuration(
+            config_key="test_api_key",
+            config_value="short",
+            config_type="string",
+        )
+    )
     await db_session.commit()
 
     resp = await client.get("/api/config/")
@@ -59,10 +69,13 @@ async def test_get_config_masks_short_key(client: AsyncClient, db_session: Async
 
 @pytest.mark.asyncio
 async def test_get_config_masks_secret(client: AsyncClient, db_session: AsyncSession):
-    db_session.add(Configuration(
-        config_key="feishu_webhook_secret", config_value="mysecretvalue123",
-        config_type="string",
-    ))
+    db_session.add(
+        Configuration(
+            config_key="feishu_webhook_secret",
+            config_value="mysecretvalue123",
+            config_type="string",
+        )
+    )
     await db_session.commit()
 
     resp = await client.get("/api/config/")
@@ -73,10 +86,13 @@ async def test_get_config_masks_secret(client: AsyncClient, db_session: AsyncSes
 @pytest.mark.asyncio
 async def test_get_config_empty_placeholder(client: AsyncClient, db_session: AsyncSession):
     """Placeholder values starting with 'your_' should return empty string."""
-    db_session.add(Configuration(
-        config_key="openai_api_key", config_value="your_openai_key_here",
-        config_type="string",
-    ))
+    db_session.add(
+        Configuration(
+            config_key="openai_api_key",
+            config_value="your_openai_key_here",
+            config_type="string",
+        )
+    )
     await db_session.commit()
 
     resp = await client.get("/api/config/")
@@ -87,6 +103,7 @@ async def test_get_config_empty_placeholder(client: AsyncClient, db_session: Asy
 # GET /config/{key}
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_get_config_by_key_not_found(client: AsyncClient):
     response = await client.get("/api/config/nonexistent_key")
@@ -95,10 +112,14 @@ async def test_get_config_by_key_not_found(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_get_config_by_key(client: AsyncClient, db_session: AsyncSession):
-    db_session.add(Configuration(
-        config_key="log_level", config_value="DEBUG",
-        config_type="string", description="日志级别",
-    ))
+    db_session.add(
+        Configuration(
+            config_key="log_level",
+            config_value="DEBUG",
+            config_type="string",
+            description="日志级别",
+        )
+    )
     await db_session.commit()
 
     resp = await client.get("/api/config/log_level")
@@ -113,6 +134,7 @@ async def test_get_config_by_key(client: AsyncClient, db_session: AsyncSession):
 # ---------------------------------------------------------------------------
 # PUT /config/{key}
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_update_and_get_config(client: AsyncClient):
@@ -238,15 +260,19 @@ async def test_update_config_api_key_with_reload(client: AsyncClient, db_session
 # POST /config/batch
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_batch_update_config(client: AsyncClient):
     with patch("app.api.config._reload_llm_provider", new_callable=AsyncMock):
-        resp = await client.post("/api/config/batch", json={
-            "configs": {
-                "log_level": "WARNING",
-                "temperature": "0.7",
-            }
-        })
+        resp = await client.post(
+            "/api/config/batch",
+            json={
+                "configs": {
+                    "log_level": "WARNING",
+                    "temperature": "0.7",
+                }
+            },
+        )
     assert resp.status_code == 200
     assert resp.json()["status"] == "success"
 
@@ -254,34 +280,43 @@ async def test_batch_update_config(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_batch_update_skips_placeholders(client: AsyncClient):
     with patch("app.api.config._reload_llm_provider", new_callable=AsyncMock):
-        resp = await client.post("/api/config/batch", json={
-            "configs": {
-                "deepseek_api_key": "your_key_here",
-                "log_level": "DEBUG",
-            }
-        })
+        resp = await client.post(
+            "/api/config/batch",
+            json={
+                "configs": {
+                    "deepseek_api_key": "your_key_here",
+                    "log_level": "DEBUG",
+                }
+            },
+        )
     assert resp.status_code == 200
 
 
 @pytest.mark.asyncio
 async def test_batch_update_auto_sets_provider(client: AsyncClient):
     with patch("app.api.config._reload_llm_provider", new_callable=AsyncMock):
-        resp = await client.post("/api/config/batch", json={
-            "configs": {
-                "qwen_api_key": "sk-qwen-real-key-12345",
-            }
-        })
+        resp = await client.post(
+            "/api/config/batch",
+            json={
+                "configs": {
+                    "qwen_api_key": "sk-qwen-real-key-12345",
+                }
+            },
+        )
     assert resp.status_code == 200
 
 
 @pytest.mark.asyncio
 async def test_batch_update_integer_cast(client: AsyncClient):
     with patch("app.api.config._reload_llm_provider", new_callable=AsyncMock):
-        resp = await client.post("/api/config/batch", json={
-            "configs": {
-                "max_concurrent_tasks": "3",
-            }
-        })
+        resp = await client.post(
+            "/api/config/batch",
+            json={
+                "configs": {
+                    "max_concurrent_tasks": "3",
+                }
+            },
+        )
     assert resp.status_code == 200
 
 
@@ -289,18 +324,22 @@ async def test_batch_update_integer_cast(client: AsyncClient):
 async def test_batch_update_unknown_key_warns(client: AsyncClient):
     """Unknown keys should be skipped with a warning (not crash)."""
     with patch("app.api.config._reload_llm_provider", new_callable=AsyncMock):
-        resp = await client.post("/api/config/batch", json={
-            "configs": {
-                "unknown_key_xyz": "value",
-                "log_level": "INFO",
-            }
-        })
+        resp = await client.post(
+            "/api/config/batch",
+            json={
+                "configs": {
+                    "unknown_key_xyz": "value",
+                    "log_level": "INFO",
+                }
+            },
+        )
     assert resp.status_code == 200
 
 
 # ---------------------------------------------------------------------------
 # GET /config/llm/models
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_get_available_models(client: AsyncClient):
@@ -317,6 +356,7 @@ async def test_get_available_models(client: AsyncClient):
 # ---------------------------------------------------------------------------
 # POST /config/test-webhook
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_test_webhook_no_url(client: AsyncClient):
@@ -354,12 +394,16 @@ async def test_test_webhook_failure(client: AsyncClient):
 # POST /config/test-llm
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_test_llm_unsupported_provider(client: AsyncClient):
-    resp = await client.post("/api/config/test-llm", json={
-        "provider": "unknown_provider",
-        "api_key": "sk-test",
-    })
+    resp = await client.post(
+        "/api/config/test-llm",
+        json={
+            "provider": "unknown_provider",
+            "api_key": "sk-test",
+        },
+    )
     assert resp.status_code == 200
     assert resp.json()["success"] is False
     assert "不支持" in resp.json()["error"]
@@ -367,10 +411,13 @@ async def test_test_llm_unsupported_provider(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_test_llm_empty_api_key(client: AsyncClient):
-    resp = await client.post("/api/config/test-llm", json={
-        "provider": "deepseek",
-        "api_key": "",
-    })
+    resp = await client.post(
+        "/api/config/test-llm",
+        json={
+            "provider": "deepseek",
+            "api_key": "",
+        },
+    )
     assert resp.status_code == 200
     assert resp.json()["success"] is False
     assert "API Key" in resp.json()["error"]
@@ -383,10 +430,13 @@ async def test_test_llm_success(client: AsyncClient):
     mock_adapter.close = AsyncMock()
 
     with patch("app.services.llm_engine.OpenAICompatibleAdapter", return_value=mock_adapter):
-        resp = await client.post("/api/config/test-llm", json={
-            "provider": "deepseek",
-            "api_key": "sk-test-key",
-        })
+        resp = await client.post(
+            "/api/config/test-llm",
+            json={
+                "provider": "deepseek",
+                "api_key": "sk-test-key",
+            },
+        )
     assert resp.status_code == 200
     assert resp.json()["success"] is True
     assert resp.json()["model_used"] == "deepseek-chat"
@@ -399,10 +449,13 @@ async def test_test_llm_failure(client: AsyncClient):
     mock_adapter.close = AsyncMock()
 
     with patch("app.services.llm_engine.OpenAICompatibleAdapter", return_value=mock_adapter):
-        resp = await client.post("/api/config/test-llm", json={
-            "provider": "deepseek",
-            "api_key": "sk-test-key",
-        })
+        resp = await client.post(
+            "/api/config/test-llm",
+            json={
+                "provider": "deepseek",
+                "api_key": "sk-test-key",
+            },
+        )
     assert resp.status_code == 200
     assert resp.json()["success"] is False
     assert "Connection refused" in resp.json()["error"]
@@ -415,10 +468,13 @@ async def test_test_llm_anthropic(client: AsyncClient):
     mock_adapter.close = AsyncMock()
 
     with patch("app.services.llm_engine.AnthropicAdapter", return_value=mock_adapter):
-        resp = await client.post("/api/config/test-llm", json={
-            "provider": "anthropic",
-            "api_key": "sk-ant-test",
-        })
+        resp = await client.post(
+            "/api/config/test-llm",
+            json={
+                "provider": "anthropic",
+                "api_key": "sk-ant-test",
+            },
+        )
     assert resp.status_code == 200
     assert resp.json()["success"] is True
 
@@ -430,12 +486,15 @@ async def test_test_llm_with_custom_url(client: AsyncClient):
     mock_adapter.close = AsyncMock()
 
     with patch("app.services.llm_engine.OpenAICompatibleAdapter", return_value=mock_adapter):
-        resp = await client.post("/api/config/test-llm", json={
-            "provider": "openai",
-            "api_key": "sk-test",
-            "base_url": "https://custom.api.com/v1",
-            "model": "custom-model",
-        })
+        resp = await client.post(
+            "/api/config/test-llm",
+            json={
+                "provider": "openai",
+                "api_key": "sk-test",
+                "base_url": "https://custom.api.com/v1",
+                "model": "custom-model",
+            },
+        )
     assert resp.status_code == 200
     assert resp.json()["success"] is True
 
@@ -448,11 +507,14 @@ async def test_test_llm_placeholder_url(client: AsyncClient):
     mock_adapter.close = AsyncMock()
 
     with patch("app.services.llm_engine.OpenAICompatibleAdapter", return_value=mock_adapter):
-        resp = await client.post("/api/config/test-llm", json={
-            "provider": "qwen",
-            "api_key": "sk-test",
-            "base_url": "your_url_here",
-        })
+        resp = await client.post(
+            "/api/config/test-llm",
+            json={
+                "provider": "qwen",
+                "api_key": "sk-test",
+                "base_url": "your_url_here",
+            },
+        )
     assert resp.status_code == 200
     assert resp.json()["success"] is True
 
@@ -461,12 +523,14 @@ async def test_test_llm_placeholder_url(client: AsyncClient):
 # _apply_setting (internal function coverage)
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_apply_setting_updates_env_and_settings():
     """_apply_setting should update os.environ and settings singleton."""
+    import os
+
     from app.api.config import _apply_setting
     from app.core.config import settings
-    import os
 
     orig_val = os.environ.get("LOG_LEVEL", "")
     orig_setting = getattr(settings, "LOG_LEVEL", "")
@@ -484,15 +548,17 @@ async def test_apply_setting_updates_env_and_settings():
 async def test_apply_setting_unknown_key_noop():
     """Unknown key should be a no-op."""
     from app.api.config import _apply_setting
+
     await _apply_setting("nonexistent_key_xyz", "value")
 
 
 @pytest.mark.asyncio
 async def test_apply_setting_integer_cast():
     """_apply_setting should cast integer values correctly."""
+    import os
+
     from app.api.config import _apply_setting
     from app.core.config import settings
-    import os
 
     orig_val = os.environ.get("MAX_CONCURRENT_TASKS", "")
     orig_setting = getattr(settings, "MAX_CONCURRENT_TASKS", "")
@@ -509,9 +575,10 @@ async def test_apply_setting_integer_cast():
 @pytest.mark.asyncio
 async def test_apply_setting_integer_invalid():
     """_apply_setting should raise HTTPException for invalid integer."""
+    from fastapi import HTTPException
+
     from app.api.config import _apply_setting
     from app.core.config import settings
-    from fastapi import HTTPException
 
     orig_setting = getattr(settings, "MAX_CONCURRENT_TASKS", 3)
     try:
@@ -525,8 +592,9 @@ async def test_apply_setting_integer_invalid():
 @pytest.mark.asyncio
 async def test_apply_setting_api_key_triggers_reload():
     """API key change should trigger LLM provider reload."""
-    from app.api.config import _apply_setting
     import os
+
+    from app.api.config import _apply_setting
 
     orig_val = os.environ.get("DEEPSEEK_API_KEY", "")
     try:
@@ -543,8 +611,9 @@ async def test_apply_setting_api_key_triggers_reload():
 @pytest.mark.asyncio
 async def test_apply_setting_placeholder_rejected():
     """Placeholder API key values should be rejected."""
-    from app.api.config import _apply_setting
     from fastapi import HTTPException
+
+    from app.api.config import _apply_setting
 
     with pytest.raises(HTTPException) as exc_info:
         await _apply_setting("deepseek_api_key", "your_key_here")
@@ -554,8 +623,9 @@ async def test_apply_setting_placeholder_rejected():
 @pytest.mark.asyncio
 async def test_apply_setting_agent_provider_clears_cache():
     """Changing agent_llm_provider should clear agent LLM cache."""
-    from app.api.config import _apply_setting
     import os
+
+    from app.api.config import _apply_setting
 
     orig_val = os.environ.get("AGENT_LLM_PROVIDER", "")
     try:
@@ -573,24 +643,29 @@ async def test_apply_setting_agent_provider_clears_cache():
 # _mask_value coverage
 # ---------------------------------------------------------------------------
 
+
 def test_mask_value_empty():
     from app.api.config import _mask_value
+
     assert _mask_value("test_key", "") == ""
     assert _mask_value("test_key", None) is None
 
 
 def test_mask_value_non_sensitive():
     from app.api.config import _mask_value
+
     assert _mask_value("log_level", "INFO") == "INFO"
 
 
 def test_mask_value_short_key():
     from app.api.config import _mask_value
+
     assert _mask_value("test_api_key", "short") == "****"
 
 
 def test_mask_value_long_key():
     from app.api.config import _mask_value
+
     result = _mask_value("deepseek_api_key", "sk-12345678abcd")
     assert result.startswith("sk-1")
     assert result.endswith("abcd")
@@ -599,18 +674,21 @@ def test_mask_value_long_key():
 
 def test_mask_value_secret():
     from app.api.config import _mask_value
+
     result = _mask_value("feishu_webhook_secret", "mysecretvalue123")
     assert "****" in result
 
 
 def test_mask_value_placeholder():
     from app.api.config import _mask_value
+
     assert _mask_value("any_key", "your_placeholder") == ""
 
 
 # ---------------------------------------------------------------------------
 # _reload_llm_provider
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_reload_llm_provider():
@@ -632,6 +710,7 @@ async def test_reload_llm_provider():
 async def test_reload_llm_provider_timeout():
     """_reload_llm_provider should handle timeout gracefully."""
     import asyncio
+
     from app.api.config import _reload_llm_provider
 
     mock_engine = AsyncMock()
@@ -648,10 +727,12 @@ async def test_reload_llm_provider_timeout():
 # update_config with real _apply_setting (non-API-key path)
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_update_config_log_level_real(client: AsyncClient):
     """Update log_level without mocking _apply_setting to cover the actual path."""
     import os
+
     from app.core.config import settings
 
     orig_env = os.environ.get("LOG_LEVEL", "")
@@ -672,10 +753,12 @@ async def test_update_config_log_level_real(client: AsyncClient):
 # batch_update with real _apply_setting paths
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_batch_update_with_integer_and_float(client: AsyncClient):
     """Batch update should correctly cast integer and float values."""
     import os
+
     from app.core.config import settings
 
     orig_max = os.environ.get("MAX_CONCURRENT_TASKS", "")
@@ -684,12 +767,15 @@ async def test_batch_update_with_integer_and_float(client: AsyncClient):
     orig_s_temp = getattr(settings, "TEMPERATURE", "")
     try:
         with patch("app.api.config._reload_llm_provider", new_callable=AsyncMock):
-            resp = await client.post("/api/config/batch", json={
-                "configs": {
-                    "max_concurrent_tasks": "10",
-                    "temperature": "0.3",
-                }
-            })
+            resp = await client.post(
+                "/api/config/batch",
+                json={
+                    "configs": {
+                        "max_concurrent_tasks": "10",
+                        "temperature": "0.3",
+                    }
+                },
+            )
         assert resp.status_code == 200
     finally:
         os.environ["MAX_CONCURRENT_TASKS"] = orig_max or "3"

@@ -9,10 +9,10 @@ from app.models.audit_task import AuditTask, TaskStatus, TaskType
 from app.models.finding import Finding, FindingType, SeverityLevel
 from app.models.report import Report, ReportType
 
-
 # ---------------------------------------------------------------------------
 # List reports
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_list_reports_empty(client: AsyncClient):
@@ -28,15 +28,19 @@ async def test_list_reports_empty(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_list_reports_with_data(client: AsyncClient, db_session: AsyncSession):
     task = AuditTask(
-        task_name="Report Task", task_type=TaskType.DEVIATION_ANALYSIS, status=TaskStatus.COMPLETED,
+        task_name="Report Task",
+        task_type=TaskType.DEVIATION_ANALYSIS,
+        status=TaskStatus.COMPLETED,
     )
     db_session.add(task)
     await db_session.commit()
     await db_session.refresh(task)
 
     report = Report(
-        task_id=task.id, report_type=ReportType.FULL_REPORT,
-        title="Test Report", content="Report content",
+        task_id=task.id,
+        report_type=ReportType.FULL_REPORT,
+        title="Test Report",
+        content="Report content",
         report_metadata={"report_source": "agent_report_writer"},
     )
     db_session.add(report)
@@ -78,10 +82,14 @@ async def test_list_reports_pagination(client: AsyncClient, db_session: AsyncSes
     await db_session.refresh(task)
 
     for i in range(5):
-        db_session.add(Report(
-            task_id=task.id, report_type=ReportType.FULL_REPORT,
-            title=f"R{i}", content=f"C{i}",
-        ))
+        db_session.add(
+            Report(
+                task_id=task.id,
+                report_type=ReportType.FULL_REPORT,
+                title=f"R{i}",
+                content=f"C{i}",
+            )
+        )
     await db_session.commit()
 
     resp = await client.get("/api/reports/", params={"page": 1, "page_size": 2})
@@ -94,18 +102,21 @@ async def test_list_reports_pagination(client: AsyncClient, db_session: AsyncSes
 # Get report
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_get_report_not_found(client: AsyncClient):
     response = await client.get("/api/reports/999")
     assert response.status_code == 404
-    assert response.json()["detail"] == "Report not found"
+    assert response.json()["detail"] == "报告不存在"
 
 
 @pytest.mark.asyncio
 async def test_get_report_detail(client: AsyncClient, db_session: AsyncSession):
     report = Report(
-        task_id=1, report_type=ReportType.FULL_REPORT,
-        title="Detail Report", content="Detailed content here",
+        task_id=1,
+        report_type=ReportType.FULL_REPORT,
+        title="Detail Report",
+        content="Detailed content here",
         report_metadata={"report_mode": "single_document"},
     )
     db_session.add(report)
@@ -126,11 +137,12 @@ async def test_get_report_detail(client: AsyncClient, db_session: AsyncSession):
 # Generate report
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_generate_report_no_task(client: AsyncClient):
     response = await client.post("/api/reports/generate/999")
     assert response.status_code == 404
-    assert response.json()["detail"] == "Task not found"
+    assert response.json()["detail"] == "任务不存在"
 
 
 @pytest.mark.asyncio
@@ -143,21 +155,26 @@ async def test_generate_report_no_findings(client: AsyncClient):
 
     response = await client.post(f"/api/reports/generate/{task_id}")
     assert response.status_code == 400
-    assert "No findings available" in response.json()["detail"]
+    assert "暂无审计发现" in response.json()["detail"]
 
 
 @pytest.mark.asyncio
 async def test_generate_report_success(client: AsyncClient, db_session: AsyncSession):
     task = AuditTask(
-        task_name="Report Task", task_type=TaskType.DEVIATION_ANALYSIS, status=TaskStatus.COMPLETED,
+        task_name="Report Task",
+        task_type=TaskType.DEVIATION_ANALYSIS,
+        status=TaskStatus.COMPLETED,
     )
     db_session.add(task)
     await db_session.commit()
     await db_session.refresh(task)
 
     finding = Finding(
-        task_id=task.id, finding_type=FindingType.COMPLIANCE_RISK,
-        severity=SeverityLevel.HIGH, title="High Finding", description="Critical issue found",
+        task_id=task.id,
+        finding_type=FindingType.COMPLIANCE_RISK,
+        severity=SeverityLevel.HIGH,
+        title="High Finding",
+        description="Critical issue found",
     )
     db_session.add(finding)
     await db_session.commit()
@@ -179,16 +196,23 @@ async def test_generate_report_success(client: AsyncClient, db_session: AsyncSes
 @pytest.mark.asyncio
 async def test_generate_report_llm_timeout(client: AsyncClient, db_session: AsyncSession):
     task = AuditTask(
-        task_name="Timeout Task", task_type=TaskType.DEVIATION_ANALYSIS, status=TaskStatus.COMPLETED,
+        task_name="Timeout Task",
+        task_type=TaskType.DEVIATION_ANALYSIS,
+        status=TaskStatus.COMPLETED,
     )
     db_session.add(task)
     await db_session.commit()
     await db_session.refresh(task)
 
-    db_session.add(Finding(
-        task_id=task.id, finding_type=FindingType.COMPLIANCE_RISK,
-        severity=SeverityLevel.HIGH, title="F", description="D",
-    ))
+    db_session.add(
+        Finding(
+            task_id=task.id,
+            finding_type=FindingType.COMPLIANCE_RISK,
+            severity=SeverityLevel.HIGH,
+            title="F",
+            description="D",
+        )
+    )
     await db_session.commit()
 
     mock_engine = MagicMock()
@@ -204,16 +228,23 @@ async def test_generate_report_llm_timeout(client: AsyncClient, db_session: Asyn
 @pytest.mark.asyncio
 async def test_generate_report_llm_value_error(client: AsyncClient, db_session: AsyncSession):
     task = AuditTask(
-        task_name="ValErr Task", task_type=TaskType.DEVIATION_ANALYSIS, status=TaskStatus.COMPLETED,
+        task_name="ValErr Task",
+        task_type=TaskType.DEVIATION_ANALYSIS,
+        status=TaskStatus.COMPLETED,
     )
     db_session.add(task)
     await db_session.commit()
     await db_session.refresh(task)
 
-    db_session.add(Finding(
-        task_id=task.id, finding_type=FindingType.COMPLIANCE_RISK,
-        severity=SeverityLevel.HIGH, title="F", description="D",
-    ))
+    db_session.add(
+        Finding(
+            task_id=task.id,
+            finding_type=FindingType.COMPLIANCE_RISK,
+            severity=SeverityLevel.HIGH,
+            title="F",
+            description="D",
+        )
+    )
     await db_session.commit()
 
     mock_engine = MagicMock()
@@ -229,16 +260,23 @@ async def test_generate_report_llm_value_error(client: AsyncClient, db_session: 
 @pytest.mark.asyncio
 async def test_generate_report_llm_generic_error(client: AsyncClient, db_session: AsyncSession):
     task = AuditTask(
-        task_name="Err Task", task_type=TaskType.DEVIATION_ANALYSIS, status=TaskStatus.COMPLETED,
+        task_name="Err Task",
+        task_type=TaskType.DEVIATION_ANALYSIS,
+        status=TaskStatus.COMPLETED,
     )
     db_session.add(task)
     await db_session.commit()
     await db_session.refresh(task)
 
-    db_session.add(Finding(
-        task_id=task.id, finding_type=FindingType.COMPLIANCE_RISK,
-        severity=SeverityLevel.HIGH, title="F", description="D",
-    ))
+    db_session.add(
+        Finding(
+            task_id=task.id,
+            finding_type=FindingType.COMPLIANCE_RISK,
+            severity=SeverityLevel.HIGH,
+            title="F",
+            description="D",
+        )
+    )
     await db_session.commit()
 
     mock_engine = MagicMock()
@@ -255,11 +293,14 @@ async def test_generate_report_llm_generic_error(client: AsyncClient, db_session
 # Export HTML
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_export_html_success(client: AsyncClient, db_session: AsyncSession):
     report = Report(
-        task_id=1, report_type=ReportType.FULL_REPORT,
-        title="HTML Export", content="# Test\n\n**Bold** text.",
+        task_id=1,
+        report_type=ReportType.FULL_REPORT,
+        title="HTML Export",
+        content="# Test\n\n**Bold** text.",
     )
     db_session.add(report)
     await db_session.commit()
@@ -281,7 +322,8 @@ async def test_export_html_not_found(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_export_html_with_table(client: AsyncClient, db_session: AsyncSession):
     report = Report(
-        task_id=1, report_type=ReportType.FULL_REPORT,
+        task_id=1,
+        report_type=ReportType.FULL_REPORT,
         title="Table Report",
         content="| A | B |\n|---|---|\n| 1 | 2 |",
     )
@@ -297,8 +339,10 @@ async def test_export_html_with_table(client: AsyncClient, db_session: AsyncSess
 @pytest.mark.asyncio
 async def test_export_html_empty_content(client: AsyncClient, db_session: AsyncSession):
     report = Report(
-        task_id=1, report_type=ReportType.FULL_REPORT,
-        title="Empty", content="",
+        task_id=1,
+        report_type=ReportType.FULL_REPORT,
+        title="Empty",
+        content="",
     )
     db_session.add(report)
     await db_session.commit()
@@ -312,8 +356,10 @@ async def test_export_html_empty_content(client: AsyncClient, db_session: AsyncS
 async def test_export_html_empty_title(client: AsyncClient, db_session: AsyncSession):
     """Empty title should be handled gracefully."""
     report = Report(
-        task_id=1, report_type=ReportType.FULL_REPORT,
-        title="", content="Some content",
+        task_id=1,
+        report_type=ReportType.FULL_REPORT,
+        title="",
+        content="Some content",
     )
     db_session.add(report)
     await db_session.commit()
@@ -328,8 +374,10 @@ async def test_export_html_empty_title(client: AsyncClient, db_session: AsyncSes
 async def test_export_html_sanitizes_script(client: AsyncClient, db_session: AsyncSession):
     """Script tags should be stripped from HTML output."""
     report = Report(
-        task_id=1, report_type=ReportType.FULL_REPORT,
-        title="XSS", content='<script>alert("xss")</script>Safe content',
+        task_id=1,
+        report_type=ReportType.FULL_REPORT,
+        title="XSS",
+        content='<script>alert("xss")</script>Safe content',
     )
     db_session.add(report)
     await db_session.commit()
@@ -345,6 +393,7 @@ async def test_export_html_sanitizes_script(client: AsyncClient, db_session: Asy
 # Export PDF
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_export_pdf_not_found(client: AsyncClient):
     resp = await client.get("/api/reports/99999/export/pdf")
@@ -354,8 +403,10 @@ async def test_export_pdf_not_found(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_export_pdf_success(client: AsyncClient, db_session: AsyncSession):
     report = Report(
-        task_id=1, report_type=ReportType.FULL_REPORT,
-        title="PDF Report", content="# PDF Content",
+        task_id=1,
+        report_type=ReportType.FULL_REPORT,
+        title="PDF Report",
+        content="# PDF Content",
     )
     db_session.add(report)
     await db_session.commit()
@@ -365,7 +416,6 @@ async def test_export_pdf_success(client: AsyncClient, db_session: AsyncSession)
         dest.write(b"%PDF-1.4 fake pdf content")
         return MagicMock(err=False)
 
-    import sys
     parent = MagicMock()
     parent.pisa = MagicMock()
     parent.pisa.CreatePDF = MagicMock(side_effect=fake_create_pdf)
@@ -382,14 +432,15 @@ async def test_export_pdf_success(client: AsyncClient, db_session: AsyncSession)
 @pytest.mark.asyncio
 async def test_export_pdf_generation_error(client: AsyncClient, db_session: AsyncSession):
     report = Report(
-        task_id=1, report_type=ReportType.FULL_REPORT,
-        title="Bad PDF", content="# Content",
+        task_id=1,
+        report_type=ReportType.FULL_REPORT,
+        title="Bad PDF",
+        content="# Content",
     )
     db_session.add(report)
     await db_session.commit()
     await db_session.refresh(report)
 
-    import sys
     parent = MagicMock()
     parent.pisa = MagicMock()
     parent.pisa.CreatePDF = MagicMock(return_value=MagicMock(err=True))
@@ -404,8 +455,10 @@ async def test_export_pdf_generation_error(client: AsyncClient, db_session: Asyn
 @pytest.mark.asyncio
 async def test_export_pdf_content_disposition(client: AsyncClient, db_session: AsyncSession):
     report = Report(
-        task_id=1, report_type=ReportType.FULL_REPORT,
-        title="Filename Test", content="Content",
+        task_id=1,
+        report_type=ReportType.FULL_REPORT,
+        title="Filename Test",
+        content="Content",
     )
     db_session.add(report)
     await db_session.commit()
@@ -415,7 +468,6 @@ async def test_export_pdf_content_disposition(client: AsyncClient, db_session: A
         dest.write(b"%PDF")
         return MagicMock(err=False)
 
-    import sys
     parent = MagicMock()
     parent.pisa = MagicMock()
     parent.pisa.CreatePDF = MagicMock(side_effect=fake_create_pdf)
@@ -430,8 +482,10 @@ async def test_export_pdf_content_disposition(client: AsyncClient, db_session: A
 @pytest.mark.asyncio
 async def test_export_pdf_empty_title(client: AsyncClient, db_session: AsyncSession):
     report = Report(
-        task_id=1, report_type=ReportType.FULL_REPORT,
-        title="", content="Content",
+        task_id=1,
+        report_type=ReportType.FULL_REPORT,
+        title="",
+        content="Content",
     )
     db_session.add(report)
     await db_session.commit()
@@ -441,7 +495,6 @@ async def test_export_pdf_empty_title(client: AsyncClient, db_session: AsyncSess
         dest.write(b"%PDF")
         return MagicMock(err=False)
 
-    import sys
     parent = MagicMock()
     parent.pisa = MagicMock()
     parent.pisa.CreatePDF = MagicMock(side_effect=fake_create_pdf)

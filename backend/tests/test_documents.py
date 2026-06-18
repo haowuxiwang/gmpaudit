@@ -1,6 +1,6 @@
 import json
 import os
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from httpx import AsyncClient
@@ -9,10 +9,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.document import Document, DocumentStatus
 from app.models.finding import Finding, FindingType, SeverityLevel
 
-
 # ---------------------------------------------------------------------------
 # Upload
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_upload_document(client: AsyncClient):
@@ -27,7 +27,13 @@ async def test_upload_document(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_upload_docx(client: AsyncClient):
-    files = {"file": ("report.docx", b"PK\x03\x04fake docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")}
+    files = {
+        "file": (
+            "report.docx",
+            b"PK\x03\x04fake docx",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        )
+    }
     response = await client.post("/api/documents/upload", files=files)
     assert response.status_code == 200
     assert response.json()["filename"] == "report.docx"
@@ -59,6 +65,7 @@ async def test_upload_unsupported_type(client: AsyncClient):
 async def test_upload_oversized_file(client: AsyncClient):
     """Content-Length header exceeding limit should be rejected."""
     from app.api.documents import MAX_UPLOAD_SIZE
+
     big_size = MAX_UPLOAD_SIZE + 2048
     headers = {"content-length": str(big_size)}
     files = {"file": ("big.pdf", b"x", "application/pdf")}
@@ -69,6 +76,7 @@ async def test_upload_oversized_file(client: AsyncClient):
 # ---------------------------------------------------------------------------
 # Batch upload
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_batch_upload(client: AsyncClient):
@@ -100,6 +108,7 @@ async def test_batch_upload_mixed_types(client: AsyncClient):
 # List documents
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_list_documents(client: AsyncClient):
     response = await client.get("/api/documents/")
@@ -115,11 +124,15 @@ async def test_list_documents(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_list_documents_pagination(client: AsyncClient, db_session: AsyncSession):
     for i in range(5):
-        db_session.add(Document(
-            filename=f"doc_{i}.pdf", file_path=f"/tmp/doc_{i}.pdf",
-            file_type="pdf", file_size=100 * (i + 1),
-            process_status=DocumentStatus.UPLOADED,
-        ))
+        db_session.add(
+            Document(
+                filename=f"doc_{i}.pdf",
+                file_path=f"/tmp/doc_{i}.pdf",
+                file_type="pdf",
+                file_size=100 * (i + 1),
+                process_status=DocumentStatus.UPLOADED,
+            )
+        )
     await db_session.commit()
 
     resp = await client.get("/api/documents/", params={"page": 1, "page_size": 2})
@@ -140,6 +153,7 @@ async def test_list_documents_empty(client: AsyncClient):
 # Get document
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_get_document(client: AsyncClient):
     files = {"file": ("test.pdf", b"test content", "application/pdf")}
@@ -156,8 +170,11 @@ async def test_get_document(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_get_document_with_content(client: AsyncClient, db_session: AsyncSession):
     doc = Document(
-        filename="content.pdf", file_path="/tmp/content.pdf", file_type="pdf",
-        file_size=100, process_status=DocumentStatus.PROCESSED,
+        filename="content.pdf",
+        file_path="/tmp/content.pdf",
+        file_type="pdf",
+        file_size=100,
+        process_status=DocumentStatus.PROCESSED,
         content_text="Full text content here",
     )
     db_session.add(doc)
@@ -174,8 +191,11 @@ async def test_get_document_with_content(client: AsyncClient, db_session: AsyncS
 @pytest.mark.asyncio
 async def test_get_document_with_metadata(client: AsyncClient, db_session: AsyncSession):
     doc = Document(
-        filename="meta.pdf", file_path="/tmp/meta.pdf", file_type="pdf",
-        file_size=100, process_status=DocumentStatus.UPLOADED,
+        filename="meta.pdf",
+        file_path="/tmp/meta.pdf",
+        file_type="pdf",
+        file_size=100,
+        process_status=DocumentStatus.UPLOADED,
         doc_metadata=json.dumps({"pages": 10, "author": "test"}),
     )
     db_session.add(doc)
@@ -192,8 +212,11 @@ async def test_get_document_with_metadata(client: AsyncClient, db_session: Async
 async def test_get_document_with_dict_metadata(client: AsyncClient, db_session: AsyncSession):
     """When doc_metadata is a JSON string, it should be parsed correctly."""
     doc = Document(
-        filename="dict_meta.pdf", file_path="/tmp/dm.pdf", file_type="pdf",
-        file_size=100, process_status=DocumentStatus.UPLOADED,
+        filename="dict_meta.pdf",
+        file_path="/tmp/dm.pdf",
+        file_type="pdf",
+        file_size=100,
+        process_status=DocumentStatus.UPLOADED,
         doc_metadata='{"key": "value"}',
     )
     db_session.add(doc)
@@ -215,8 +238,11 @@ async def test_get_nonexistent_document(client: AsyncClient):
 async def test_list_documents_item_fields(client: AsyncClient, db_session: AsyncSession):
     """Ensure list response includes all expected fields."""
     doc = Document(
-        filename="fields.pdf", file_path="/tmp/fields.pdf", file_type="pdf",
-        file_size=512, process_status=DocumentStatus.PROCESSED,
+        filename="fields.pdf",
+        file_path="/tmp/fields.pdf",
+        file_type="pdf",
+        file_size=512,
+        process_status=DocumentStatus.PROCESSED,
     )
     db_session.add(doc)
     await db_session.commit()
@@ -237,6 +263,7 @@ async def test_list_documents_item_fields(client: AsyncClient, db_session: Async
 # Process document
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_process_document_not_found(client: AsyncClient):
     resp = await client.post("/api/documents/999/process")
@@ -246,8 +273,11 @@ async def test_process_document_not_found(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_process_document_already_processing(client: AsyncClient, db_session: AsyncSession):
     doc = Document(
-        filename="proc.pdf", file_path="/tmp/proc.pdf", file_type="pdf",
-        file_size=100, process_status=DocumentStatus.PROCESSING,
+        filename="proc.pdf",
+        file_path="/tmp/proc.pdf",
+        file_type="pdf",
+        file_size=100,
+        process_status=DocumentStatus.PROCESSING,
     )
     db_session.add(doc)
     await db_session.commit()
@@ -261,19 +291,28 @@ async def test_process_document_already_processing(client: AsyncClient, db_sessi
 @pytest.mark.asyncio
 async def test_process_document_success(client: AsyncClient, db_session: AsyncSession):
     doc = Document(
-        filename="ok.pdf", file_path="/tmp/ok.pdf", file_type="pdf",
-        file_size=2048, process_status=DocumentStatus.UPLOADED,
+        filename="ok.pdf",
+        file_path="/tmp/ok.pdf",
+        file_type="pdf",
+        file_size=2048,
+        process_status=DocumentStatus.UPLOADED,
     )
     db_session.add(doc)
     await db_session.commit()
     await db_session.refresh(doc)
 
     mock_proc = MagicMock()
-    mock_proc.process_document = AsyncMock(return_value={
-        "content": "Processed!", "chunks": ["c1"], "chunk_count": 1, "char_count": 10,
-    })
+    mock_proc.process_document = AsyncMock(
+        return_value={
+            "content": "Processed!",
+            "chunks": ["c1"],
+            "chunk_count": 1,
+            "char_count": 10,
+        }
+    )
 
     import app.services.document_processor as dp
+
     orig = dp.document_processor
     dp.document_processor = mock_proc
     try:
@@ -288,8 +327,11 @@ async def test_process_document_success(client: AsyncClient, db_session: AsyncSe
 @pytest.mark.asyncio
 async def test_process_document_failure(client: AsyncClient, db_session: AsyncSession):
     doc = Document(
-        filename="fail.pdf", file_path="/tmp/fail.pdf", file_type="pdf",
-        file_size=100, process_status=DocumentStatus.UPLOADED,
+        filename="fail.pdf",
+        file_path="/tmp/fail.pdf",
+        file_type="pdf",
+        file_size=100,
+        process_status=DocumentStatus.UPLOADED,
     )
     db_session.add(doc)
     await db_session.commit()
@@ -299,6 +341,7 @@ async def test_process_document_failure(client: AsyncClient, db_session: AsyncSe
     mock_proc.process_document = AsyncMock(side_effect=Exception("Processing error"))
 
     import app.services.document_processor as dp
+
     orig = dp.document_processor
     dp.document_processor = mock_proc
     try:
@@ -312,6 +355,7 @@ async def test_process_document_failure(client: AsyncClient, db_session: AsyncSe
 # ---------------------------------------------------------------------------
 # Delete document
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_delete_document(client: AsyncClient):
@@ -337,16 +381,23 @@ async def test_delete_nonexistent_document(client: AsyncClient):
 async def test_delete_document_with_findings_rejected(client: AsyncClient, db_session: AsyncSession):
     """Document referenced by findings should not be deletable."""
     doc = Document(
-        filename="ref.pdf", file_path="/tmp/ref.pdf", file_type="pdf",
-        file_size=100, process_status=DocumentStatus.UPLOADED,
+        filename="ref.pdf",
+        file_path="/tmp/ref.pdf",
+        file_type="pdf",
+        file_size=100,
+        process_status=DocumentStatus.UPLOADED,
     )
     db_session.add(doc)
     await db_session.commit()
     await db_session.refresh(doc)
 
     finding = Finding(
-        task_id=0, document_id=doc.id, finding_type=FindingType.COMPLIANCE_RISK,
-        severity=SeverityLevel.HIGH, title="F", description="D",
+        task_id=0,
+        document_id=doc.id,
+        finding_type=FindingType.COMPLIANCE_RISK,
+        severity=SeverityLevel.HIGH,
+        title="F",
+        description="D",
     )
     db_session.add(finding)
     await db_session.commit()
@@ -359,6 +410,7 @@ async def test_delete_document_with_findings_rejected(client: AsyncClient, db_se
 @pytest.mark.asyncio
 async def test_delete_document_removes_file(client: AsyncClient, db_session: AsyncSession):
     from app.core.config import settings
+
     upload_dir = settings.UPLOAD_DIR
     os.makedirs(upload_dir, exist_ok=True)
     test_file = os.path.join(upload_dir, "del_test_file.pdf")
@@ -366,8 +418,11 @@ async def test_delete_document_removes_file(client: AsyncClient, db_session: Asy
         f.write(b"test content for delete")
 
     doc = Document(
-        filename="del.pdf", file_path=test_file, file_type="pdf",
-        file_size=23, process_status=DocumentStatus.UPLOADED,
+        filename="del.pdf",
+        file_path=test_file,
+        file_type="pdf",
+        file_size=23,
+        process_status=DocumentStatus.UPLOADED,
     )
     db_session.add(doc)
     await db_session.commit()

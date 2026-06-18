@@ -1,4 +1,5 @@
 import argparse
+import contextlib
 import logging
 import os
 import shutil
@@ -14,9 +15,11 @@ logger = logging.getLogger(__name__)
 
 def open_browser(port: int) -> None:
     """Open browser after uvicorn is ready, with retry."""
+
     def _open():
         import subprocess
         import urllib.request
+
         url = f"http://localhost:{port}"
         logger.info("open_browser: waiting for server at %s", url)
         # Wait for server to be ready (up to 30s)
@@ -47,10 +50,8 @@ def open_browser(port: int) -> None:
         except Exception as e:
             logger.exception("open_browser: failed to open browser: %s", e)
             # Fallback: try webbrowser regardless of platform
-            try:
+            with contextlib.suppress(Exception):
                 webbrowser.open(url)
-            except Exception:
-                pass
 
     Thread(target=_open, daemon=True).start()
 
@@ -232,10 +233,8 @@ def main() -> None:
         # No need to set args.open_browser here
 
         # Keep main thread alive so uvicorn thread stays running
-        try:
+        with contextlib.suppress(KeyboardInterrupt):
             server_thread.join()
-        except KeyboardInterrupt:
-            pass
     else:
         if args.open_browser:
             open_browser(args.port)

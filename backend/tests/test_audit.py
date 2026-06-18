@@ -1,4 +1,3 @@
-import json
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -10,12 +9,11 @@ from app.models.audit_task import AuditTask, TaskStatus, TaskType
 from app.models.document import Document, DocumentStatus
 from app.models.finding import Finding, FindingStatus, FindingType, SeverityLevel
 from app.models.report import Report, ReportType
-from app.models.risk_alert import AlertLevel, AlertStatus, RiskAlert
-
 
 # ---------------------------------------------------------------------------
 # Basic CRUD
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_create_audit_task(client: AsyncClient):
@@ -88,6 +86,7 @@ async def test_get_nonexistent_task(client: AsyncClient):
 # List tasks with findings_counts and report_ids (N+1 avoidance path)
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_list_tasks_with_findings_and_reports(client: AsyncClient, db_session: AsyncSession):
     """Ensure the batch-load path (findings_counts, report_ids) is exercised."""
@@ -131,11 +130,13 @@ async def test_list_tasks_with_findings_and_reports(client: AsyncClient, db_sess
 @pytest.mark.asyncio
 async def test_list_tasks_pagination(client: AsyncClient, db_session: AsyncSession):
     for i in range(5):
-        db_session.add(AuditTask(
-            task_name=f"Task {i}",
-            task_type=TaskType.DEVIATION_ANALYSIS,
-            status=TaskStatus.PENDING,
-        ))
+        db_session.add(
+            AuditTask(
+                task_name=f"Task {i}",
+                task_type=TaskType.DEVIATION_ANALYSIS,
+                status=TaskStatus.PENDING,
+            )
+        )
     await db_session.commit()
 
     resp = await client.get("/api/audit/tasks", params={"page": 1, "page_size": 2})
@@ -164,6 +165,7 @@ async def test_list_tasks_filter_by_status(client: AsyncClient, db_session: Asyn
 # Get task detail with document_ids
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_get_task_returns_document_ids(client: AsyncClient, db_session: AsyncSession):
     task = AuditTask(
@@ -185,6 +187,7 @@ async def test_get_task_returns_document_ids(client: AsyncClient, db_session: As
 # Run task
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_run_task_not_found(client: AsyncClient):
     response = await client.post("/api/audit/tasks/999/run")
@@ -195,16 +198,21 @@ async def test_run_task_not_found(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_run_task_agent_unavailable(client: AsyncClient, db_session: AsyncSession):
     doc = Document(
-        filename="test.pdf", file_path="/tmp/test.pdf", file_type="pdf",
-        file_size=1024, process_status=DocumentStatus.PROCESSED,
+        filename="test.pdf",
+        file_path="/tmp/test.pdf",
+        file_type="pdf",
+        file_size=1024,
+        process_status=DocumentStatus.PROCESSED,
     )
     db_session.add(doc)
     await db_session.commit()
     await db_session.refresh(doc)
 
     task = AuditTask(
-        task_name="Test", task_type=TaskType.DEVIATION_ANALYSIS,
-        status=TaskStatus.PENDING, document_ids=[doc.id],
+        task_name="Test",
+        task_type=TaskType.DEVIATION_ANALYSIS,
+        status=TaskStatus.PENDING,
+        document_ids=[doc.id],
     )
     db_session.add(task)
     await db_session.commit()
@@ -219,7 +227,9 @@ async def test_run_task_agent_unavailable(client: AsyncClient, db_session: Async
 async def test_run_task_llm_not_configured(client: AsyncClient, db_session: AsyncSession):
     """When agent is available but no LLM adapters configured, should return 400."""
     task = AuditTask(
-        task_name="No LLM", task_type=TaskType.DEVIATION_ANALYSIS, status=TaskStatus.PENDING,
+        task_name="No LLM",
+        task_type=TaskType.DEVIATION_ANALYSIS,
+        status=TaskStatus.PENDING,
     )
     db_session.add(task)
     await db_session.commit()
@@ -239,7 +249,9 @@ async def test_run_task_llm_not_configured(client: AsyncClient, db_session: Asyn
 @pytest.mark.asyncio
 async def test_run_task_already_running(client: AsyncClient, db_session: AsyncSession):
     task = AuditTask(
-        task_name="Running", task_type=TaskType.DEVIATION_ANALYSIS, status=TaskStatus.RUNNING,
+        task_name="Running",
+        task_type=TaskType.DEVIATION_ANALYSIS,
+        status=TaskStatus.RUNNING,
     )
     db_session.add(task)
     await db_session.commit()
@@ -259,8 +271,10 @@ async def test_run_task_already_running(client: AsyncClient, db_session: AsyncSe
 async def test_run_task_document_not_found(client: AsyncClient, db_session: AsyncSession):
     """When task references a non-existent document, run should fail."""
     task = AuditTask(
-        task_name="Bad Doc", task_type=TaskType.DEVIATION_ANALYSIS,
-        status=TaskStatus.PENDING, document_ids=[99999],
+        task_name="Bad Doc",
+        task_type=TaskType.DEVIATION_ANALYSIS,
+        status=TaskStatus.PENDING,
+        document_ids=[99999],
     )
     db_session.add(task)
     await db_session.commit()
@@ -274,23 +288,28 @@ async def test_run_task_document_not_found(client: AsyncClient, db_session: Asyn
     ):
         resp = await client.post(f"/api/audit/tasks/{task.id}/run")
     assert resp.status_code == 400
-    assert "99999" in resp.json()["detail"] or "not found" in resp.json()["detail"].lower()
+    assert "99999" in resp.json()["detail"] or "不存在" in resp.json()["detail"]
 
 
 @pytest.mark.asyncio
 async def test_run_task_document_not_processed(client: AsyncClient, db_session: AsyncSession):
     """When task references an unprocessed document, run should fail."""
     doc = Document(
-        filename="raw.pdf", file_path="/tmp/raw.pdf", file_type="pdf",
-        file_size=100, process_status=DocumentStatus.UPLOADED,
+        filename="raw.pdf",
+        file_path="/tmp/raw.pdf",
+        file_type="pdf",
+        file_size=100,
+        process_status=DocumentStatus.UPLOADED,
     )
     db_session.add(doc)
     await db_session.commit()
     await db_session.refresh(doc)
 
     task = AuditTask(
-        task_name="Unproc", task_type=TaskType.DEVIATION_ANALYSIS,
-        status=TaskStatus.PENDING, document_ids=[doc.id],
+        task_name="Unproc",
+        task_type=TaskType.DEVIATION_ANALYSIS,
+        status=TaskStatus.PENDING,
+        document_ids=[doc.id],
     )
     db_session.add(task)
     await db_session.commit()
@@ -304,23 +323,28 @@ async def test_run_task_document_not_processed(client: AsyncClient, db_session: 
     ):
         resp = await client.post(f"/api/audit/tasks/{task.id}/run")
     assert resp.status_code == 400
-    assert "not processed" in resp.json()["detail"].lower() or "未处理" in resp.json()["detail"]
+    assert "未处理" in resp.json()["detail"]
 
 
 @pytest.mark.asyncio
 async def test_run_task_success(client: AsyncClient, db_session: AsyncSession):
     """Successful task run with agent available and LLM configured."""
     doc = Document(
-        filename="ready.pdf", file_path="/tmp/ready.pdf", file_type="pdf",
-        file_size=100, process_status=DocumentStatus.PROCESSED,
+        filename="ready.pdf",
+        file_path="/tmp/ready.pdf",
+        file_type="pdf",
+        file_size=100,
+        process_status=DocumentStatus.PROCESSED,
     )
     db_session.add(doc)
     await db_session.commit()
     await db_session.refresh(doc)
 
     task = AuditTask(
-        task_name="Ready", task_type=TaskType.DEVIATION_ANALYSIS,
-        status=TaskStatus.PENDING, document_ids=[doc.id],
+        task_name="Ready",
+        task_type=TaskType.DEVIATION_ANALYSIS,
+        status=TaskStatus.PENDING,
+        document_ids=[doc.id],
     )
     db_session.add(task)
     await db_session.commit()
@@ -332,6 +356,7 @@ async def test_run_task_success(client: AsyncClient, db_session: AsyncSession):
     mock_factory = MagicMock(return_value=mock_runner)
 
     from app.main import app
+
     original_factory = getattr(app.state, "task_runner_factory", None)
     app.state.task_runner_factory = mock_factory
     try:
@@ -354,6 +379,7 @@ async def test_run_task_success(client: AsyncClient, db_session: AsyncSession):
 # Cancel task
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_cancel_task_not_found(client: AsyncClient):
     resp = await client.post("/api/audit/tasks/999/cancel")
@@ -363,7 +389,9 @@ async def test_cancel_task_not_found(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_cancel_task_not_running(client: AsyncClient, db_session: AsyncSession):
     task = AuditTask(
-        task_name="Pending", task_type=TaskType.DEVIATION_ANALYSIS, status=TaskStatus.PENDING,
+        task_name="Pending",
+        task_type=TaskType.DEVIATION_ANALYSIS,
+        status=TaskStatus.PENDING,
     )
     db_session.add(task)
     await db_session.commit()
@@ -377,7 +405,9 @@ async def test_cancel_task_not_running(client: AsyncClient, db_session: AsyncSes
 @pytest.mark.asyncio
 async def test_cancel_task_success(client: AsyncClient, db_session: AsyncSession):
     task = AuditTask(
-        task_name="To Cancel", task_type=TaskType.DEVIATION_ANALYSIS, status=TaskStatus.RUNNING,
+        task_name="To Cancel",
+        task_type=TaskType.DEVIATION_ANALYSIS,
+        status=TaskStatus.RUNNING,
     )
     db_session.add(task)
     await db_session.commit()
@@ -388,6 +418,7 @@ async def test_cancel_task_success(client: AsyncClient, db_session: AsyncSession
     mock_factory = MagicMock(return_value=mock_runner)
 
     from app.main import app
+
     original_factory = app.state.task_runner_factory
     app.state.task_runner_factory = mock_factory
     try:
@@ -401,7 +432,9 @@ async def test_cancel_task_success(client: AsyncClient, db_session: AsyncSession
 @pytest.mark.asyncio
 async def test_cancel_task_could_not_cancel(client: AsyncClient, db_session: AsyncSession):
     task = AuditTask(
-        task_name="No Cancel", task_type=TaskType.DEVIATION_ANALYSIS, status=TaskStatus.RUNNING,
+        task_name="No Cancel",
+        task_type=TaskType.DEVIATION_ANALYSIS,
+        status=TaskStatus.RUNNING,
     )
     db_session.add(task)
     await db_session.commit()
@@ -412,6 +445,7 @@ async def test_cancel_task_could_not_cancel(client: AsyncClient, db_session: Asy
     mock_factory = MagicMock(return_value=mock_runner)
 
     from app.main import app
+
     original_factory = app.state.task_runner_factory
     app.state.task_runner_factory = mock_factory
     try:
@@ -425,6 +459,7 @@ async def test_cancel_task_could_not_cancel(client: AsyncClient, db_session: Asy
 # Approve / Reject task
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_approve_task_not_found(client: AsyncClient):
     resp = await client.post("/api/audit/tasks/999/approve", json={"comment": "ok"})
@@ -434,7 +469,9 @@ async def test_approve_task_not_found(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_approve_task_not_in_review(client: AsyncClient, db_session: AsyncSession):
     task = AuditTask(
-        task_name="Pending", task_type=TaskType.DEVIATION_ANALYSIS, status=TaskStatus.PENDING,
+        task_name="Pending",
+        task_type=TaskType.DEVIATION_ANALYSIS,
+        status=TaskStatus.PENDING,
     )
     db_session.add(task)
     await db_session.commit()
@@ -448,7 +485,9 @@ async def test_approve_task_not_in_review(client: AsyncClient, db_session: Async
 @pytest.mark.asyncio
 async def test_approve_task_success(client: AsyncClient, db_session: AsyncSession):
     task = AuditTask(
-        task_name="Review Me", task_type=TaskType.DEVIATION_ANALYSIS, status=TaskStatus.AWAITING_REVIEW,
+        task_name="Review Me",
+        task_type=TaskType.DEVIATION_ANALYSIS,
+        status=TaskStatus.AWAITING_REVIEW,
     )
     db_session.add(task)
     await db_session.commit()
@@ -456,6 +495,7 @@ async def test_approve_task_success(client: AsyncClient, db_session: AsyncSessio
 
     # Mock event_bus and feishu to avoid logger NameError in approve endpoint
     from app.main import app
+
     mock_bus = MagicMock()
     mock_bus.publish = AsyncMock()
     mock_bus.publish_done = AsyncMock()
@@ -478,20 +518,28 @@ async def test_approve_task_success(client: AsyncClient, db_session: AsyncSessio
 async def test_approve_task_with_findings_and_feishu(client: AsyncClient, db_session: AsyncSession):
     """Approve a task that has findings — covers the Feishu notification path."""
     task = AuditTask(
-        task_name="With Findings", task_type=TaskType.DEVIATION_ANALYSIS, status=TaskStatus.AWAITING_REVIEW,
+        task_name="With Findings",
+        task_type=TaskType.DEVIATION_ANALYSIS,
+        status=TaskStatus.AWAITING_REVIEW,
     )
     db_session.add(task)
     await db_session.commit()
     await db_session.refresh(task)
 
     for sev in [SeverityLevel.HIGH, SeverityLevel.MEDIUM]:
-        db_session.add(Finding(
-            task_id=task.id, finding_type=FindingType.COMPLIANCE_RISK,
-            severity=sev, title=f"Finding {sev.value}", description="Desc",
-        ))
+        db_session.add(
+            Finding(
+                task_id=task.id,
+                finding_type=FindingType.COMPLIANCE_RISK,
+                severity=sev,
+                title=f"Finding {sev.value}",
+                description="Desc",
+            )
+        )
     await db_session.commit()
 
     from app.main import app
+
     mock_bus = MagicMock()
     mock_bus.publish = AsyncMock()
     mock_bus.publish_done = AsyncMock()
@@ -518,7 +566,9 @@ async def test_reject_task_not_found(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_reject_task_not_in_review(client: AsyncClient, db_session: AsyncSession):
     task = AuditTask(
-        task_name="Pending", task_type=TaskType.DEVIATION_ANALYSIS, status=TaskStatus.PENDING,
+        task_name="Pending",
+        task_type=TaskType.DEVIATION_ANALYSIS,
+        status=TaskStatus.PENDING,
     )
     db_session.add(task)
     await db_session.commit()
@@ -531,7 +581,9 @@ async def test_reject_task_not_in_review(client: AsyncClient, db_session: AsyncS
 @pytest.mark.asyncio
 async def test_reject_task_success(client: AsyncClient, db_session: AsyncSession):
     task = AuditTask(
-        task_name="Reject Me", task_type=TaskType.DEVIATION_ANALYSIS, status=TaskStatus.AWAITING_REVIEW,
+        task_name="Reject Me",
+        task_type=TaskType.DEVIATION_ANALYSIS,
+        status=TaskStatus.AWAITING_REVIEW,
     )
     db_session.add(task)
     await db_session.commit()
@@ -547,6 +599,7 @@ async def test_reject_task_success(client: AsyncClient, db_session: AsyncSession
 # Findings
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_get_task_findings_empty(client: AsyncClient):
     response = await client.get("/api/audit/tasks/999/findings")
@@ -558,7 +611,9 @@ async def test_get_task_findings_empty(client: AsyncClient):
 async def test_get_task_findings_with_all_fields(client: AsyncClient, db_session: AsyncSession):
     """Ensure all finding fields are serialized correctly."""
     task = AuditTask(
-        task_name="Full Finding", task_type=TaskType.DEVIATION_ANALYSIS, status=TaskStatus.COMPLETED,
+        task_name="Full Finding",
+        task_type=TaskType.DEVIATION_ANALYSIS,
+        status=TaskStatus.COMPLETED,
     )
     db_session.add(task)
     await db_session.commit()
@@ -601,16 +656,22 @@ async def test_get_task_findings_with_all_fields(client: AsyncClient, db_session
 @pytest.mark.asyncio
 async def test_get_task_findings_with_reviewed_at(client: AsyncClient, db_session: AsyncSession):
     task = AuditTask(
-        task_name="Reviewed", task_type=TaskType.DEVIATION_ANALYSIS, status=TaskStatus.COMPLETED,
+        task_name="Reviewed",
+        task_type=TaskType.DEVIATION_ANALYSIS,
+        status=TaskStatus.COMPLETED,
     )
     db_session.add(task)
     await db_session.commit()
     await db_session.refresh(task)
 
     finding = Finding(
-        task_id=task.id, finding_type=FindingType.COMPLIANCE_RISK,
-        severity=SeverityLevel.LOW, title="Minor", description="Desc",
-        status=FindingStatus.APPROVED, reviewer_comment="OK",
+        task_id=task.id,
+        finding_type=FindingType.COMPLIANCE_RISK,
+        severity=SeverityLevel.LOW,
+        title="Minor",
+        description="Desc",
+        status=FindingStatus.APPROVED,
+        reviewer_comment="OK",
         reviewed_at=datetime.now(UTC),
     )
     db_session.add(finding)
@@ -627,6 +688,7 @@ async def test_get_task_findings_with_reviewed_at(client: AsyncClient, db_sessio
 # Approve / Reject finding
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_approve_finding_not_found(client: AsyncClient):
     resp = await client.post("/api/audit/findings/999/approve", json={"comment": "ok"})
@@ -641,8 +703,11 @@ async def test_approve_finding_no_body(client: AsyncClient, db_session: AsyncSes
     await db_session.refresh(task)
 
     finding = Finding(
-        task_id=task.id, finding_type=FindingType.COMPLIANCE_RISK,
-        severity=SeverityLevel.HIGH, title="F", description="D",
+        task_id=task.id,
+        finding_type=FindingType.COMPLIANCE_RISK,
+        severity=SeverityLevel.HIGH,
+        title="F",
+        description="D",
     )
     db_session.add(finding)
     await db_session.commit()
@@ -661,8 +726,11 @@ async def test_approve_finding_with_comment(client: AsyncClient, db_session: Asy
     await db_session.refresh(task)
 
     finding = Finding(
-        task_id=task.id, finding_type=FindingType.INCONSISTENCY,
-        severity=SeverityLevel.MEDIUM, title="Inconsistency", description="D",
+        task_id=task.id,
+        finding_type=FindingType.INCONSISTENCY,
+        severity=SeverityLevel.MEDIUM,
+        title="Inconsistency",
+        description="D",
     )
     db_session.add(finding)
     await db_session.commit()
@@ -689,8 +757,11 @@ async def test_reject_finding_no_body(client: AsyncClient, db_session: AsyncSess
     await db_session.refresh(task)
 
     finding = Finding(
-        task_id=task.id, finding_type=FindingType.BEST_PRACTICE,
-        severity=SeverityLevel.INFO, title="BP", description="D",
+        task_id=task.id,
+        finding_type=FindingType.BEST_PRACTICE,
+        severity=SeverityLevel.INFO,
+        title="BP",
+        description="D",
     )
     db_session.add(finding)
     await db_session.commit()
@@ -709,8 +780,11 @@ async def test_reject_finding_with_comment(client: AsyncClient, db_session: Asyn
     await db_session.refresh(task)
 
     finding = Finding(
-        task_id=task.id, finding_type=FindingType.MISSING_INFO,
-        severity=SeverityLevel.LOW, title="Missing", description="D",
+        task_id=task.id,
+        finding_type=FindingType.MISSING_INFO,
+        severity=SeverityLevel.LOW,
+        title="Missing",
+        description="D",
     )
     db_session.add(finding)
     await db_session.commit()
@@ -727,6 +801,7 @@ async def test_reject_finding_with_comment(client: AsyncClient, db_session: Asyn
 # ---------------------------------------------------------------------------
 # Risk assessment
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_get_task_risk_assessment_empty(client: AsyncClient, db_session: AsyncSession):
@@ -751,10 +826,15 @@ async def test_get_task_risk_assessment_medium(client: AsyncClient, db_session: 
     await db_session.refresh(task)
 
     for _ in range(5):
-        db_session.add(Finding(
-            task_id=task.id, finding_type=FindingType.COMPLIANCE_RISK,
-            severity=SeverityLevel.MEDIUM, title="M", description="D",
-        ))
+        db_session.add(
+            Finding(
+                task_id=task.id,
+                finding_type=FindingType.COMPLIANCE_RISK,
+                severity=SeverityLevel.MEDIUM,
+                title="M",
+                description="D",
+            )
+        )
     await db_session.commit()
 
     resp = await client.get(f"/api/audit/tasks/{task.id}/risk")
@@ -765,6 +845,7 @@ async def test_get_task_risk_assessment_medium(client: AsyncClient, db_session: 
 # ---------------------------------------------------------------------------
 # Dashboard
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_dashboard_stats_empty(client: AsyncClient):
@@ -784,14 +865,24 @@ async def test_dashboard_stats_with_data(client: AsyncClient, db_session: AsyncS
     await db_session.commit()
     await db_session.refresh(task)
 
-    db_session.add(Finding(
-        task_id=task.id, finding_type=FindingType.COMPLIANCE_RISK,
-        severity=SeverityLevel.HIGH, title="H", description="D",
-    ))
-    db_session.add(Finding(
-        task_id=task.id, finding_type=FindingType.COMPLIANCE_RISK,
-        severity=SeverityLevel.LOW, title="L", description="D",
-    ))
+    db_session.add(
+        Finding(
+            task_id=task.id,
+            finding_type=FindingType.COMPLIANCE_RISK,
+            severity=SeverityLevel.HIGH,
+            title="H",
+            description="D",
+        )
+    )
+    db_session.add(
+        Finding(
+            task_id=task.id,
+            finding_type=FindingType.COMPLIANCE_RISK,
+            severity=SeverityLevel.LOW,
+            title="L",
+            description="D",
+        )
+    )
     await db_session.commit()
 
     resp = await client.get("/api/audit/dashboard")
@@ -805,6 +896,7 @@ async def test_dashboard_stats_with_data(client: AsyncClient, db_session: AsyncS
 # Estimate
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_estimate_no_documents(client: AsyncClient):
     resp = await client.post("/api/audit/estimate", json={"document_ids": [99999]})
@@ -814,8 +906,11 @@ async def test_estimate_no_documents(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_estimate_small_document(client: AsyncClient, db_session: AsyncSession):
     doc = Document(
-        filename="small.pdf", file_path="/tmp/small.pdf", file_type="pdf",
-        file_size=100, process_status=DocumentStatus.PROCESSED,
+        filename="small.pdf",
+        file_path="/tmp/small.pdf",
+        file_type="pdf",
+        file_size=100,
+        process_status=DocumentStatus.PROCESSED,
         content_text="A" * 1000,
     )
     db_session.add(doc)
@@ -836,8 +931,11 @@ async def test_estimate_small_document(client: AsyncClient, db_session: AsyncSes
 async def test_estimate_large_document(client: AsyncClient, db_session: AsyncSession):
     """Document exceeding STUFF_LIMIT triggers map-reduce (more risk calls)."""
     doc = Document(
-        filename="large.pdf", file_path="/tmp/large.pdf", file_type="pdf",
-        file_size=100000, process_status=DocumentStatus.PROCESSED,
+        filename="large.pdf",
+        file_path="/tmp/large.pdf",
+        file_type="pdf",
+        file_size=100000,
+        process_status=DocumentStatus.PROCESSED,
         content_text="A" * 70000,  # > 60000 STUFF_LIMIT
     )
     db_session.add(doc)
@@ -856,8 +954,11 @@ async def test_estimate_multiple_documents(client: AsyncClient, db_session: Asyn
     docs = []
     for i in range(3):
         doc = Document(
-            filename=f"est_{i}.pdf", file_path=f"/tmp/est_{i}.pdf", file_type="pdf",
-            file_size=100, process_status=DocumentStatus.PROCESSED,
+            filename=f"est_{i}.pdf",
+            file_path=f"/tmp/est_{i}.pdf",
+            file_type="pdf",
+            file_size=100,
+            process_status=DocumentStatus.PROCESSED,
             content_text="X" * 500,
         )
         db_session.add(doc)
@@ -878,6 +979,7 @@ async def test_estimate_multiple_documents(client: AsyncClient, db_session: Asyn
 # Memory
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_get_memory(client: AsyncClient):
     resp = await client.get("/api/audit/memory")
@@ -895,6 +997,7 @@ async def test_get_memory_with_limit(client: AsyncClient):
 # SSE streaming
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_stream_task_not_found(client: AsyncClient):
     resp = await client.get("/api/audit/tasks/999/stream")
@@ -905,9 +1008,15 @@ async def test_stream_task_not_found(client: AsyncClient):
 async def test_stream_task_completed(client: AsyncClient, db_session: AsyncSession):
     """Streaming a completed task should send historical events then done."""
     task = AuditTask(
-        task_name="Done", task_type=TaskType.DEVIATION_ANALYSIS,
+        task_name="Done",
+        task_type=TaskType.DEVIATION_ANALYSIS,
         status=TaskStatus.COMPLETED,
-        config={"execution": {"events": [{"time": "2026-01-01", "stage": "completed", "level": "info", "message": "done"}], "thinking_events": []}},
+        config={
+            "execution": {
+                "events": [{"time": "2026-01-01", "stage": "completed", "level": "info", "message": "done"}],
+                "thinking_events": [],
+            }
+        },
     )
     db_session.add(task)
     await db_session.commit()
@@ -915,6 +1024,7 @@ async def test_stream_task_completed(client: AsyncClient, db_session: AsyncSessi
 
     from app.main import app
     from app.services.event_bus import EventBus
+
     if not hasattr(app.state, "event_bus") or app.state.event_bus is None:
         app.state.event_bus = EventBus()
 
@@ -929,7 +1039,8 @@ async def test_stream_task_completed(client: AsyncClient, db_session: AsyncSessi
 async def test_stream_task_awaiting_review(client: AsyncClient, db_session: AsyncSession):
     """Terminal status: AWAITING_REVIEW should close stream quickly."""
     task = AuditTask(
-        task_name="Review", task_type=TaskType.DEVIATION_ANALYSIS,
+        task_name="Review",
+        task_type=TaskType.DEVIATION_ANALYSIS,
         status=TaskStatus.AWAITING_REVIEW,
     )
     db_session.add(task)
@@ -938,6 +1049,7 @@ async def test_stream_task_awaiting_review(client: AsyncClient, db_session: Asyn
 
     from app.main import app
     from app.services.event_bus import EventBus
+
     if not hasattr(app.state, "event_bus") or app.state.event_bus is None:
         app.state.event_bus = EventBus()
 
@@ -949,7 +1061,8 @@ async def test_stream_task_awaiting_review(client: AsyncClient, db_session: Asyn
 @pytest.mark.asyncio
 async def test_stream_task_failed(client: AsyncClient, db_session: AsyncSession):
     task = AuditTask(
-        task_name="Failed", task_type=TaskType.DEVIATION_ANALYSIS,
+        task_name="Failed",
+        task_type=TaskType.DEVIATION_ANALYSIS,
         status=TaskStatus.FAILED,
     )
     db_session.add(task)
@@ -958,6 +1071,7 @@ async def test_stream_task_failed(client: AsyncClient, db_session: AsyncSession)
 
     from app.main import app
     from app.services.event_bus import EventBus
+
     if not hasattr(app.state, "event_bus") or app.state.event_bus is None:
         app.state.event_bus = EventBus()
 
@@ -970,7 +1084,8 @@ async def test_stream_task_failed(client: AsyncClient, db_session: AsyncSession)
 async def test_stream_task_with_thinking_events(client: AsyncClient, db_session: AsyncSession):
     """Covers the thinking_events replay path."""
     task = AuditTask(
-        task_name="Thinking", task_type=TaskType.DEVIATION_ANALYSIS,
+        task_name="Thinking",
+        task_type=TaskType.DEVIATION_ANALYSIS,
         status=TaskStatus.COMPLETED,
         config={
             "execution": {
@@ -987,6 +1102,7 @@ async def test_stream_task_with_thinking_events(client: AsyncClient, db_session:
 
     from app.main import app
     from app.services.event_bus import EventBus
+
     if not hasattr(app.state, "event_bus") or app.state.event_bus is None:
         app.state.event_bus = EventBus()
 
@@ -998,7 +1114,8 @@ async def test_stream_task_with_thinking_events(client: AsyncClient, db_session:
 @pytest.mark.asyncio
 async def test_stream_task_rejected(client: AsyncClient, db_session: AsyncSession):
     task = AuditTask(
-        task_name="Rejected", task_type=TaskType.DEVIATION_ANALYSIS,
+        task_name="Rejected",
+        task_type=TaskType.DEVIATION_ANALYSIS,
         status=TaskStatus.REJECTED,
     )
     db_session.add(task)
@@ -1007,6 +1124,7 @@ async def test_stream_task_rejected(client: AsyncClient, db_session: AsyncSessio
 
     from app.main import app
     from app.services.event_bus import EventBus
+
     if not hasattr(app.state, "event_bus") or app.state.event_bus is None:
         app.state.event_bus = EventBus()
 

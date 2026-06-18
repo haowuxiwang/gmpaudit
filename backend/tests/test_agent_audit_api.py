@@ -3,9 +3,10 @@
 Targets specific uncovered lines in agent_audit.py to increase coverage.
 """
 
+from unittest.mock import patch
+
 import pytest
 from httpx import AsyncClient
-from unittest.mock import patch, AsyncMock, MagicMock
 
 from app.models.audit_task import AuditTask, TaskStatus, TaskType
 from app.models.document import Document, DocumentStatus
@@ -18,19 +19,25 @@ class TestAgentAuditRun:
     async def test_run_agent_audit_agent_unavailable(self, client: AsyncClient):
         """Run audit when agent is unavailable."""
         with patch("app.api.agent_audit.is_agent_available", return_value=False):
-            resp = await client.post("/api/agent-audit/run", json={
-                "document_id": 1,
-                "audit_type": "deviation",
-            })
+            resp = await client.post(
+                "/api/agent-audit/run",
+                json={
+                    "document_id": 1,
+                    "audit_type": "deviation",
+                },
+            )
             assert resp.status_code == 503
 
     async def test_run_agent_audit_document_not_found(self, client: AsyncClient):
         """Run audit with nonexistent document."""
         with patch("app.api.agent_audit.is_agent_available", return_value=True):
-            resp = await client.post("/api/agent-audit/run", json={
-                "document_id": 99999,
-                "audit_type": "deviation",
-            })
+            resp = await client.post(
+                "/api/agent-audit/run",
+                json={
+                    "document_id": 99999,
+                    "audit_type": "deviation",
+                },
+            )
             assert resp.status_code == 404
 
     async def test_run_agent_audit_document_not_processed(self, client: AsyncClient, db_session):
@@ -47,10 +54,13 @@ class TestAgentAuditRun:
         await db_session.refresh(doc)
 
         with patch("app.api.agent_audit.is_agent_available", return_value=True):
-            resp = await client.post("/api/agent-audit/run", json={
-                "document_id": doc.id,
-                "audit_type": "deviation",
-            })
+            resp = await client.post(
+                "/api/agent-audit/run",
+                json={
+                    "document_id": doc.id,
+                    "audit_type": "deviation",
+                },
+            )
             assert resp.status_code == 400
 
     async def test_run_agent_audit_invalid_type(self, client: AsyncClient, db_session):
@@ -67,10 +77,13 @@ class TestAgentAuditRun:
         await db_session.refresh(doc)
 
         with patch("app.api.agent_audit.is_agent_available", return_value=True):
-            resp = await client.post("/api/agent-audit/run", json={
-                "document_id": doc.id,
-                "audit_type": "invalid_type",
-            })
+            resp = await client.post(
+                "/api/agent-audit/run",
+                json={
+                    "document_id": doc.id,
+                    "audit_type": "invalid_type",
+                },
+            )
             assert resp.status_code == 400
 
     async def test_run_agent_audit_success(self, client: AsyncClient, db_session):
@@ -87,11 +100,14 @@ class TestAgentAuditRun:
         await db_session.refresh(doc)
 
         with patch("app.api.agent_audit.is_agent_available", return_value=True):
-            resp = await client.post("/api/agent-audit/run", json={
-                "document_id": doc.id,
-                "audit_type": "deviation",
-                "focus": "GMP compliance",
-            })
+            resp = await client.post(
+                "/api/agent-audit/run",
+                json={
+                    "document_id": doc.id,
+                    "audit_type": "deviation",
+                    "focus": "GMP compliance",
+                },
+            )
             assert resp.status_code == 200
             data = resp.json()
             assert "task_id" in data
@@ -111,10 +127,13 @@ class TestAgentAuditRun:
         await db_session.refresh(doc)
 
         with patch("app.api.agent_audit.is_agent_available", return_value=True):
-            resp = await client.post("/api/agent-audit/run", json={
-                "document_id": doc.id,
-                "audit_type": "sop",
-            })
+            resp = await client.post(
+                "/api/agent-audit/run",
+                json={
+                    "document_id": doc.id,
+                    "audit_type": "sop",
+                },
+            )
             assert resp.status_code == 200
 
     async def test_run_agent_audit_change_control_type(self, client: AsyncClient, db_session):
@@ -131,10 +150,13 @@ class TestAgentAuditRun:
         await db_session.refresh(doc)
 
         with patch("app.api.agent_audit.is_agent_available", return_value=True):
-            resp = await client.post("/api/agent-audit/run", json={
-                "document_id": doc.id,
-                "audit_type": "change_control",
-            })
+            resp = await client.post(
+                "/api/agent-audit/run",
+                json={
+                    "document_id": doc.id,
+                    "audit_type": "change_control",
+                },
+            )
             assert resp.status_code == 200
 
 

@@ -4,8 +4,6 @@ Targets uncovered branches to push coverage from 87-89% to 95%+.
 """
 
 import asyncio
-import sys
-import time
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -13,9 +11,8 @@ import pytest
 
 from app.models.audit_task import AuditTask, TaskStatus, TaskType
 from app.models.document import Document, DocumentStatus
-from app.models.finding import Finding, FindingType, SeverityLevel
-from app.services.event_bus import DONE_SENTINEL, EventBus, _QUEUE_MAXSIZE, _STALE_TTL
-
+from app.models.finding import FindingType, SeverityLevel
+from app.services.event_bus import _QUEUE_MAXSIZE, _STALE_TTL, DONE_SENTINEL, EventBus
 
 # ============================================================================
 # EventBus — additional coverage gaps
@@ -365,7 +362,8 @@ class TestTaskRunnerBuildTaskPayload:
         task.completed_at = None
 
         payload = await build_task_payload(
-            session, task,
+            session,
+            task,
             _findings_count=5,
             _report_id=42,
         )
@@ -388,7 +386,8 @@ class TestTaskRunnerBuildTaskPayload:
         task.progress = 100
 
         payload = await build_task_payload(
-            session, task,
+            session,
+            task,
             _findings_count=0,
             _report_id=0,
         )
@@ -470,7 +469,8 @@ class TestTaskRunnerBuildTaskPayload:
         task.config = {"_trace": {"nodes": ["a", "b"]}}
 
         payload = await build_task_payload(
-            session, task,
+            session,
+            task,
             _findings_count=0,
             _report_id=0,
         )
@@ -488,7 +488,8 @@ class TestTaskRunnerBuildTaskPayload:
         task.config = {"execution": {"error": None}}
 
         payload = await build_task_payload(
-            session, task,
+            session,
+            task,
             _findings_count=0,
             _report_id=0,
         )
@@ -554,7 +555,10 @@ class TestTaskRunnerChooseReportContentEdgeCases:
         ]
         findings = [{"severity": "high", "title": "T", "description": "D", "document_id": 1}]
         content, meta = choose_report_content(
-            "T", docs, findings, ["report1", "report2"],
+            "T",
+            docs,
+            findings,
+            ["report1", "report2"],
             agent_report_sources=["fallback", "agent"],
         )
         assert meta["report_source"] == "partial_fallback"
@@ -564,7 +568,10 @@ class TestTaskRunnerChooseReportContentEdgeCases:
         from app.services.task_runner import choose_report_content
 
         content, meta = choose_report_content(
-            "T", [{"filename": "a.pdf"}], [], ["agent report"],
+            "T",
+            [{"filename": "a.pdf"}],
+            [],
+            ["agent report"],
             agent_report_sources=["agent_report_writer"],
         )
         assert meta["report_source"] == "agent_report_writer"
@@ -574,7 +581,10 @@ class TestTaskRunnerChooseReportContentEdgeCases:
         from app.services.task_runner import choose_report_content
 
         content, meta = choose_report_content(
-            "T", [{"filename": "a.pdf"}], [], ["fallback report"],
+            "T",
+            [{"filename": "a.pdf"}],
+            [],
+            ["fallback report"],
             agent_report_sources=["fallback"],
         )
         assert meta["report_source"] == "fallback"
@@ -660,7 +670,8 @@ class TestTaskRunnerRunCancelledTaskNotFound:
         session.commit = AsyncMock()
 
         with patch.object(
-            task_runner, "_execute_task",
+            task_runner,
+            "_execute_task",
             new_callable=AsyncMock,
             side_effect=asyncio.CancelledError,
         ):
@@ -694,7 +705,8 @@ class TestTaskRunnerRunExceptionTaskNotFound:
         session.commit = AsyncMock()
 
         with patch.object(
-            task_runner, "_execute_task",
+            task_runner,
+            "_execute_task",
             new_callable=AsyncMock,
             side_effect=RuntimeError("boom"),
         ):
@@ -793,9 +805,7 @@ class TestTaskRunnerExecuteTaskAllFailed:
                 mock_result.scalar_one_or_none.return_value = task
             elif call_count == 2:
                 mock_result.scalars.return_value.all.return_value = [doc1, doc2]
-            elif call_count == 3:
-                mock_result.scalars.return_value.all.return_value = []
-            elif call_count == 4:
+            elif call_count == 3 or call_count == 4:
                 mock_result.scalars.return_value.all.return_value = []
             else:
                 mock_result.scalars.return_value.all.return_value = []
@@ -850,11 +860,7 @@ class TestTaskRunnerExecuteTaskPartialFailure:
                 mock_result.scalar_one_or_none.return_value = task
             elif call_count == 2:
                 mock_result.scalars.return_value.all.return_value = [doc1, doc2]
-            elif call_count == 3:
-                mock_result.scalars.return_value.all.return_value = []
-            elif call_count == 4:
-                mock_result.scalars.return_value.all.return_value = []
-            elif call_count == 5:
+            elif call_count == 3 or call_count == 4 or call_count == 5:
                 mock_result.scalars.return_value.all.return_value = []
             else:
                 mock_result.scalars.return_value.all.return_value = []
@@ -867,8 +873,12 @@ class TestTaskRunnerExecuteTaskPartialFailure:
         success_result = {
             "findings": [{"title": "Issue", "description": "Desc", "document_id": 1, "severity": "medium"}],
             "document_result": {
-                "document_id": 1, "filename": "a.pdf", "status": "completed",
-                "findings_count": 1, "risk_level": "medium", "report_path": "",
+                "document_id": 1,
+                "filename": "a.pdf",
+                "status": "completed",
+                "findings_count": 1,
+                "risk_level": "medium",
+                "report_path": "",
             },
             "report": "Good report",
             "report_source": "agent",
@@ -879,8 +889,12 @@ class TestTaskRunnerExecuteTaskPartialFailure:
         error_result = {
             "findings": [],
             "document_result": {
-                "document_id": 2, "filename": "b.pdf", "status": "failed",
-                "findings_count": 0, "risk_level": "unknown", "report_path": "",
+                "document_id": 2,
+                "filename": "b.pdf",
+                "status": "failed",
+                "findings_count": 0,
+                "risk_level": "unknown",
+                "report_path": "",
             },
             "report": "",
             "report_source": "error",
@@ -923,9 +937,7 @@ class TestTaskRunnerExecuteTaskHighRiskAwaitingReview:
                 mock_result.scalar_one_or_none.return_value = task
             elif call_count == 2:
                 mock_result.scalars.return_value.all.return_value = [doc]
-            elif call_count == 3:
-                mock_result.scalars.return_value.all.return_value = []
-            elif call_count == 4:
+            elif call_count == 3 or call_count == 4:
                 mock_result.scalars.return_value.all.return_value = []
             elif call_count == 5:
                 # Saved findings - with high severity
@@ -952,8 +964,12 @@ class TestTaskRunnerExecuteTaskHighRiskAwaitingReview:
                 },
             ],
             "document_result": {
-                "document_id": 1, "filename": "test.pdf", "status": "completed",
-                "findings_count": 1, "risk_level": "high", "report_path": "",
+                "document_id": 1,
+                "filename": "test.pdf",
+                "status": "completed",
+                "findings_count": 1,
+                "risk_level": "high",
+                "report_path": "",
             },
             "report": "High risk report",
             "report_source": "agent",
@@ -963,7 +979,9 @@ class TestTaskRunnerExecuteTaskHighRiskAwaitingReview:
         }
 
         with (
-            patch.object(task_runner, "_process_single_document", new_callable=AsyncMock, return_value=high_risk_result),
+            patch.object(
+                task_runner, "_process_single_document", new_callable=AsyncMock, return_value=high_risk_result
+            ),
             patch("app.services.task_runner.is_feishu_configured", return_value=False),
             patch("app.services.memory.append_findings"),
         ):
@@ -995,9 +1013,7 @@ class TestTaskRunnerExecuteTaskHighRiskWithFeishu:
                 mock_result.scalar_one_or_none.return_value = task
             elif call_count == 2:
                 mock_result.scalars.return_value.all.return_value = [doc]
-            elif call_count == 3:
-                mock_result.scalars.return_value.all.return_value = []
-            elif call_count == 4:
+            elif call_count == 3 or call_count == 4:
                 mock_result.scalars.return_value.all.return_value = []
             elif call_count == 5:
                 mock_finding = MagicMock()
@@ -1017,8 +1033,12 @@ class TestTaskRunnerExecuteTaskHighRiskWithFeishu:
                 {"title": "Critical", "description": "Desc", "severity": "high", "document_id": 1},
             ],
             "document_result": {
-                "document_id": 1, "filename": "test.pdf", "status": "completed",
-                "findings_count": 1, "risk_level": "high", "report_path": "",
+                "document_id": 1,
+                "filename": "test.pdf",
+                "status": "completed",
+                "findings_count": 1,
+                "risk_level": "high",
+                "report_path": "",
             },
             "report": "Report",
             "report_source": "agent",
@@ -1028,7 +1048,9 @@ class TestTaskRunnerExecuteTaskHighRiskWithFeishu:
         }
 
         with (
-            patch.object(task_runner, "_process_single_document", new_callable=AsyncMock, return_value=high_risk_result),
+            patch.object(
+                task_runner, "_process_single_document", new_callable=AsyncMock, return_value=high_risk_result
+            ),
             patch("app.services.task_runner.is_feishu_configured", return_value=True),
             patch("app.services.task_runner.notify_audit_complete", new_callable=AsyncMock) as mock_notify,
             patch("app.services.memory.append_findings"),
@@ -1055,9 +1077,7 @@ class TestTaskRunnerExecuteTaskHighRiskWithFeishu:
                 mock_result.scalar_one_or_none.return_value = task
             elif call_count == 2:
                 mock_result.scalars.return_value.all.return_value = [doc]
-            elif call_count == 3:
-                mock_result.scalars.return_value.all.return_value = []
-            elif call_count == 4:
+            elif call_count == 3 or call_count == 4:
                 mock_result.scalars.return_value.all.return_value = []
             elif call_count == 5:
                 mock_finding = MagicMock()
@@ -1077,8 +1097,12 @@ class TestTaskRunnerExecuteTaskHighRiskWithFeishu:
                 {"title": "Critical", "description": "Desc", "severity": "high", "document_id": 1},
             ],
             "document_result": {
-                "document_id": 1, "filename": "test.pdf", "status": "completed",
-                "findings_count": 1, "risk_level": "high", "report_path": "",
+                "document_id": 1,
+                "filename": "test.pdf",
+                "status": "completed",
+                "findings_count": 1,
+                "risk_level": "high",
+                "report_path": "",
             },
             "report": "Report",
             "report_source": "agent",
@@ -1088,9 +1112,15 @@ class TestTaskRunnerExecuteTaskHighRiskWithFeishu:
         }
 
         with (
-            patch.object(task_runner, "_process_single_document", new_callable=AsyncMock, return_value=high_risk_result),
+            patch.object(
+                task_runner, "_process_single_document", new_callable=AsyncMock, return_value=high_risk_result
+            ),
             patch("app.services.task_runner.is_feishu_configured", return_value=True),
-            patch("app.services.task_runner.notify_audit_complete", new_callable=AsyncMock, side_effect=RuntimeError("feishu down")),
+            patch(
+                "app.services.task_runner.notify_audit_complete",
+                new_callable=AsyncMock,
+                side_effect=RuntimeError("feishu down"),
+            ),
             patch("app.services.memory.append_findings"),
         ):
             await task_runner._execute_task(1)
@@ -1121,9 +1151,7 @@ class TestTaskRunnerExecuteTaskCompletedWithFeishu:
                 mock_result.scalar_one_or_none.return_value = task
             elif call_count == 2:
                 mock_result.scalars.return_value.all.return_value = [doc]
-            elif call_count == 3:
-                mock_result.scalars.return_value.all.return_value = []
-            elif call_count == 4:
+            elif call_count == 3 or call_count == 4:
                 mock_result.scalars.return_value.all.return_value = []
             elif call_count == 5:
                 # saved findings with high severity
@@ -1144,8 +1172,12 @@ class TestTaskRunnerExecuteTaskCompletedWithFeishu:
                 {"title": "Critical", "description": "Desc", "severity": "high", "document_id": 1},
             ],
             "document_result": {
-                "document_id": 1, "filename": "test.pdf", "status": "completed",
-                "findings_count": 1, "risk_level": "high", "report_path": "",
+                "document_id": 1,
+                "filename": "test.pdf",
+                "status": "completed",
+                "findings_count": 1,
+                "risk_level": "high",
+                "report_path": "",
             },
             "report": "Report",
             "report_source": "agent",
@@ -1155,7 +1187,9 @@ class TestTaskRunnerExecuteTaskCompletedWithFeishu:
         }
 
         with (
-            patch.object(task_runner, "_process_single_document", new_callable=AsyncMock, return_value=high_risk_result),
+            patch.object(
+                task_runner, "_process_single_document", new_callable=AsyncMock, return_value=high_risk_result
+            ),
             patch("app.services.task_runner.is_feishu_configured", return_value=True),
             patch("app.services.task_runner.notify_audit_complete", new_callable=AsyncMock) as mock_complete,
             patch("app.services.task_runner.notify_high_risk_finding", new_callable=AsyncMock) as mock_high_risk,
@@ -1166,8 +1200,6 @@ class TestTaskRunnerExecuteTaskCompletedWithFeishu:
         assert task.status == TaskStatus.COMPLETED
         mock_complete.assert_awaited_once()
         mock_high_risk.assert_awaited_once()
-
-
 
 
 @pytest.mark.asyncio
@@ -1192,9 +1224,7 @@ class TestTaskRunnerExecuteTaskFeishuHighRiskNotifyFailure:
                 mock_result.scalar_one_or_none.return_value = task
             elif call_count == 2:
                 mock_result.scalars.return_value.all.return_value = [doc]
-            elif call_count == 3:
-                mock_result.scalars.return_value.all.return_value = []
-            elif call_count == 4:
+            elif call_count == 3 or call_count == 4:
                 mock_result.scalars.return_value.all.return_value = []
             elif call_count == 5:
                 mock_finding = MagicMock()
@@ -1214,8 +1244,12 @@ class TestTaskRunnerExecuteTaskFeishuHighRiskNotifyFailure:
                 {"title": "Critical", "description": "Desc", "severity": "high", "document_id": 1},
             ],
             "document_result": {
-                "document_id": 1, "filename": "test.pdf", "status": "completed",
-                "findings_count": 1, "risk_level": "high", "report_path": "",
+                "document_id": 1,
+                "filename": "test.pdf",
+                "status": "completed",
+                "findings_count": 1,
+                "risk_level": "high",
+                "report_path": "",
             },
             "report": "Report",
             "report_source": "agent",
@@ -1225,10 +1259,16 @@ class TestTaskRunnerExecuteTaskFeishuHighRiskNotifyFailure:
         }
 
         with (
-            patch.object(task_runner, "_process_single_document", new_callable=AsyncMock, return_value=high_risk_result),
+            patch.object(
+                task_runner, "_process_single_document", new_callable=AsyncMock, return_value=high_risk_result
+            ),
             patch("app.services.task_runner.is_feishu_configured", return_value=True),
             patch("app.services.task_runner.notify_audit_complete", new_callable=AsyncMock),
-            patch("app.services.task_runner.notify_high_risk_finding", new_callable=AsyncMock, side_effect=Exception("fail")),
+            patch(
+                "app.services.task_runner.notify_high_risk_finding",
+                new_callable=AsyncMock,
+                side_effect=Exception("fail"),
+            ),
             patch("app.services.memory.append_findings"),
         ):
             await task_runner._execute_task(1)
@@ -1258,11 +1298,7 @@ class TestTaskRunnerExecuteTaskFilteredFindings:
                 mock_result.scalar_one_or_none.return_value = task
             elif call_count == 2:
                 mock_result.scalars.return_value.all.return_value = [doc]
-            elif call_count == 3:
-                mock_result.scalars.return_value.all.return_value = []
-            elif call_count == 4:
-                mock_result.scalars.return_value.all.return_value = []
-            elif call_count == 5:
+            elif call_count == 3 or call_count == 4 or call_count == 5:
                 mock_result.scalars.return_value.all.return_value = []
             else:
                 mock_result.scalars.return_value.all.return_value = []
@@ -1280,8 +1316,12 @@ class TestTaskRunnerExecuteTaskFilteredFindings:
                 {"description": "No title at all", "document_id": 1},  # invalid
             ],
             "document_result": {
-                "document_id": 1, "filename": "test.pdf", "status": "completed",
-                "findings_count": 1, "risk_level": "medium", "report_path": "",
+                "document_id": 1,
+                "filename": "test.pdf",
+                "status": "completed",
+                "findings_count": 1,
+                "risk_level": "medium",
+                "report_path": "",
             },
             "report": "Report",
             "report_source": "agent",
@@ -1291,7 +1331,9 @@ class TestTaskRunnerExecuteTaskFilteredFindings:
         }
 
         with (
-            patch.object(task_runner, "_process_single_document", new_callable=AsyncMock, return_value=result_with_invalid),
+            patch.object(
+                task_runner, "_process_single_document", new_callable=AsyncMock, return_value=result_with_invalid
+            ),
             patch("app.services.task_runner.is_feishu_configured", return_value=False),
             patch("app.services.memory.append_findings"),
         ):
@@ -1340,8 +1382,12 @@ class TestTaskRunnerExecuteTaskOldDataCleanup:
         mock_doc_result = {
             "findings": [],
             "document_result": {
-                "document_id": 1, "filename": "test.pdf", "status": "completed",
-                "findings_count": 0, "risk_level": "low", "report_path": "",
+                "document_id": 1,
+                "filename": "test.pdf",
+                "status": "completed",
+                "findings_count": 0,
+                "risk_level": "low",
+                "report_path": "",
             },
             "report": "Report",
             "report_source": "agent",
@@ -1381,11 +1427,7 @@ class TestTaskRunnerExecuteTaskWithTrace:
                 mock_result.scalar_one_or_none.return_value = task
             elif call_count == 2:
                 mock_result.scalars.return_value.all.return_value = [doc]
-            elif call_count == 3:
-                mock_result.scalars.return_value.all.return_value = []
-            elif call_count == 4:
-                mock_result.scalars.return_value.all.return_value = []
-            elif call_count == 5:
+            elif call_count == 3 or call_count == 4 or call_count == 5:
                 mock_result.scalars.return_value.all.return_value = []
             else:
                 mock_result.scalars.return_value.all.return_value = []
@@ -1399,8 +1441,12 @@ class TestTaskRunnerExecuteTaskWithTrace:
         mock_doc_result = {
             "findings": [],
             "document_result": {
-                "document_id": 1, "filename": "test.pdf", "status": "completed",
-                "findings_count": 0, "risk_level": "low", "report_path": "",
+                "document_id": 1,
+                "filename": "test.pdf",
+                "status": "completed",
+                "findings_count": 0,
+                "risk_level": "low",
+                "report_path": "",
             },
             "report": "Report",
             "report_source": "agent",
@@ -1507,10 +1553,7 @@ class TestTaskRunnerRunSuccessPath:
         events = []
         while not q.empty():
             events.append(q.get_nowait())
-        assert any(
-            isinstance(e, dict) and e.get("data", {}).get("message") == "Task execution started"
-            for e in events
-        )
+        assert any(isinstance(e, dict) and e.get("data", {}).get("message") == "Task execution started" for e in events)
 
 
 @pytest.mark.asyncio
@@ -1556,11 +1599,7 @@ class TestTaskRunnerExecuteTaskMultipleDocs:
                 mock_result.scalar_one_or_none.return_value = task
             elif call_count == 2:
                 mock_result.scalars.return_value.all.return_value = [doc1, doc2]
-            elif call_count == 3:
-                mock_result.scalars.return_value.all.return_value = []
-            elif call_count == 4:
-                mock_result.scalars.return_value.all.return_value = []
-            elif call_count == 5:
+            elif call_count == 3 or call_count == 4 or call_count == 5:
                 mock_result.scalars.return_value.all.return_value = []
             else:
                 mock_result.scalars.return_value.all.return_value = []
@@ -1574,8 +1613,12 @@ class TestTaskRunnerExecuteTaskMultipleDocs:
             return {
                 "findings": [],
                 "document_result": {
-                    "document_id": doc_id, "filename": filename, "status": "completed",
-                    "findings_count": 0, "risk_level": "low", "report_path": "",
+                    "document_id": doc_id,
+                    "filename": filename,
+                    "status": "completed",
+                    "findings_count": 0,
+                    "risk_level": "low",
+                    "report_path": "",
                 },
                 "report": f"Report for {filename}",
                 "report_source": "agent",

@@ -3,9 +3,10 @@
 Targets uncovered code paths to increase coverage from 61% to 80%.
 """
 
+from unittest.mock import patch
+
 import pytest
 from httpx import AsyncClient
-from unittest.mock import patch, AsyncMock, MagicMock
 
 from app.models.configuration import Configuration
 
@@ -102,12 +103,15 @@ class TestConfigAPI:
 
     async def test_batch_update_config(self, client: AsyncClient, db_session):
         """POST /config/batch updates multiple configs."""
-        resp = await client.post("/api/config/batch", json={
-            "configs": {
-                "LOG_LEVEL": "DEBUG",
-                "MAX_CONCURRENT_TASKS": "5",
-            }
-        })
+        resp = await client.post(
+            "/api/config/batch",
+            json={
+                "configs": {
+                    "LOG_LEVEL": "DEBUG",
+                    "MAX_CONCURRENT_TASKS": "5",
+                }
+            },
+        )
         assert resp.status_code == 200
         assert resp.json()["status"] == "success"
 
@@ -134,10 +138,12 @@ class TestConfigMaskValue:
 
     def test_mask_short_key(self):
         from app.api.config import _mask_value
+
         assert _mask_value("API_KEY", "short") == "****"
 
     def test_mask_long_key(self):
         from app.api.config import _mask_value
+
         result = _mask_value("API_KEY", "sk-1234567890abcdef")
         assert result.startswith("sk-1")
         assert result.endswith("cdef")
@@ -145,12 +151,15 @@ class TestConfigMaskValue:
 
     def test_mask_non_key_field(self):
         from app.api.config import _mask_value
+
         assert _mask_value("LOG_LEVEL", "INFO") == "INFO"
 
     def test_mask_empty_value(self):
         from app.api.config import _mask_value
+
         assert _mask_value("API_KEY", "") == ""
 
     def test_mask_placeholder(self):
         from app.api.config import _mask_value
+
         assert _mask_value("API_KEY", "your_api_key") == ""

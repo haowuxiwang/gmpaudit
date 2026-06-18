@@ -4,11 +4,9 @@ Targets uncovered code paths in the TaskRunner class to increase coverage.
 """
 
 import asyncio
-from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from sqlalchemy import select
 
 from app.models.audit_task import AuditTask, TaskStatus, TaskType
 from app.models.document import Document, DocumentStatus
@@ -344,7 +342,11 @@ class TestTaskRunnerMarkFailed:
 
         with (
             patch("app.services.task_runner.is_feishu_configured", return_value=True),
-            patch("app.services.task_runner.notify_task_failed", new_callable=AsyncMock, side_effect=Exception("notify error")),
+            patch(
+                "app.services.task_runner.notify_task_failed",
+                new_callable=AsyncMock,
+                side_effect=Exception("notify error"),
+            ),
         ):
             await task_runner._mark_failed(session, task, "test error")
         # Should not raise

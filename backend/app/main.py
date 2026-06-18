@@ -3,12 +3,10 @@ import contextlib
 import logging
 import os
 import shutil
-import time as _time
 import sys
-import threading
+import time as _time
 import uuid
 from contextlib import asynccontextmanager
-from datetime import UTC
 from logging.handlers import RotatingFileHandler
 
 from fastapi import FastAPI, HTTPException, Request
@@ -276,8 +274,7 @@ async def lifespan(app: FastAPI):
             now = _time.monotonic()
             cutoff = now - 60.0  # 1 minute window
             stale_ips = [
-                ip for ip, timestamps in _rate_limit_store.items()
-                if not timestamps or timestamps[-1] < cutoff
+                ip for ip, timestamps in _rate_limit_store.items() if not timestamps or timestamps[-1] < cutoff
             ]
             for ip in stale_ips:
                 del _rate_limit_store[ip]
@@ -414,7 +411,15 @@ async def _log_requests(request, call_next):
 
 
 # Auth: unauthenticated paths (health check and token endpoint)
-_AUTH_SKIP_PATHS = {"/api/health", "/api/health/db", "/api/health/full", "/api/auth/token", "/docs", "/openapi.json", "/"}
+_AUTH_SKIP_PATHS = {
+    "/api/health",
+    "/api/health/db",
+    "/api/health/full",
+    "/api/auth/token",
+    "/docs",
+    "/openapi.json",
+    "/",
+}
 
 
 @app.middleware("http")

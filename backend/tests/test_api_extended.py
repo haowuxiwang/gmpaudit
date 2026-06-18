@@ -6,10 +6,7 @@ Covers uncovered code paths identified in:
 - app/api/reports.py: LLM error paths, HTML sanitization, pagination
 """
 
-import io
 import os
-import tempfile
-from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -251,7 +248,10 @@ async def test_build_success(client: AsyncClient):
 async def test_build_duplicate_in_memory(client: AsyncClient):
     """POST /build returns 409 when in-memory flag says already building."""
     with (
-        patch("app.api.kg._build_status", {"building": True, "started_at": "2026-01-01T00:00:00", "error": None, "recent_logs": []}),
+        patch(
+            "app.api.kg._build_status",
+            {"building": True, "started_at": "2026-01-01T00:00:00", "error": None, "recent_logs": []},
+        ),
         patch("app.api.kg._get_build_status_from_db", new_callable=AsyncMock, return_value={"building": False}),
     ):
         resp = await client.post("/api/kg/build")
@@ -417,7 +417,11 @@ async def test_upload_conversion_failure(client: AsyncClient, tmp_path):
     """Upload PDF when converter raises RuntimeError returns 400."""
     with (
         patch("app.api.kg.INPUT_DIR", str(tmp_path)),
-        patch("app.services.converter.convert_to_markdown", new_callable=AsyncMock, side_effect=RuntimeError("Conversion failed")),
+        patch(
+            "app.services.converter.convert_to_markdown",
+            new_callable=AsyncMock,
+            side_effect=RuntimeError("Conversion failed"),
+        ),
     ):
         resp = await client.post(
             "/api/kg/documents/upload",
@@ -499,7 +503,9 @@ async def test_query_timeout(client: AsyncClient):
     import asyncio
 
     with (
-        patch("app.api.kg._get_index_info", return_value={"built": True, "file_count": 5, "last_modified": "2026-01-01"}),
+        patch(
+            "app.api.kg._get_index_info", return_value={"built": True, "file_count": 5, "last_modified": "2026-01-01"}
+        ),
         patch("agent.tools.lightrag_tool.lightrag_search", new_callable=AsyncMock, side_effect=asyncio.TimeoutError),
     ):
         resp = await client.post("/api/kg/query", json={"query": "test query"})
@@ -511,8 +517,14 @@ async def test_query_timeout(client: AsyncClient):
 async def test_query_generic_error(client: AsyncClient):
     """POST /query returns 500 on generic exception."""
     with (
-        patch("app.api.kg._get_index_info", return_value={"built": True, "file_count": 5, "last_modified": "2026-01-01"}),
-        patch("agent.tools.lightrag_tool.lightrag_search", new_callable=AsyncMock, side_effect=RuntimeError("connection lost")),
+        patch(
+            "app.api.kg._get_index_info", return_value={"built": True, "file_count": 5, "last_modified": "2026-01-01"}
+        ),
+        patch(
+            "agent.tools.lightrag_tool.lightrag_search",
+            new_callable=AsyncMock,
+            side_effect=RuntimeError("connection lost"),
+        ),
     ):
         resp = await client.post("/api/kg/query", json={"query": "test query"})
     assert resp.status_code == 500
@@ -634,10 +646,12 @@ async def test_batch_update_skips_placeholders(client: AsyncClient):
     """POST /batch skips placeholder API key values."""
     resp = await client.post(
         "/api/config/batch",
-        json={"configs": {
-            "deepseek_api_key": "your_api_key_here",
-            "log_level": "INFO",
-        }},
+        json={
+            "configs": {
+                "deepseek_api_key": "your_api_key_here",
+                "log_level": "INFO",
+            }
+        },
     )
     assert resp.status_code == 200
     # log_level should be updated, placeholder key should be skipped
@@ -868,11 +882,13 @@ class TestMaskValue:
 @pytest.mark.asyncio
 async def test_get_config_masks_api_key(client: AsyncClient, db_session: AsyncSession):
     """GET /{key} masks sensitive values."""
-    db_session.add(Configuration(
-        config_key="deepseek_api_key",
-        config_value="sk-1234567890abcdef",
-        config_type="string",
-    ))
+    db_session.add(
+        Configuration(
+            config_key="deepseek_api_key",
+            config_value="sk-1234567890abcdef",
+            config_type="string",
+        )
+    )
     await db_session.commit()
 
     resp = await client.get("/api/config/deepseek_api_key")
@@ -897,8 +913,11 @@ async def test_generate_report_llm_value_error(client: AsyncClient, db_session: 
     await db_session.refresh(task)
 
     finding = Finding(
-        task_id=task.id, finding_type=FindingType.COMPLIANCE_RISK,
-        severity=SeverityLevel.HIGH, title="F", description="D",
+        task_id=task.id,
+        finding_type=FindingType.COMPLIANCE_RISK,
+        severity=SeverityLevel.HIGH,
+        title="F",
+        description="D",
     )
     db_session.add(finding)
     await db_session.commit()
@@ -921,8 +940,11 @@ async def test_generate_report_llm_timeout(client: AsyncClient, db_session: Asyn
     await db_session.refresh(task)
 
     finding = Finding(
-        task_id=task.id, finding_type=FindingType.COMPLIANCE_RISK,
-        severity=SeverityLevel.HIGH, title="F", description="D",
+        task_id=task.id,
+        finding_type=FindingType.COMPLIANCE_RISK,
+        severity=SeverityLevel.HIGH,
+        title="F",
+        description="D",
     )
     db_session.add(finding)
     await db_session.commit()
@@ -945,8 +967,11 @@ async def test_generate_report_llm_generic_error(client: AsyncClient, db_session
     await db_session.refresh(task)
 
     finding = Finding(
-        task_id=task.id, finding_type=FindingType.COMPLIANCE_RISK,
-        severity=SeverityLevel.HIGH, title="F", description="D",
+        task_id=task.id,
+        finding_type=FindingType.COMPLIANCE_RISK,
+        severity=SeverityLevel.HIGH,
+        title="F",
+        description="D",
     )
     db_session.add(finding)
     await db_session.commit()
@@ -969,7 +994,8 @@ async def test_generate_report_llm_generic_error(client: AsyncClient, db_session
 async def test_export_html_strips_script_tags(client: AsyncClient, db_session: AsyncSession):
     """HTML export strips <script> tags from content (bleach strip=True removes tags, keeps text)."""
     report = Report(
-        task_id=1, report_type=ReportType.FULL_REPORT,
+        task_id=1,
+        report_type=ReportType.FULL_REPORT,
         title="XSS Test",
         content='# Title\n\n<script>alert("xss")</script>\n\nSafe text',
     )
@@ -988,7 +1014,8 @@ async def test_export_html_strips_script_tags(client: AsyncClient, db_session: A
 async def test_export_html_strips_iframe_tags(client: AsyncClient, db_session: AsyncSession):
     """HTML export strips <iframe> tags from content."""
     report = Report(
-        task_id=1, report_type=ReportType.FULL_REPORT,
+        task_id=1,
+        report_type=ReportType.FULL_REPORT,
         title="Iframe Test",
         content='# Title\n\n<iframe src="http://evil.com"></iframe>\n\nNormal text',
     )
@@ -1006,7 +1033,8 @@ async def test_export_html_strips_iframe_tags(client: AsyncClient, db_session: A
 async def test_export_html_allows_tables(client: AsyncClient, db_session: AsyncSession):
     """HTML export preserves table markup."""
     report = Report(
-        task_id=1, report_type=ReportType.FULL_REPORT,
+        task_id=1,
+        report_type=ReportType.FULL_REPORT,
         title="Table Test",
         content="# Table\n\n| Col1 | Col2 |\n|------|------|\n| A | B |",
     )
@@ -1025,7 +1053,8 @@ async def test_export_html_allows_tables(client: AsyncClient, db_session: AsyncS
 async def test_export_html_escapes_title(client: AsyncClient, db_session: AsyncSession):
     """HTML export escapes special characters in report title."""
     report = Report(
-        task_id=1, report_type=ReportType.FULL_REPORT,
+        task_id=1,
+        report_type=ReportType.FULL_REPORT,
         title='Report <with> "quotes" & ampersand',
         content="Body",
     )
@@ -1044,7 +1073,8 @@ async def test_export_html_escapes_title(client: AsyncClient, db_session: AsyncS
 async def test_export_html_with_none_content(client: AsyncClient, db_session: AsyncSession):
     """HTML export handles None content gracefully."""
     report = Report(
-        task_id=1, report_type=ReportType.FULL_REPORT,
+        task_id=1,
+        report_type=ReportType.FULL_REPORT,
         title="Empty Report",
         content=None,
     )
@@ -1066,8 +1096,10 @@ async def test_export_html_with_none_content(client: AsyncClient, db_session: As
 async def test_export_pdf_import_error(client: AsyncClient, db_session: AsyncSession):
     """PDF export returns 500 when xhtml2pdf is not installed."""
     report = Report(
-        task_id=1, report_type=ReportType.FULL_REPORT,
-        title="PDF Import Error", content="Content",
+        task_id=1,
+        report_type=ReportType.FULL_REPORT,
+        title="PDF Import Error",
+        content="Content",
     )
     db_session.add(report)
     await db_session.commit()
@@ -1084,8 +1116,10 @@ async def test_export_pdf_import_error(client: AsyncClient, db_session: AsyncSes
 async def test_export_pdf_with_none_content(client: AsyncClient, db_session: AsyncSession):
     """PDF export handles None content gracefully."""
     report = Report(
-        task_id=1, report_type=ReportType.FULL_REPORT,
-        title="PDF None Content", content=None,
+        task_id=1,
+        report_type=ReportType.FULL_REPORT,
+        title="PDF None Content",
+        content=None,
     )
     db_session.add(report)
     await db_session.commit()
@@ -1166,8 +1200,10 @@ async def test_list_reports_pagination(client: AsyncClient, db_session: AsyncSes
     # Create multiple reports
     for i in range(5):
         report = Report(
-            task_id=1, report_type=ReportType.FULL_REPORT,
-            title=f"Report {i}", content=f"Content {i}",
+            task_id=1,
+            report_type=ReportType.FULL_REPORT,
+            title=f"Report {i}",
+            content=f"Content {i}",
         )
         db_session.add(report)
     await db_session.commit()
@@ -1200,8 +1236,10 @@ async def test_list_reports_filter_by_task_id(client: AsyncClient, db_session: A
     # Create reports for different tasks
     for task_id in [10, 10, 20]:
         report = Report(
-            task_id=task_id, report_type=ReportType.FULL_REPORT,
-            title=f"Report for task {task_id}", content="Content",
+            task_id=task_id,
+            report_type=ReportType.FULL_REPORT,
+            title=f"Report for task {task_id}",
+            content="Content",
         )
         db_session.add(report)
     await db_session.commit()

@@ -26,6 +26,7 @@ pytestmark = pytest.mark.benchmark
 def _make_task(config=None):
     """Create a mock AuditTask."""
     from unittest.mock import MagicMock
+
     task = MagicMock()
     task.config = config
     task.id = 1
@@ -35,6 +36,7 @@ def _make_task(config=None):
 
 class BenchmarkResult:
     """Simple benchmark result container."""
+
     def __init__(self, name: str, iterations: int, total_time: float):
         self.name = name
         self.iterations = iterations
@@ -81,8 +83,7 @@ class TestBackendBenchmarks:
     def test_validate_findings_performance(self):
         """validate_findings() with 100 findings should be fast (< 1ms)."""
         findings = [
-            {"title": f"Finding {i}", "description": f"Description {i}", "severity": "medium"}
-            for i in range(100)
+            {"title": f"Finding {i}", "description": f"Description {i}", "severity": "medium"} for i in range(100)
         ]
         result = _benchmark(lambda: validate_findings(findings), iterations=1000, name="validate_findings_100")
         assert result.avg_ms < 1.0, f"validate_findings(100) too slow: {result.avg_ms:.4f}ms avg"
@@ -90,8 +91,7 @@ class TestBackendBenchmarks:
     def test_validate_findings_large_performance(self):
         """validate_findings() with 1000 findings should be fast (< 10ms)."""
         findings = [
-            {"title": f"Finding {i}", "description": f"Description {i}", "severity": "high"}
-            for i in range(1000)
+            {"title": f"Finding {i}", "description": f"Description {i}", "severity": "high"} for i in range(1000)
         ]
         result = _benchmark(lambda: validate_findings(findings), iterations=100, name="validate_findings_1000")
         assert result.avg_ms < 10.0, f"validate_findings(1000) too slow: {result.avg_ms:.4f}ms avg"
@@ -99,8 +99,7 @@ class TestBackendBenchmarks:
     def test_build_aggregate_report_performance(self):
         """build_aggregate_report() with 10 docs should be fast (< 5ms)."""
         docs = [
-            {"filename": f"doc_{i}.pdf", "status": "ok", "findings_count": i, "risk_level": "medium"}
-            for i in range(10)
+            {"filename": f"doc_{i}.pdf", "status": "ok", "findings_count": i, "risk_level": "medium"} for i in range(10)
         ]
         findings = [
             {"severity": "high", "title": f"Finding {i}", "description": f"Desc {i}", "document_id": i}
@@ -109,18 +108,14 @@ class TestBackendBenchmarks:
         result = _benchmark(
             lambda: build_aggregate_report("Benchmark", docs, findings),
             iterations=1000,
-            name="build_aggregate_report_10docs"
+            name="build_aggregate_report_10docs",
         )
         assert result.avg_ms < 5.0, f"build_aggregate_report too slow: {result.avg_ms:.4f}ms avg"
 
     def test_get_file_type_performance(self):
         """get_file_type() should be fast (< 0.2ms per batch of 5)."""
         filenames = ["test.pdf", "doc.docx", "image.jpg", "text.txt", "unknown.xyz"]
-        result = _benchmark(
-            lambda: [get_file_type(f) for f in filenames],
-            iterations=10000,
-            name="get_file_type_batch"
-        )
+        result = _benchmark(lambda: [get_file_type(f) for f in filenames], iterations=10000, name="get_file_type_batch")
         assert result.avg_ms < 0.2, f"get_file_type batch too slow: {result.avg_ms:.4f}ms avg"
 
 

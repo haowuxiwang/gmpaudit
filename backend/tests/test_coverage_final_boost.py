@@ -11,10 +11,8 @@ Covers uncovered code paths in:
 """
 
 import asyncio
-import json
 import os
 import tempfile
-from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -28,16 +26,17 @@ from app.models.document import Document, DocumentStatus
 from app.models.finding import Finding, FindingType, SeverityLevel
 from app.models.report import Report, ReportType
 
-
 # =============================================================================
 # audit.py — SSE stream_task_events with live events via DONE_SENTINEL (lines 436-448)
 # =============================================================================
+
 
 @pytest.mark.asyncio
 async def test_stream_task_with_live_done_sentinel(client: AsyncClient, db_session: AsyncSession):
     """Streaming a task should process DONE_SENTINEL and close."""
     task = AuditTask(
-        task_name="Live Done", task_type=TaskType.DEVIATION_ANALYSIS,
+        task_name="Live Done",
+        task_type=TaskType.DEVIATION_ANALYSIS,
         status=TaskStatus.PENDING,
     )
     db_session.add(task)
@@ -46,6 +45,7 @@ async def test_stream_task_with_live_done_sentinel(client: AsyncClient, db_sessi
 
     from app.main import app
     from app.services.event_bus import EventBus
+
     bus = EventBus()
     app.state.event_bus = bus
 
@@ -68,11 +68,13 @@ async def test_stream_task_with_live_done_sentinel(client: AsyncClient, db_sessi
 # audit.py — approve_task with EventBus publish (lines 230-246)
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_approve_task_with_event_bus_publish(client: AsyncClient, db_session: AsyncSession):
     """Approve task covers the EventBus notification path."""
     task = AuditTask(
-        task_name="Bus Approve", task_type=TaskType.DEVIATION_ANALYSIS,
+        task_name="Bus Approve",
+        task_type=TaskType.DEVIATION_ANALYSIS,
         status=TaskStatus.AWAITING_REVIEW,
     )
     db_session.add(task)
@@ -80,6 +82,7 @@ async def test_approve_task_with_event_bus_publish(client: AsyncClient, db_sessi
     await db_session.refresh(task)
 
     from app.main import app
+
     mock_bus = MagicMock()
     mock_bus.publish = AsyncMock()
     mock_bus.publish_done = AsyncMock()
@@ -104,7 +107,8 @@ async def test_approve_task_with_event_bus_publish(client: AsyncClient, db_sessi
 async def test_approve_task_event_bus_error_swallowed(client: AsyncClient, db_session: AsyncSession):
     """When EventBus raises, the error should be swallowed (non-critical)."""
     task = AuditTask(
-        task_name="Bus Error", task_type=TaskType.DEVIATION_ANALYSIS,
+        task_name="Bus Error",
+        task_type=TaskType.DEVIATION_ANALYSIS,
         status=TaskStatus.AWAITING_REVIEW,
     )
     db_session.add(task)
@@ -112,6 +116,7 @@ async def test_approve_task_event_bus_error_swallowed(client: AsyncClient, db_se
     await db_session.refresh(task)
 
     from app.main import app
+
     mock_bus = MagicMock()
     mock_bus.publish = AsyncMock(side_effect=RuntimeError("bus error"))
     mock_bus.publish_done = AsyncMock()
@@ -135,24 +140,32 @@ async def test_approve_task_event_bus_error_swallowed(client: AsyncClient, db_se
 # audit.py — approve_task with feishu notification error (lines 267-268)
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_approve_task_feishu_notification_error(client: AsyncClient, db_session: AsyncSession):
     """When Feishu notification raises, error should be swallowed."""
     task = AuditTask(
-        task_name="Feishu Err", task_type=TaskType.DEVIATION_ANALYSIS,
+        task_name="Feishu Err",
+        task_type=TaskType.DEVIATION_ANALYSIS,
         status=TaskStatus.AWAITING_REVIEW,
     )
     db_session.add(task)
     await db_session.commit()
     await db_session.refresh(task)
 
-    db_session.add(Finding(
-        task_id=task.id, finding_type=FindingType.COMPLIANCE_RISK,
-        severity=SeverityLevel.HIGH, title="F", description="D",
-    ))
+    db_session.add(
+        Finding(
+            task_id=task.id,
+            finding_type=FindingType.COMPLIANCE_RISK,
+            severity=SeverityLevel.HIGH,
+            title="F",
+            description="D",
+        )
+    )
     await db_session.commit()
 
     from app.main import app
+
     mock_bus = MagicMock()
     mock_bus.publish = AsyncMock()
     mock_bus.publish_done = AsyncMock()
@@ -161,8 +174,11 @@ async def test_approve_task_feishu_notification_error(client: AsyncClient, db_se
     try:
         with (
             patch("app.services.notification.is_feishu_configured", return_value=True),
-            patch("app.services.notification.notify_audit_complete",
-                  new_callable=AsyncMock, side_effect=RuntimeError("feishu down")),
+            patch(
+                "app.services.notification.notify_audit_complete",
+                new_callable=AsyncMock,
+                side_effect=RuntimeError("feishu down"),
+            ),
         ):
             resp = await client.post(
                 f"/api/audit/tasks/{task.id}/approve",
@@ -177,20 +193,26 @@ async def test_approve_task_feishu_notification_error(client: AsyncClient, db_se
 # audit.py — run_audit_task enqueue RuntimeError (lines 176-178)
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_run_task_enqueue_runtime_error(client: AsyncClient, db_session: AsyncSession):
     """When runner.enqueue raises RuntimeError, should return 503."""
     doc = Document(
-        filename="ready.pdf", file_path="/tmp/ready.pdf", file_type="pdf",
-        file_size=100, process_status=DocumentStatus.PROCESSED,
+        filename="ready.pdf",
+        file_path="/tmp/ready.pdf",
+        file_type="pdf",
+        file_size=100,
+        process_status=DocumentStatus.PROCESSED,
     )
     db_session.add(doc)
     await db_session.commit()
     await db_session.refresh(doc)
 
     task = AuditTask(
-        task_name="Enqueue Fail", task_type=TaskType.DEVIATION_ANALYSIS,
-        status=TaskStatus.PENDING, document_ids=[doc.id],
+        task_name="Enqueue Fail",
+        task_type=TaskType.DEVIATION_ANALYSIS,
+        status=TaskStatus.PENDING,
+        document_ids=[doc.id],
     )
     db_session.add(task)
     await db_session.commit()
@@ -204,6 +226,7 @@ async def test_run_task_enqueue_runtime_error(client: AsyncClient, db_session: A
     mock_factory = MagicMock(return_value=mock_runner)
 
     from app.main import app
+
     orig_factory = app.state.task_runner_factory
     app.state.task_runner_factory = mock_factory
     try:
@@ -221,12 +244,15 @@ async def test_run_task_enqueue_runtime_error(client: AsyncClient, db_session: A
 # audit.py — get_task with document_ids=None (line 124)
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_get_task_with_none_document_ids(client: AsyncClient, db_session: AsyncSession):
     """Get task where document_ids is None should return empty list."""
     task = AuditTask(
-        task_name="No Docs", task_type=TaskType.DEVIATION_ANALYSIS,
-        status=TaskStatus.PENDING, document_ids=None,
+        task_name="No Docs",
+        task_type=TaskType.DEVIATION_ANALYSIS,
+        status=TaskStatus.PENDING,
+        document_ids=None,
     )
     db_session.add(task)
     await db_session.commit()
@@ -241,25 +267,30 @@ async def test_get_task_with_none_document_ids(client: AsyncClient, db_session: 
 # documents.py — _parse_metadata helper (lines 28-37)
 # =============================================================================
 
+
 def test_parse_metadata_none():
     from app.api.documents import _parse_metadata
+
     assert _parse_metadata(None) is None
     assert _parse_metadata("") is None
 
 
 def test_parse_metadata_dict_passthrough():
     from app.api.documents import _parse_metadata
+
     d = {"key": "value"}
     assert _parse_metadata(d) == d
 
 
 def test_parse_metadata_json_string():
     from app.api.documents import _parse_metadata
+
     assert _parse_metadata('{"a": 1}') == {"a": 1}
 
 
 def test_parse_metadata_invalid_json():
     from app.api.documents import _parse_metadata
+
     assert _parse_metadata("not json {") is None
 
 
@@ -267,8 +298,10 @@ def test_parse_metadata_invalid_json():
 # documents.py — _generate_safe_filename helper (lines 40-42)
 # =============================================================================
 
+
 def test_generate_safe_filename():
     from app.api.documents import _generate_safe_filename
+
     name = _generate_safe_filename("test file (1).pdf")
     assert name.endswith(".pdf")
     assert len(name) > 4
@@ -279,6 +312,7 @@ def test_generate_safe_filename():
 
 def test_generate_safe_filename_no_ext():
     from app.api.documents import _generate_safe_filename
+
     name = _generate_safe_filename("noext")
     assert name.endswith("noext") or name.endswith("")
 
@@ -286,6 +320,7 @@ def test_generate_safe_filename_no_ext():
 # =============================================================================
 # documents.py — _get_upload_dir fallback (lines 45-57)
 # =============================================================================
+
 
 def test_get_upload_dir_fallback():
     """When preferred dir is not writable, fallback to temp dir."""
@@ -301,15 +336,15 @@ def test_get_upload_dir_fallback():
 
     with patch("app.api.documents.settings") as mock_settings:
         mock_settings.UPLOAD_DIR = "/nonexistent/readonly/path"
-        with patch("builtins.open", side_effect=mock_open):
-            with patch("os.makedirs"):
-                result = _get_upload_dir()
+        with patch("builtins.open", side_effect=mock_open), patch("os.makedirs"):
+            result = _get_upload_dir()
     assert "gmpaudit_uploads" in result
 
 
 def test_get_upload_dir_success():
     """Normal path returns preferred dir."""
     from app.api.documents import _get_upload_dir
+
     with tempfile.TemporaryDirectory() as tmpdir:
         with patch("app.api.documents.settings") as mock_settings:
             mock_settings.UPLOAD_DIR = tmpdir
@@ -321,12 +356,16 @@ def test_get_upload_dir_success():
 # documents.py — delete with path safety (lines 304-308)
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_delete_document_path_outside_upload_dir(client: AsyncClient, db_session: AsyncSession):
     """Delete should reject files whose path is outside the upload dir."""
     doc = Document(
-        filename="escape.pdf", file_path="/etc/passwd", file_type="pdf",
-        file_size=100, process_status=DocumentStatus.UPLOADED,
+        filename="escape.pdf",
+        file_path="/etc/passwd",
+        file_type="pdf",
+        file_size=100,
+        process_status=DocumentStatus.UPLOADED,
     )
     db_session.add(doc)
     await db_session.commit()
@@ -341,13 +380,17 @@ async def test_delete_document_path_outside_upload_dir(client: AsyncClient, db_s
 async def test_delete_document_no_file_on_disk(client: AsyncClient, db_session: AsyncSession):
     """Delete should succeed even if the file doesn't exist on disk."""
     from app.core.config import settings
+
     upload_dir = settings.UPLOAD_DIR
     os.makedirs(upload_dir, exist_ok=True)
     file_path = os.path.join(upload_dir, "ghost_file.pdf")
 
     doc = Document(
-        filename="ghost.pdf", file_path=file_path, file_type="pdf",
-        file_size=100, process_status=DocumentStatus.UPLOADED,
+        filename="ghost.pdf",
+        file_path=file_path,
+        file_type="pdf",
+        file_size=100,
+        process_status=DocumentStatus.UPLOADED,
     )
     db_session.add(doc)
     await db_session.commit()
@@ -363,10 +406,12 @@ async def test_delete_document_no_file_on_disk(client: AsyncClient, db_session: 
 # documents.py — batch upload size check (lines 166-172)
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_batch_upload_oversized_file(client: AsyncClient):
     """Batch upload should reject oversized files."""
     from app.api.documents import MAX_UPLOAD_SIZE
+
     big_content = b"x" * (MAX_UPLOAD_SIZE + 100)
     files = [("files", ("big.pdf", big_content, "application/pdf"))]
     resp = await client.post("/api/documents/upload/batch", files=files)
@@ -377,10 +422,12 @@ async def test_batch_upload_oversized_file(client: AsyncClient):
 # documents.py — upload with content-length exactly at limit
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_upload_content_length_at_limit(client: AsyncClient):
     """Content-Length at exactly the limit should succeed."""
     from app.api.documents import MAX_UPLOAD_SIZE
+
     headers = {"content-length": str(MAX_UPLOAD_SIZE)}
     files = {"file": ("ok.pdf", b"small", "application/pdf")}
     resp = await client.post("/api/documents/upload", files=files, headers=headers)
@@ -391,8 +438,10 @@ async def test_upload_content_length_at_limit(client: AsyncClient):
 # reports.py — _sanitize_html (line 59)
 # =============================================================================
 
+
 def test_sanitize_html_strips_script():
     from app.api.reports import _sanitize_html
+
     result = _sanitize_html('<script>alert("xss")</script><p>Safe</p>')
     assert "<script>" not in result
     assert "Safe" in result
@@ -400,6 +449,7 @@ def test_sanitize_html_strips_script():
 
 def test_sanitize_html_allows_table():
     from app.api.reports import _sanitize_html
+
     result = _sanitize_html("<table><tr><td>cell</td></tr></table>")
     assert "<table>" in result
     assert "cell" in result
@@ -407,6 +457,7 @@ def test_sanitize_html_allows_table():
 
 def test_sanitize_html_strips_iframe():
     from app.api.reports import _sanitize_html
+
     result = _sanitize_html('<iframe src="evil"></iframe>Text')
     assert "<iframe>" not in result
     assert "Text" in result
@@ -416,12 +467,15 @@ def test_sanitize_html_strips_iframe():
 # reports.py — export with None content (lines 188-190, 228-229)
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_export_html_with_none_content(client: AsyncClient, db_session: AsyncSession):
     """Export should handle None content gracefully."""
     report = Report(
-        task_id=1, report_type=ReportType.FULL_REPORT,
-        title="None Content", content=None,
+        task_id=1,
+        report_type=ReportType.FULL_REPORT,
+        title="None Content",
+        content=None,
     )
     db_session.add(report)
     await db_session.commit()
@@ -435,8 +489,10 @@ async def test_export_html_with_none_content(client: AsyncClient, db_session: As
 async def test_export_pdf_with_none_content(client: AsyncClient, db_session: AsyncSession):
     """PDF export should handle None content gracefully."""
     report = Report(
-        task_id=1, report_type=ReportType.FULL_REPORT,
-        title="None PDF", content=None,
+        task_id=1,
+        report_type=ReportType.FULL_REPORT,
+        title="None PDF",
+        content=None,
     )
     db_session.add(report)
     await db_session.commit()
@@ -446,7 +502,6 @@ async def test_export_pdf_with_none_content(client: AsyncClient, db_session: Asy
         dest.write(b"%PDF")
         return MagicMock(err=False)
 
-    import sys
     parent = MagicMock()
     parent.pisa = MagicMock()
     parent.pisa.CreatePDF = MagicMock(side_effect=fake_create_pdf)
@@ -460,8 +515,10 @@ async def test_export_pdf_with_none_content(client: AsyncClient, db_session: Asy
 async def test_export_pdf_with_empty_title(client: AsyncClient, db_session: AsyncSession):
     """PDF export should handle empty title gracefully."""
     report = Report(
-        task_id=1, report_type=ReportType.FULL_REPORT,
-        title="", content="Content",
+        task_id=1,
+        report_type=ReportType.FULL_REPORT,
+        title="",
+        content="Content",
     )
     db_session.add(report)
     await db_session.commit()
@@ -471,7 +528,6 @@ async def test_export_pdf_with_empty_title(client: AsyncClient, db_session: Asyn
         dest.write(b"%PDF")
         return MagicMock(err=False)
 
-    import sys
     parent = MagicMock()
     parent.pisa = MagicMock()
     parent.pisa.CreatePDF = MagicMock(side_effect=fake_create_pdf)
@@ -485,8 +541,10 @@ async def test_export_pdf_with_empty_title(client: AsyncClient, db_session: Asyn
 async def test_export_html_with_empty_title(client: AsyncClient, db_session: AsyncSession):
     """HTML export should handle empty title gracefully."""
     report = Report(
-        task_id=1, report_type=ReportType.FULL_REPORT,
-        title="", content="Content",
+        task_id=1,
+        report_type=ReportType.FULL_REPORT,
+        title="",
+        content="Content",
     )
     db_session.add(report)
     await db_session.commit()
@@ -501,12 +559,15 @@ async def test_export_html_with_empty_title(client: AsyncClient, db_session: Asy
 # reports.py — export_pdf with special characters in title (line 274)
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_export_pdf_special_chars_in_title(client: AsyncClient, db_session: AsyncSession):
     """PDF export should sanitize special characters in filename."""
     report = Report(
-        task_id=1, report_type=ReportType.FULL_REPORT,
-        title="Report <with> special:chars/file*", content="Content",
+        task_id=1,
+        report_type=ReportType.FULL_REPORT,
+        title="Report <with> special:chars/file*",
+        content="Content",
     )
     db_session.add(report)
     await db_session.commit()
@@ -516,7 +577,6 @@ async def test_export_pdf_special_chars_in_title(client: AsyncClient, db_session
         dest.write(b"%PDF")
         return MagicMock(err=False)
 
-    import sys
     parent = MagicMock()
     parent.pisa = MagicMock()
     parent.pisa.CreatePDF = MagicMock(side_effect=fake_create_pdf)
@@ -535,12 +595,15 @@ async def test_export_pdf_special_chars_in_title(client: AsyncClient, db_session
 # reports.py — list reports with created_at=None
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_list_reports_null_created_at(client: AsyncClient, db_session: AsyncSession):
     """List should handle reports with null created_at."""
     report = Report(
-        task_id=1, report_type=ReportType.FULL_REPORT,
-        title="Null Date", content="C",
+        task_id=1,
+        report_type=ReportType.FULL_REPORT,
+        title="Null Date",
+        content="C",
     )
     db_session.add(report)
     await db_session.flush()
@@ -556,6 +619,7 @@ async def test_list_reports_null_created_at(client: AsyncClient, db_session: Asy
 # health.py — db_health error path (lines 27-29)
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_db_health_error(client: AsyncClient):
     """DB health check should return 503 when DB query fails."""
@@ -566,8 +630,9 @@ async def test_db_health_error(client: AsyncClient):
         async def override():
             yield mock_session
 
-        from app.main import app
         from app.core.database import get_db as real_get_db
+        from app.main import app
+
         app.dependency_overrides[real_get_db] = override
         try:
             resp = await client.get("/api/health/db")
@@ -581,12 +646,16 @@ async def test_db_health_error(client: AsyncClient):
 # agent_audit.py — enqueue RuntimeError (lines 73-74)
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_agent_audit_enqueue_error(client: AsyncClient, db_session: AsyncSession):
     """When runner.enqueue raises RuntimeError, should return 503."""
     doc = Document(
-        filename="enqueue.pdf", file_path="/tmp/enqueue.pdf", file_type="pdf",
-        file_size=1024, process_status=DocumentStatus.PROCESSED,
+        filename="enqueue.pdf",
+        file_path="/tmp/enqueue.pdf",
+        file_type="pdf",
+        file_size=1024,
+        process_status=DocumentStatus.PROCESSED,
     )
     db_session.add(doc)
     await db_session.commit()
@@ -615,8 +684,10 @@ async def test_agent_audit_enqueue_error(client: AsyncClient, db_session: AsyncS
 # config.py — _atomic_write_text (lines 126-142)
 # =============================================================================
 
+
 def test_atomic_write_text_creates_file():
     from app.api.config import _atomic_write_text
+
     with tempfile.TemporaryDirectory() as tmpdir:
         path = Path(tmpdir) / "test.txt"
         _atomic_write_text(path, "hello world\n")
@@ -625,6 +696,7 @@ def test_atomic_write_text_creates_file():
 
 def test_atomic_write_text_overwrites():
     from app.api.config import _atomic_write_text
+
     with tempfile.TemporaryDirectory() as tmpdir:
         path = Path(tmpdir) / "test.txt"
         _atomic_write_text(path, "first\n")
@@ -634,19 +706,21 @@ def test_atomic_write_text_overwrites():
 
 def test_atomic_write_text_cleans_up_on_error():
     from app.api.config import _atomic_write_text
+
     with tempfile.TemporaryDirectory() as tmpdir:
         path = Path(tmpdir) / "test.txt"
-        with patch("os.rename", side_effect=OSError("rename failed")):
-            with pytest.raises(OSError):
-                _atomic_write_text(path, "data\n")
+        with patch("os.rename", side_effect=OSError("rename failed")), pytest.raises(OSError):
+            _atomic_write_text(path, "data\n")
 
 
 # =============================================================================
 # config.py — _update_env_file (lines 145-165)
 # =============================================================================
 
+
 def test_update_env_file_updates_existing_key():
     from app.api.config import _update_env_file
+
     with tempfile.TemporaryDirectory() as tmpdir:
         env_path = Path(tmpdir) / ".env"
         env_path.write_text("LOG_LEVEL=INFO\nMAX_CONCURRENT_TASKS=3\n", encoding="utf-8")
@@ -659,6 +733,7 @@ def test_update_env_file_updates_existing_key():
 
 def test_update_env_file_appends_new_key():
     from app.api.config import _update_env_file
+
     with tempfile.TemporaryDirectory() as tmpdir:
         env_path = Path(tmpdir) / ".env"
         env_path.write_text("LOG_LEVEL=INFO\n", encoding="utf-8")
@@ -671,6 +746,7 @@ def test_update_env_file_appends_new_key():
 def test_update_env_file_no_file():
     """When .env doesn't exist, _update_env_file should be a no-op."""
     from app.api.config import _update_env_file
+
     with patch("app.core.paths.ENV_FILE", Path("/nonexistent/path/.env")):
         _update_env_file("KEY", "VALUE")  # Should not raise
 
@@ -678,6 +754,7 @@ def test_update_env_file_no_file():
 def test_update_env_file_read_error():
     """When .env can't be read, should log and not crash."""
     from app.api.config import _update_env_file
+
     with patch("app.core.paths.ENV_FILE") as mock_path:
         mock_path.exists.return_value = True
         mock_path.read_text.side_effect = OSError("permission denied")
@@ -688,8 +765,10 @@ def test_update_env_file_read_error():
 # config.py — _batch_update_env_file (lines 168-190)
 # =============================================================================
 
+
 def test_batch_update_env_file():
     from app.api.config import _batch_update_env_file
+
     with tempfile.TemporaryDirectory() as tmpdir:
         env_path = Path(tmpdir) / ".env"
         env_path.write_text("LOG_LEVEL=INFO\nTEMPERATURE=0.7\n", encoding="utf-8")
@@ -702,6 +781,7 @@ def test_batch_update_env_file():
 
 def test_batch_update_env_file_new_keys():
     from app.api.config import _batch_update_env_file
+
     with tempfile.TemporaryDirectory() as tmpdir:
         env_path = Path(tmpdir) / ".env"
         env_path.write_text("LOG_LEVEL=INFO\n", encoding="utf-8")
@@ -714,6 +794,7 @@ def test_batch_update_env_file_new_keys():
 def test_batch_update_env_file_no_file():
     """When .env doesn't exist, should be a no-op."""
     from app.api.config import _batch_update_env_file
+
     with patch("app.core.paths.ENV_FILE", Path("/nonexistent/.env")):
         _batch_update_env_file({"KEY": "VALUE"})
 
@@ -721,6 +802,7 @@ def test_batch_update_env_file_no_file():
 def test_batch_update_env_file_with_comments():
     """Should preserve comments and update values."""
     from app.api.config import _batch_update_env_file
+
     with tempfile.TemporaryDirectory() as tmpdir:
         env_path = Path(tmpdir) / ".env"
         env_path.write_text("# Comment\nLOG_LEVEL=INFO\n", encoding="utf-8")
@@ -735,19 +817,19 @@ def test_batch_update_env_file_with_comments():
 # config.py — batch_update_config with float cast (lines 390-395)
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_batch_update_float_cast(client: AsyncClient):
     """Batch update should correctly cast float values."""
     import os
+
     from app.core.config import settings
 
     orig_temp = os.environ.get("TEMPERATURE", "")
     orig_s_temp = getattr(settings, "TEMPERATURE", "")
     try:
         with patch("app.api.config._reload_llm_provider", new_callable=AsyncMock):
-            resp = await client.post("/api/config/batch", json={
-                "configs": {"temperature": "0.5"}
-            })
+            resp = await client.post("/api/config/batch", json={"configs": {"temperature": "0.5"}})
         assert resp.status_code == 200
     finally:
         if orig_temp:
@@ -761,9 +843,7 @@ async def test_batch_update_float_cast(client: AsyncClient):
 async def test_batch_update_invalid_float(client: AsyncClient):
     """Batch update should skip invalid float values."""
     with patch("app.api.config._reload_llm_provider", new_callable=AsyncMock):
-        resp = await client.post("/api/config/batch", json={
-            "configs": {"temperature": "not_a_float"}
-        })
+        resp = await client.post("/api/config/batch", json={"configs": {"temperature": "not_a_float"}})
     assert resp.status_code == 200  # Skipped, not errored
 
 
@@ -771,9 +851,7 @@ async def test_batch_update_invalid_float(client: AsyncClient):
 async def test_batch_update_invalid_int(client: AsyncClient):
     """Batch update should skip invalid int values."""
     with patch("app.api.config._reload_llm_provider", new_callable=AsyncMock):
-        resp = await client.post("/api/config/batch", json={
-            "configs": {"max_concurrent_tasks": "not_int"}
-        })
+        resp = await client.post("/api/config/batch", json={"configs": {"max_concurrent_tasks": "not_int"}})
     assert resp.status_code == 200  # Skipped, not errored
 
 
@@ -781,15 +859,14 @@ async def test_batch_update_invalid_int(client: AsyncClient):
 async def test_batch_update_same_value_skipped(client: AsyncClient):
     """Batch update should skip values that haven't changed."""
     import os
+
     from app.core.config import settings
 
     os.environ["TEMPERATURE"] = "0.7"
     settings.TEMPERATURE = 0.7
     try:
         with patch("app.api.config._reload_llm_provider", new_callable=AsyncMock):
-            resp = await client.post("/api/config/batch", json={
-                "configs": {"temperature": "0.7"}
-            })
+            resp = await client.post("/api/config/batch", json={"configs": {"temperature": "0.7"}})
         assert resp.status_code == 200
     finally:
         os.environ.pop("TEMPERATURE", None)
@@ -800,17 +877,15 @@ async def test_batch_update_same_value_skipped(client: AsyncClient):
 # config.py — batch_update_config with API key triggers reload (lines 399-408)
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_batch_update_api_key_triggers_reload(client: AsyncClient):
     """Batch updating an API key should trigger provider reload."""
     import os
-    from app.core.config import settings
 
     orig_key = os.environ.get("DEEPSEEK_API_KEY", "")
     try:
-        resp = await client.post("/api/config/batch", json={
-            "configs": {"deepseek_api_key": "sk-batch-test-12345678"}
-        })
+        resp = await client.post("/api/config/batch", json={"configs": {"deepseek_api_key": "sk-batch-test-12345678"}})
         assert resp.status_code == 200
     finally:
         if orig_key:
@@ -823,14 +898,11 @@ async def test_batch_update_api_key_triggers_reload(client: AsyncClient):
 async def test_batch_update_clears_agent_cache_on_auto_set(client: AsyncClient):
     """Batch update should clear agent cache when auto-setting provider."""
     import os
-    from app.core.config import settings
 
     orig_key = os.environ.get("QWEN_API_KEY", "")
     try:
         with patch("agent.config.clear_llm_cache") as mock_clear:
-            resp = await client.post("/api/config/batch", json={
-                "configs": {"qwen_api_key": "sk-qwen-batch-12345678"}
-            })
+            resp = await client.post("/api/config/batch", json={"configs": {"qwen_api_key": "sk-qwen-batch-12345678"}})
         assert resp.status_code == 200
     finally:
         if orig_key:
@@ -843,11 +915,13 @@ async def test_batch_update_clears_agent_cache_on_auto_set(client: AsyncClient):
 # config.py — _apply_setting with float type (line 98-101)
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_apply_setting_float_cast():
+    import os
+
     from app.api.config import _apply_setting
     from app.core.config import settings
-    import os
 
     orig_val = os.environ.get("TEMPERATURE", "")
     orig_setting = getattr(settings, "TEMPERATURE", "")
@@ -866,8 +940,9 @@ async def test_apply_setting_float_cast():
 
 @pytest.mark.asyncio
 async def test_apply_setting_float_invalid():
-    from app.api.config import _apply_setting
     from fastapi import HTTPException
+
+    from app.api.config import _apply_setting
 
     with pytest.raises(HTTPException) as exc_info:
         await _apply_setting("temperature", "not_float")
@@ -879,11 +954,13 @@ async def test_apply_setting_float_invalid():
 # config.py — _apply_setting agent_task_timeout (integer, line 68)
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_apply_setting_agent_task_timeout():
+    import os
+
     from app.api.config import _apply_setting
     from app.core.config import settings
-    import os
 
     orig_val = os.environ.get("AGENT_TASK_TIMEOUT", "")
     orig_setting = getattr(settings, "AGENT_TASK_TIMEOUT", "")
@@ -903,10 +980,12 @@ async def test_apply_setting_agent_task_timeout():
 # config.py — _apply_setting model triggers reload (line 112-113)
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_apply_setting_model_triggers_reload():
-    from app.api.config import _apply_setting
     import os
+
+    from app.api.config import _apply_setting
 
     orig_val = os.environ.get("DEEPSEEK_MODEL", "")
     try:
@@ -924,10 +1003,12 @@ async def test_apply_setting_model_triggers_reload():
 # config.py — _apply_setting base_url triggers reload (line 112-113)
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_apply_setting_base_url_triggers_reload():
-    from app.api.config import _apply_setting
     import os
+
+    from app.api.config import _apply_setting
 
     orig_val = os.environ.get("DEEPSEEK_BASE_URL", "")
     try:
@@ -944,6 +1025,7 @@ async def test_apply_setting_base_url_triggers_reload():
 # =============================================================================
 # config.py — update_config with description (line 303-304)
 # =============================================================================
+
 
 @pytest.mark.asyncio
 async def test_update_config_with_description(client: AsyncClient):
@@ -963,10 +1045,14 @@ async def test_update_config_with_description(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_update_config_existing_with_new_description(client: AsyncClient, db_session: AsyncSession):
     """Updating existing config with new description should update it."""
-    db_session.add(Configuration(
-        config_key="log_level", config_value="INFO",
-        config_type="string", description="Old desc",
-    ))
+    db_session.add(
+        Configuration(
+            config_key="log_level",
+            config_value="INFO",
+            config_type="string",
+            description="Old desc",
+        )
+    )
     await db_session.commit()
 
     with patch("app.api.config._apply_setting", new_callable=AsyncMock):
@@ -984,10 +1070,11 @@ async def test_update_config_existing_with_new_description(client: AsyncClient, 
 # config.py — _reload_llm_provider with clear_llm_cache (lines 216-221)
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_reload_llm_provider_clears_agent_cache():
+
     from app.api.config import _reload_llm_provider
-    import asyncio
 
     mock_engine = AsyncMock()
     mock_engine.reload_provider = AsyncMock()
@@ -1005,6 +1092,7 @@ async def test_reload_llm_provider_clears_agent_cache():
 async def test_reload_llm_provider_import_error():
     """When agent.config is not importable, should not crash."""
     import sys
+
     from app.api.config import _reload_llm_provider
 
     mock_engine = AsyncMock()
@@ -1030,6 +1118,7 @@ async def test_reload_llm_provider_import_error():
 # config.py — test-llm with latency_ms (lines 485-493)
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_test_llm_returns_latency(client: AsyncClient):
     """Test LLM endpoint should return latency_ms on success."""
@@ -1040,10 +1129,13 @@ async def test_test_llm_returns_latency(client: AsyncClient):
     mock_adapter.close = AsyncMock()
 
     with patch("app.services.llm_engine.OpenAICompatibleAdapter", return_value=mock_adapter):
-        resp = await client.post("/api/config/test-llm", json={
-            "provider": "deepseek",
-            "api_key": "sk-test-key",
-        })
+        resp = await client.post(
+            "/api/config/test-llm",
+            json={
+                "provider": "deepseek",
+                "api_key": "sk-test-key",
+            },
+        )
     assert resp.status_code == 200
     data = resp.json()
     assert data["success"] is True
@@ -1059,10 +1151,13 @@ async def test_test_llm_siliconflow(client: AsyncClient):
     mock_adapter.close = AsyncMock()
 
     with patch("app.services.llm_engine.OpenAICompatibleAdapter", return_value=mock_adapter):
-        resp = await client.post("/api/config/test-llm", json={
-            "provider": "siliconflow",
-            "api_key": "sk-test",
-        })
+        resp = await client.post(
+            "/api/config/test-llm",
+            json={
+                "provider": "siliconflow",
+                "api_key": "sk-test",
+            },
+        )
     assert resp.status_code == 200
     assert resp.json()["success"] is True
 
@@ -1075,10 +1170,13 @@ async def test_test_llm_openrouter(client: AsyncClient):
     mock_adapter.close = AsyncMock()
 
     with patch("app.services.llm_engine.OpenAICompatibleAdapter", return_value=mock_adapter):
-        resp = await client.post("/api/config/test-llm", json={
-            "provider": "openrouter",
-            "api_key": "sk-test",
-        })
+        resp = await client.post(
+            "/api/config/test-llm",
+            json={
+                "provider": "openrouter",
+                "api_key": "sk-test",
+            },
+        )
     assert resp.status_code == 200
     assert resp.json()["success"] is True
 
@@ -1091,10 +1189,13 @@ async def test_test_llm_mimo(client: AsyncClient):
     mock_adapter.close = AsyncMock()
 
     with patch("app.services.llm_engine.OpenAICompatibleAdapter", return_value=mock_adapter):
-        resp = await client.post("/api/config/test-llm", json={
-            "provider": "mimo",
-            "api_key": "sk-test",
-        })
+        resp = await client.post(
+            "/api/config/test-llm",
+            json={
+                "provider": "mimo",
+                "api_key": "sk-test",
+            },
+        )
     assert resp.status_code == 200
     assert resp.json()["success"] is True
 
@@ -1107,10 +1208,13 @@ async def test_test_llm_glm(client: AsyncClient):
     mock_adapter.close = AsyncMock()
 
     with patch("app.services.llm_engine.OpenAICompatibleAdapter", return_value=mock_adapter):
-        resp = await client.post("/api/config/test-llm", json={
-            "provider": "glm",
-            "api_key": "sk-test",
-        })
+        resp = await client.post(
+            "/api/config/test-llm",
+            json={
+                "provider": "glm",
+                "api_key": "sk-test",
+            },
+        )
     assert resp.status_code == 200
     assert resp.json()["success"] is True
 
@@ -1119,8 +1223,10 @@ async def test_test_llm_glm(client: AsyncClient):
 # document_processor.py — _clean_text (lines 228-235)
 # =============================================================================
 
+
 def test_clean_text_empty():
     from app.services.document_processor import DocumentProcessor
+
     proc = DocumentProcessor()
     assert proc._clean_text("") == ""
     assert proc._clean_text(None) == ""
@@ -1128,6 +1234,7 @@ def test_clean_text_empty():
 
 def test_clean_text_normalizes_whitespace():
     from app.services.document_processor import DocumentProcessor
+
     proc = DocumentProcessor()
     result = proc._clean_text("hello   world  test")
     assert result == "hello world test"
@@ -1135,6 +1242,7 @@ def test_clean_text_normalizes_whitespace():
 
 def test_clean_text_collapses_newlines():
     from app.services.document_processor import DocumentProcessor
+
     proc = DocumentProcessor()
     result = proc._clean_text("line1\n\n\n\n\nline2")
     assert result == "line1\n\nline2"
@@ -1142,6 +1250,7 @@ def test_clean_text_collapses_newlines():
 
 def test_clean_text_strips():
     from app.services.document_processor import DocumentProcessor
+
     proc = DocumentProcessor()
     result = proc._clean_text("  hello  ")
     assert result == "hello"
@@ -1151,8 +1260,10 @@ def test_clean_text_strips():
 # document_processor.py — _split_text (lines 237-259)
 # =============================================================================
 
+
 def test_split_text_empty():
     from app.services.document_processor import DocumentProcessor
+
     proc = DocumentProcessor()
     assert proc._split_text("") == []
     assert proc._split_text(None) == []
@@ -1160,6 +1271,7 @@ def test_split_text_empty():
 
 def test_split_text_short_text():
     from app.services.document_processor import DocumentProcessor
+
     proc = DocumentProcessor()
     result = proc._split_text("short text")
     assert len(result) == 1
@@ -1168,6 +1280,7 @@ def test_split_text_short_text():
 
 def test_split_text_long_text():
     from app.services.document_processor import DocumentProcessor
+
     proc = DocumentProcessor()
     text = "A" * 5000
     result = proc._split_text(text, chunk_size=2000, overlap=200)
@@ -1176,6 +1289,7 @@ def test_split_text_long_text():
 
 def test_split_text_with_period_breakpoint():
     from app.services.document_processor import DocumentProcessor
+
     proc = DocumentProcessor()
     text = "A" * 1500 + "。" + "B" * 1500
     result = proc._split_text(text, chunk_size=2000, overlap=200)
@@ -1184,6 +1298,7 @@ def test_split_text_with_period_breakpoint():
 
 def test_split_text_with_english_period():
     from app.services.document_processor import DocumentProcessor
+
     proc = DocumentProcessor()
     text = "A" * 1500 + "." + "B" * 1500
     result = proc._split_text(text, chunk_size=2000, overlap=200)
@@ -1192,6 +1307,7 @@ def test_split_text_with_english_period():
 
 def test_split_text_no_period():
     from app.services.document_processor import DocumentProcessor
+
     proc = DocumentProcessor()
     text = "A" * 5000
     result = proc._split_text(text, chunk_size=2000, overlap=200)
@@ -1204,8 +1320,10 @@ def test_split_text_no_period():
 # document_processor.py — _process_image with no result (lines 215-226)
 # =============================================================================
 
+
 def test_process_image_no_result():
     from app.services.document_processor import DocumentProcessor
+
     proc = DocumentProcessor()
     mock_ocr = MagicMock(return_value=(None, 0.5))
     proc.ocr = mock_ocr
@@ -1214,6 +1332,7 @@ def test_process_image_no_result():
 
 def test_process_image_empty_result():
     from app.services.document_processor import DocumentProcessor
+
     proc = DocumentProcessor()
     mock_ocr = MagicMock(return_value=([], 0.5))
     proc.ocr = mock_ocr
@@ -1222,11 +1341,17 @@ def test_process_image_empty_result():
 
 def test_process_image_with_results():
     from app.services.document_processor import DocumentProcessor
+
     proc = DocumentProcessor()
-    mock_ocr = MagicMock(return_value=([
-        ([[0, 0], [100, 0], [100, 30], [0, 30]], "Hello", 0.95),
-        ([[0, 30], [100, 30], [100, 60], [0, 60]], "World", 0.90),
-    ], 0.5))
+    mock_ocr = MagicMock(
+        return_value=(
+            [
+                ([[0, 0], [100, 0], [100, 30], [0, 30]], "Hello", 0.95),
+                ([[0, 30], [100, 30], [100, 60], [0, 60]], "World", 0.90),
+            ],
+            0.5,
+        )
+    )
     proc.ocr = mock_ocr
     result = proc._process_image("fake.png")
     assert "Hello" in result
@@ -1235,11 +1360,17 @@ def test_process_image_with_results():
 
 def test_process_image_with_none_text_in_result():
     from app.services.document_processor import DocumentProcessor
+
     proc = DocumentProcessor()
-    mock_ocr = MagicMock(return_value=([
-        ([[0, 0], [100, 0], [100, 30], [0, 30]], None, 0.95),
-        ([[0, 30], [100, 30], [100, 60], [0, 60]], "Text", 0.90),
-    ], 0.5))
+    mock_ocr = MagicMock(
+        return_value=(
+            [
+                ([[0, 0], [100, 0], [100, 30], [0, 30]], None, 0.95),
+                ([[0, 30], [100, 30], [100, 60], [0, 60]], "Text", 0.90),
+            ],
+            0.5,
+        )
+    )
     proc.ocr = mock_ocr
     result = proc._process_image("fake.png")
     assert "Text" in result
@@ -1249,8 +1380,10 @@ def test_process_image_with_none_text_in_result():
 # document_processor.py — _get_ocr (lines 18-22)
 # =============================================================================
 
+
 def test_get_ocr_lazy_init():
     from app.services.document_processor import DocumentProcessor
+
     proc = DocumentProcessor()
     assert proc.ocr is None
     mock_rapidocr = MagicMock()
@@ -1265,6 +1398,7 @@ def test_get_ocr_lazy_init():
 def test_get_ocr_cached():
     """Second call should return cached instance."""
     from app.services.document_processor import DocumentProcessor
+
     proc = DocumentProcessor()
     mock_ocr = MagicMock()
     proc.ocr = mock_ocr
@@ -1275,9 +1409,11 @@ def test_get_ocr_cached():
 # document_processor.py — process_document with unsupported type (line 39)
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_process_document_unsupported_type():
     from app.services.document_processor import DocumentProcessor
+
     proc = DocumentProcessor()
     with pytest.raises(ValueError, match="不支持"):
         await proc.process_document("test.xyz", "unsupported_type")
@@ -1287,8 +1423,10 @@ async def test_process_document_unsupported_type():
 # document_processor.py — _process_text with encoding fallback (lines 201-209)
 # =============================================================================
 
+
 def test_process_text_utf8():
     from app.services.document_processor import DocumentProcessor
+
     proc = DocumentProcessor()
     with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", suffix=".txt", delete=False) as f:
         f.write("Hello UTF-8")
@@ -1302,6 +1440,7 @@ def test_process_text_utf8():
 
 def test_process_text_fallback_encoding():
     from app.services.document_processor import DocumentProcessor
+
     proc = DocumentProcessor()
     # Write a file in GBK encoding
     with tempfile.NamedTemporaryFile(mode="wb", suffix=".txt", delete=False) as f:
@@ -1318,8 +1457,10 @@ def test_process_text_fallback_encoding():
 # document_processor.py — get_document_processor singleton (lines 262-269)
 # =============================================================================
 
+
 def test_get_document_processor_singleton():
     import app.services.document_processor as dp
+
     orig = dp.document_processor
     dp.document_processor = None
     try:
@@ -1335,8 +1476,10 @@ def test_get_document_processor_singleton():
 # document_processor.py — _process_word_legacy_sync antiword not found (lines 89-104)
 # =============================================================================
 
+
 def test_process_word_legacy_antiword_not_found():
     from app.services.document_processor import DocumentProcessor
+
     proc = DocumentProcessor()
     with patch("subprocess.run", side_effect=FileNotFoundError("antiword not found")):
         with patch.object(proc, "_extract_doc_text_olefile", return_value="olefile text"):
@@ -1346,6 +1489,7 @@ def test_process_word_legacy_antiword_not_found():
 
 def test_process_word_legacy_antiword_error():
     from app.services.document_processor import DocumentProcessor
+
     proc = DocumentProcessor()
     with patch("subprocess.run", side_effect=Exception("some error")):
         with patch.object(proc, "_extract_doc_text_olefile", return_value="fallback text"):
@@ -1355,6 +1499,7 @@ def test_process_word_legacy_antiword_error():
 
 def test_process_word_legacy_antiword_empty_output():
     from app.services.document_processor import DocumentProcessor
+
     proc = DocumentProcessor()
     mock_result = MagicMock()
     mock_result.returncode = 0
@@ -1367,6 +1512,7 @@ def test_process_word_legacy_antiword_empty_output():
 
 def test_process_word_legacy_antiword_success():
     from app.services.document_processor import DocumentProcessor
+
     proc = DocumentProcessor()
     mock_result = MagicMock()
     mock_result.returncode = 0
@@ -1384,6 +1530,7 @@ def test_process_word_legacy_antiword_success():
 # config.py — get_llm_engine for test-llm
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_test_llm_adapter_close_on_success(client: AsyncClient):
     """Adapter should be closed after test, even on success."""
@@ -1392,10 +1539,13 @@ async def test_test_llm_adapter_close_on_success(client: AsyncClient):
     mock_adapter.close = AsyncMock()
 
     with patch("app.services.llm_engine.OpenAICompatibleAdapter", return_value=mock_adapter):
-        resp = await client.post("/api/config/test-llm", json={
-            "provider": "deepseek",
-            "api_key": "sk-test",
-        })
+        resp = await client.post(
+            "/api/config/test-llm",
+            json={
+                "provider": "deepseek",
+                "api_key": "sk-test",
+            },
+        )
     assert resp.status_code == 200
     mock_adapter.close.assert_called_once()
 
@@ -1408,10 +1558,13 @@ async def test_test_llm_adapter_close_on_failure(client: AsyncClient):
     mock_adapter.close = AsyncMock()
 
     with patch("app.services.llm_engine.OpenAICompatibleAdapter", return_value=mock_adapter):
-        resp = await client.post("/api/config/test-llm", json={
-            "provider": "deepseek",
-            "api_key": "sk-test",
-        })
+        resp = await client.post(
+            "/api/config/test-llm",
+            json={
+                "provider": "deepseek",
+                "api_key": "sk-test",
+            },
+        )
     assert resp.status_code == 200
     assert resp.json()["success"] is False
     mock_adapter.close.assert_called_once()
@@ -1421,12 +1574,16 @@ async def test_test_llm_adapter_close_on_failure(client: AsyncClient):
 # documents.py — get_document with null upload_time
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_get_document_null_upload_time(client: AsyncClient, db_session: AsyncSession):
     """Get document should handle null upload_time."""
     doc = Document(
-        filename="null_time.pdf", file_path="/tmp/null.pdf", file_type="pdf",
-        file_size=100, process_status=DocumentStatus.UPLOADED,
+        filename="null_time.pdf",
+        file_path="/tmp/null.pdf",
+        file_type="pdf",
+        file_size=100,
+        process_status=DocumentStatus.UPLOADED,
     )
     db_session.add(doc)
     await db_session.flush()
@@ -1441,12 +1598,16 @@ async def test_get_document_null_upload_time(client: AsyncClient, db_session: As
 # documents.py — list documents with null upload_time
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_list_documents_null_upload_time(client: AsyncClient, db_session: AsyncSession):
     """List documents should handle null upload_time."""
     doc = Document(
-        filename="null_list.pdf", file_path="/tmp/null_list.pdf", file_type="pdf",
-        file_size=100, process_status=DocumentStatus.UPLOADED,
+        filename="null_list.pdf",
+        file_path="/tmp/null_list.pdf",
+        file_type="pdf",
+        file_size=100,
+        process_status=DocumentStatus.UPLOADED,
     )
     db_session.add(doc)
     await db_session.flush()
@@ -1461,18 +1622,20 @@ async def test_list_documents_null_upload_time(client: AsyncClient, db_session: 
 # document_processor.py — _extract_doc_text_olefile error paths (lines 106-195)
 # =============================================================================
 
+
 def test_extract_doc_text_olefile_not_installed():
     """When olefile is not installed, should raise RuntimeError."""
     from app.services.document_processor import DocumentProcessor
+
     proc = DocumentProcessor()
-    with patch.dict("sys.modules", {"olefile": None}):
-        with pytest.raises(RuntimeError, match="olefile not installed"):
-            proc._extract_doc_text_olefile("test.doc")
+    with patch.dict("sys.modules", {"olefile": None}), pytest.raises(RuntimeError, match="olefile not installed"):
+        proc._extract_doc_text_olefile("test.doc")
 
 
 def test_extract_doc_text_olefile_not_ole2():
     """When file is not an OLE2 file, should raise RuntimeError."""
     from app.services.document_processor import DocumentProcessor
+
     proc = DocumentProcessor()
     mock_olefile = MagicMock()
     mock_olefile.OleFileIO.side_effect = Exception("not an ole2 file")
@@ -1484,17 +1647,18 @@ def test_extract_doc_text_olefile_not_ole2():
 def test_extract_doc_text_olefile_generic_open_error():
     """When OLE open fails with generic error, should raise RuntimeError."""
     from app.services.document_processor import DocumentProcessor
+
     proc = DocumentProcessor()
     mock_olefile = MagicMock()
     mock_olefile.OleFileIO.side_effect = Exception("permission denied")
-    with patch.dict("sys.modules", {"olefile": mock_olefile}):
-        with pytest.raises(RuntimeError, match="Failed to open"):
-            proc._extract_doc_text_olefile("test.doc")
+    with patch.dict("sys.modules", {"olefile": mock_olefile}), pytest.raises(RuntimeError, match="Failed to open"):
+        proc._extract_doc_text_olefile("test.doc")
 
 
 def test_extract_doc_text_olefile_encrypted():
     """When document is encrypted, should raise RuntimeError."""
     from app.services.document_processor import DocumentProcessor
+
     proc = DocumentProcessor()
     mock_ole = MagicMock()
     mock_ole.exists.side_effect = lambda name: name == "EncryptionInfo"
@@ -1508,6 +1672,7 @@ def test_extract_doc_text_olefile_encrypted():
 def test_extract_doc_text_olefile_no_word_document():
     """When no WordDocument stream, should raise RuntimeError."""
     from app.services.document_processor import DocumentProcessor
+
     proc = DocumentProcessor()
     mock_ole = MagicMock()
     mock_ole.exists.return_value = False
@@ -1522,9 +1687,11 @@ def test_extract_doc_text_olefile_no_word_document():
 # document_processor.py — _process_word_legacy antiword non-zero return
 # =============================================================================
 
+
 def test_process_word_legacy_antiword_nonzero_return():
     """When antiword returns non-zero, should fallback to olefile."""
     from app.services.document_processor import DocumentProcessor
+
     proc = DocumentProcessor()
     mock_result = MagicMock()
     mock_result.returncode = 1
@@ -1539,10 +1706,12 @@ def test_process_word_legacy_antiword_nonzero_return():
 # document_processor.py — _process_word (async wrapper, line 85-87)
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_process_word_async():
     """Test the async wrapper for word processing."""
     from app.services.document_processor import DocumentProcessor
+
     proc = DocumentProcessor()
     with patch.object(proc, "_process_word_sync", return_value="word content"):
         result = await proc._process_word("test.docx")
@@ -1553,10 +1722,12 @@ async def test_process_word_async():
 # document_processor.py — _process_word_legacy (async wrapper, line 197-199)
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_process_word_legacy_async():
     """Test the async wrapper for legacy word processing."""
     from app.services.document_processor import DocumentProcessor
+
     proc = DocumentProcessor()
     with patch.object(proc, "_process_word_legacy_sync", return_value="legacy content"):
         result = await proc._process_word_legacy("test.doc")
@@ -1567,10 +1738,12 @@ async def test_process_word_legacy_async():
 # document_processor.py — _process_text (async wrapper, line 211-213)
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_process_text_async():
     """Test the async wrapper for text processing."""
     from app.services.document_processor import DocumentProcessor
+
     proc = DocumentProcessor()
     with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", suffix=".txt", delete=False) as f:
         f.write("async text")
@@ -1586,10 +1759,12 @@ async def test_process_text_async():
 # document_processor.py — _process_pdf (async wrapper, line 76-78)
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_process_pdf_async():
     """Test the async wrapper for PDF processing."""
     from app.services.document_processor import DocumentProcessor
+
     proc = DocumentProcessor()
     with patch.object(proc, "_process_pdf_sync", return_value="pdf content"):
         result = await proc._process_pdf("test.pdf")
@@ -1600,9 +1775,11 @@ async def test_process_pdf_async():
 # document_processor.py — _process_text_sync with replacement encoding
 # =============================================================================
 
+
 def test_process_text_sync_replacement_encoding():
     """When all encodings fail, should use utf-8 with replace."""
     from app.services.document_processor import DocumentProcessor
+
     proc = DocumentProcessor()
     # Create a file with bytes that are invalid in all common encodings
     with tempfile.NamedTemporaryFile(mode="wb", suffix=".txt", delete=False) as f:
@@ -1619,9 +1796,11 @@ def test_process_text_sync_replacement_encoding():
 # document_processor.py — _process_text_sync with gb18030 encoding
 # =============================================================================
 
+
 def test_process_text_sync_gb18030():
     """Test gb18030 encoding fallback."""
     from app.services.document_processor import DocumentProcessor
+
     proc = DocumentProcessor()
     with tempfile.NamedTemporaryFile(mode="wb", suffix=".txt", delete=False) as f:
         f.write("GB18030编码".encode("gb18030"))
@@ -1637,10 +1816,12 @@ def test_process_text_sync_gb18030():
 # documents.py — _process_document_bg (lines 63-98)
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_process_document_bg_not_found(db_session: AsyncSession):
     """Background processing should handle missing document gracefully."""
     from app.api.documents import _process_document_bg
+
     # Should not raise even if document doesn't exist
     await _process_document_bg(99999)
 
@@ -1653,8 +1834,11 @@ async def test_process_document_bg_success():
 
     async with test_session() as db:
         doc = Document(
-            filename="bg.pdf", file_path="/tmp/bg.pdf", file_type="pdf",
-            file_size=100, process_status=DocumentStatus.UPLOADED,
+            filename="bg.pdf",
+            file_path="/tmp/bg.pdf",
+            file_type="pdf",
+            file_size=100,
+            process_status=DocumentStatus.UPLOADED,
         )
         db.add(doc)
         await db.commit()
@@ -1662,9 +1846,14 @@ async def test_process_document_bg_success():
         doc_id = doc.id
 
     mock_proc = MagicMock()
-    mock_proc.process_document = AsyncMock(return_value={
-        "content": "BG processed", "chunks": ["c1"], "chunk_count": 1, "char_count": 12,
-    })
+    mock_proc.process_document = AsyncMock(
+        return_value={
+            "content": "BG processed",
+            "chunks": ["c1"],
+            "chunk_count": 1,
+            "char_count": 12,
+        }
+    )
 
     with patch("app.api.documents.async_session", test_session):
         with patch("app.services.document_processor.get_document_processor", return_value=mock_proc):
@@ -1672,6 +1861,7 @@ async def test_process_document_bg_success():
 
     async with test_session() as db:
         from sqlalchemy import select
+
         result = await db.execute(select(Document).where(Document.id == doc_id))
         updated_doc = result.scalar_one()
         assert updated_doc.process_status == DocumentStatus.PROCESSED
@@ -1685,8 +1875,11 @@ async def test_process_document_bg_failure():
 
     async with test_session() as db:
         doc = Document(
-            filename="bg_fail.pdf", file_path="/tmp/bg_fail.pdf", file_type="pdf",
-            file_size=100, process_status=DocumentStatus.UPLOADED,
+            filename="bg_fail.pdf",
+            file_path="/tmp/bg_fail.pdf",
+            file_type="pdf",
+            file_size=100,
+            process_status=DocumentStatus.UPLOADED,
         )
         db.add(doc)
         await db.commit()
@@ -1702,6 +1895,7 @@ async def test_process_document_bg_failure():
 
     async with test_session() as db:
         from sqlalchemy import select
+
         result = await db.execute(select(Document).where(Document.id == doc_id))
         updated_doc = result.scalar_one()
         assert updated_doc.process_status == DocumentStatus.FAILED
@@ -1715,8 +1909,11 @@ async def test_process_document_bg_failure_persist_error():
 
     async with test_session() as db:
         doc = Document(
-            filename="bg_persist.pdf", file_path="/tmp/bg_persist.pdf", file_type="pdf",
-            file_size=100, process_status=DocumentStatus.UPLOADED,
+            filename="bg_persist.pdf",
+            file_path="/tmp/bg_persist.pdf",
+            file_type="pdf",
+            file_size=100,
+            process_status=DocumentStatus.UPLOADED,
         )
         db.add(doc)
         await db.commit()
@@ -1736,10 +1933,13 @@ async def test_process_document_bg_failure_persist_error():
 # document_processor.py — _extract_doc_text_olefile with mock OLE (lines 106-195)
 # =============================================================================
 
+
 def test_extract_doc_text_olefile_empty_clx():
     """When lcb_clx is 0, should return empty string."""
     import struct
+
     from app.services.document_processor import DocumentProcessor
+
     proc = DocumentProcessor()
 
     # Build minimal WordDocument stream with lcb_clx = 0
@@ -1763,7 +1963,9 @@ def test_extract_doc_text_olefile_empty_clx():
 def test_extract_doc_text_olefile_no_piece_table():
     """When CLX has only Grpprl entries and no piece table, should return empty string."""
     import struct
+
     from app.services.document_processor import DocumentProcessor
+
     proc = DocumentProcessor()
 
     # Build WordDocument stream
@@ -1783,9 +1985,9 @@ def test_extract_doc_text_olefile_no_piece_table():
 
     mock_ole = MagicMock()
     mock_ole.exists.side_effect = lambda name: name in ("WordDocument", "0Table")
-    mock_ole.openstream.side_effect = lambda name: MagicMock(read=MagicMock(return_value=bytes(
-        word_stream if name == "WordDocument" else table_stream
-    )))
+    mock_ole.openstream.side_effect = lambda name: MagicMock(
+        read=MagicMock(return_value=bytes(word_stream if name == "WordDocument" else table_stream))
+    )
 
     mock_olefile = MagicMock()
     mock_olefile.OleFileIO.return_value = mock_ole
@@ -1798,7 +2000,9 @@ def test_extract_doc_text_olefile_no_piece_table():
 def test_extract_doc_text_olefile_unknown_clx_tag():
     """When CLX has unknown tag, should raise RuntimeError."""
     import struct
+
     from app.services.document_processor import DocumentProcessor
+
     proc = DocumentProcessor()
 
     word_stream = bytearray(2048)
@@ -1814,22 +2018,23 @@ def test_extract_doc_text_olefile_unknown_clx_tag():
 
     mock_ole = MagicMock()
     mock_ole.exists.side_effect = lambda name: name in ("WordDocument", "0Table")
-    mock_ole.openstream.side_effect = lambda name: MagicMock(read=MagicMock(return_value=bytes(
-        word_stream if name == "WordDocument" else table_stream
-    )))
+    mock_ole.openstream.side_effect = lambda name: MagicMock(
+        read=MagicMock(return_value=bytes(word_stream if name == "WordDocument" else table_stream))
+    )
 
     mock_olefile = MagicMock()
     mock_olefile.OleFileIO.return_value = mock_ole
 
-    with patch.dict("sys.modules", {"olefile": mock_olefile}):
-        with pytest.raises(RuntimeError, match="Unknown CLX tag"):
-            proc._extract_doc_text_olefile("test.doc")
+    with patch.dict("sys.modules", {"olefile": mock_olefile}), pytest.raises(RuntimeError, match="Unknown CLX tag"):
+        proc._extract_doc_text_olefile("test.doc")
 
 
 def test_extract_doc_text_olefile_zero_pieces():
     """When piece table has n<=0, should return empty string."""
     import struct
+
     from app.services.document_processor import DocumentProcessor
+
     proc = DocumentProcessor()
 
     word_stream = bytearray(2048)
@@ -1847,9 +2052,9 @@ def test_extract_doc_text_olefile_zero_pieces():
 
     mock_ole = MagicMock()
     mock_ole.exists.side_effect = lambda name: name in ("WordDocument", "0Table")
-    mock_ole.openstream.side_effect = lambda name: MagicMock(read=MagicMock(return_value=bytes(
-        word_stream if name == "WordDocument" else table_stream
-    )))
+    mock_ole.openstream.side_effect = lambda name: MagicMock(
+        read=MagicMock(return_value=bytes(word_stream if name == "WordDocument" else table_stream))
+    )
 
     mock_olefile = MagicMock()
     mock_olefile.OleFileIO.return_value = mock_ole
@@ -1862,14 +2067,16 @@ def test_extract_doc_text_olefile_zero_pieces():
 def test_extract_doc_text_olefile_compressed_text():
     """Extract compressed (single-byte) text from piece table."""
     import struct
+
     from app.services.document_processor import DocumentProcessor
+
     proc = DocumentProcessor()
 
     # Build WordDocument stream with actual text
     text = b"Hello World"
     text_offset = 500
     word_stream = bytearray(2048)
-    word_stream[text_offset:text_offset + len(text)] = text
+    word_stream[text_offset : text_offset + len(text)] = text
 
     fc_clx = 100
     # Piece table: 1 piece, n=1
@@ -1898,9 +2105,9 @@ def test_extract_doc_text_olefile_compressed_text():
 
     mock_ole = MagicMock()
     mock_ole.exists.side_effect = lambda name: name in ("WordDocument", "0Table")
-    mock_ole.openstream.side_effect = lambda name: MagicMock(read=MagicMock(return_value=bytes(
-        word_stream if name == "WordDocument" else table_stream
-    )))
+    mock_ole.openstream.side_effect = lambda name: MagicMock(
+        read=MagicMock(return_value=bytes(word_stream if name == "WordDocument" else table_stream))
+    )
 
     mock_olefile = MagicMock()
     mock_olefile.OleFileIO.return_value = mock_ole
@@ -1913,7 +2120,9 @@ def test_extract_doc_text_olefile_compressed_text():
 def test_extract_doc_text_olefile_utf16_text():
     """Extract UTF-16LE (double-byte) text from piece table."""
     import struct
+
     from app.services.document_processor import DocumentProcessor
+
     proc = DocumentProcessor()
 
     # Build WordDocument stream with UTF-16LE text
@@ -1921,7 +2130,7 @@ def test_extract_doc_text_olefile_utf16_text():
     text_bytes = text.encode("utf-16-le")
     text_offset = 500
     word_stream = bytearray(2048)
-    word_stream[text_offset:text_offset + len(text_bytes)] = text_bytes
+    word_stream[text_offset : text_offset + len(text_bytes)] = text_bytes
 
     fc_clx = 100
     cb = 20  # 2 CPs * 4 + 1 PCD * 8 + 4 padding
@@ -1947,9 +2156,9 @@ def test_extract_doc_text_olefile_utf16_text():
 
     mock_ole = MagicMock()
     mock_ole.exists.side_effect = lambda name: name in ("WordDocument", "0Table")
-    mock_ole.openstream.side_effect = lambda name: MagicMock(read=MagicMock(return_value=bytes(
-        word_stream if name == "WordDocument" else table_stream
-    )))
+    mock_ole.openstream.side_effect = lambda name: MagicMock(
+        read=MagicMock(return_value=bytes(word_stream if name == "WordDocument" else table_stream))
+    )
 
     mock_olefile = MagicMock()
     mock_olefile.OleFileIO.return_value = mock_ole
@@ -1962,7 +2171,9 @@ def test_extract_doc_text_olefile_utf16_text():
 def test_extract_doc_text_olefile_zero_char_count():
     """When char_count <= 0, should skip that piece."""
     import struct
+
     from app.services.document_processor import DocumentProcessor
+
     proc = DocumentProcessor()
 
     text_offset = 500
@@ -1996,16 +2207,16 @@ def test_extract_doc_text_olefile_zero_char_count():
 
     # PCD 2: compressed, text at text_offset
     text = b"World"
-    word_stream[text_offset:text_offset + 5] = text
+    word_stream[text_offset : text_offset + 5] = text
     fc_value2 = text_offset | 0x40000000
     struct.pack_into("<H", table_stream, offset, 0)
     struct.pack_into("<I", table_stream, offset + 2, fc_value2)
 
     mock_ole = MagicMock()
     mock_ole.exists.side_effect = lambda name: name in ("WordDocument", "0Table")
-    mock_ole.openstream.side_effect = lambda name: MagicMock(read=MagicMock(return_value=bytes(
-        word_stream if name == "WordDocument" else table_stream
-    )))
+    mock_ole.openstream.side_effect = lambda name: MagicMock(
+        read=MagicMock(return_value=bytes(word_stream if name == "WordDocument" else table_stream))
+    )
 
     mock_olefile = MagicMock()
     mock_olefile.OleFileIO.return_value = mock_ole
@@ -2019,8 +2230,10 @@ def test_extract_doc_text_olefile_zero_char_count():
 # document_processor.py — _clean_text with mixed whitespace (lines 228-235)
 # =============================================================================
 
+
 def test_clean_text_mixed_whitespace():
     from app.services.document_processor import DocumentProcessor
+
     proc = DocumentProcessor()
     result = proc._clean_text("  hello\t\tworld  \n\n\n\n  test  ")
     assert "hello" in result
@@ -2030,6 +2243,7 @@ def test_clean_text_mixed_whitespace():
 
 def test_clean_text_only_whitespace():
     from app.services.document_processor import DocumentProcessor
+
     proc = DocumentProcessor()
     result = proc._clean_text("   \n\n\n   ")
     assert result == ""
@@ -2039,11 +2253,13 @@ def test_clean_text_only_whitespace():
 # audit.py — stream_task_events with DONE_SENTINEL and event type
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_stream_task_events_with_progress_event(client: AsyncClient, db_session: AsyncSession):
     """Streaming should forward events with their type as SSE event name."""
     task = AuditTask(
-        task_name="Progress", task_type=TaskType.DEVIATION_ANALYSIS,
+        task_name="Progress",
+        task_type=TaskType.DEVIATION_ANALYSIS,
         status=TaskStatus.PENDING,
     )
     db_session.add(task)
@@ -2052,6 +2268,7 @@ async def test_stream_task_events_with_progress_event(client: AsyncClient, db_se
 
     from app.main import app
     from app.services.event_bus import EventBus
+
     bus = EventBus()
     app.state.event_bus = bus
 
@@ -2076,18 +2293,16 @@ async def test_stream_task_events_with_progress_event(client: AsyncClient, db_se
 # config.py — batch_update with agent_llm_provider clear cache (lines 410-418)
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_batch_update_auto_provider_clears_cache(client: AsyncClient):
     """Batch update with auto-detected provider should clear agent cache."""
     import os
-    from app.core.config import settings
 
     orig_key = os.environ.get("GLM_API_KEY", "")
     try:
         with patch("agent.config.clear_llm_cache") as mock_clear:
-            resp = await client.post("/api/config/batch", json={
-                "configs": {"glm_api_key": "sk-glm-test-12345678"}
-            })
+            resp = await client.post("/api/config/batch", json={"configs": {"glm_api_key": "sk-glm-test-12345678"}})
         assert resp.status_code == 200
     finally:
         if orig_key:
@@ -2100,18 +2315,18 @@ async def test_batch_update_auto_provider_clears_cache(client: AsyncClient):
 # config.py — batch_update with .env file persistence (lines 403-404)
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_batch_update_persists_to_env_file(client: AsyncClient):
     """Batch update should persist changes to .env file."""
     import os
+
     from app.core.config import settings
 
     orig_val = os.environ.get("LOG_LEVEL", "")
     orig_setting = getattr(settings, "LOG_LEVEL", "")
     try:
-        resp = await client.post("/api/config/batch", json={
-            "configs": {"log_level": "ERROR"}
-        })
+        resp = await client.post("/api/config/batch", json={"configs": {"log_level": "ERROR"}})
         assert resp.status_code == 200
     finally:
         if orig_val:
@@ -2125,8 +2340,10 @@ async def test_batch_update_persists_to_env_file(client: AsyncClient):
 # documents.py — _write_file_sync (lines 23-25)
 # =============================================================================
 
+
 def test_write_file_sync():
     from app.api.documents import _write_file_sync
+
     with tempfile.NamedTemporaryFile(delete=False, suffix=".bin") as f:
         path = f.name
     try:
@@ -2141,8 +2358,10 @@ def test_write_file_sync():
 # documents.py — _generate_safe_filename uniqueness
 # =============================================================================
 
+
 def test_generate_safe_filename_unique():
     from app.api.documents import _generate_safe_filename
+
     names = {_generate_safe_filename("test.pdf") for _ in range(10)}
     assert len(names) == 10  # All unique
 
@@ -2150,6 +2369,7 @@ def test_generate_safe_filename_unique():
 # =============================================================================
 # reports.py — list reports with page_size parameter
 # =============================================================================
+
 
 @pytest.mark.asyncio
 async def test_list_reports_custom_page_size(client: AsyncClient, db_session: AsyncSession):
@@ -2159,10 +2379,14 @@ async def test_list_reports_custom_page_size(client: AsyncClient, db_session: As
     await db_session.refresh(task)
 
     for i in range(5):
-        db_session.add(Report(
-            task_id=task.id, report_type=ReportType.FULL_REPORT,
-            title=f"R{i}", content=f"C{i}",
-        ))
+        db_session.add(
+            Report(
+                task_id=task.id,
+                report_type=ReportType.FULL_REPORT,
+                title=f"R{i}",
+                content=f"C{i}",
+            )
+        )
     await db_session.commit()
 
     resp = await client.get("/api/reports/", params={"page": 2, "page_size": 2})
@@ -2177,12 +2401,15 @@ async def test_list_reports_custom_page_size(client: AsyncClient, db_session: As
 # reports.py — get report with all fields
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_get_report_all_fields(client: AsyncClient, db_session: AsyncSession):
     """Get report should return all expected fields."""
     report = Report(
-        task_id=1, report_type=ReportType.FULL_REPORT,
-        title="Full Report", content="Full content",
+        task_id=1,
+        report_type=ReportType.FULL_REPORT,
+        title="Full Report",
+        content="Full content",
         report_metadata={"source": "test", "mode": "auto"},
     )
     db_session.add(report)

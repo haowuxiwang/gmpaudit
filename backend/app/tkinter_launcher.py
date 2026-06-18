@@ -482,6 +482,7 @@ class _LauncherWindow:
                         )
                     else:
                         import webbrowser
+
                         webbrowser.open(url)
                 except Exception:
                     pass
@@ -489,7 +490,7 @@ class _LauncherWindow:
                 self.root.after(1000, self._close_launcher)
                 return
             except Exception:
-                self.root.after(0, lambda i=i: self.progress_var.set(f"正在等待服务启动... ({i+1}/60)"))
+                self.root.after(0, lambda i=i: self.progress_var.set(f"正在等待服务启动... ({i + 1}/60)"))
                 time.sleep(1)
         # Timeout
         self.root.after(0, lambda: self.progress_var.set("服务启动超时，请手动打开浏览器"))

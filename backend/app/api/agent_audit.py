@@ -37,13 +37,13 @@ async def run_agent_audit(
     db: AsyncSession = Depends(get_db),
 ):
     if not is_agent_available():
-        raise HTTPException(status_code=503, detail="Agent audit system is unavailable")
+        raise HTTPException(status_code=503, detail="Agent 审计系统不可用")
 
     document = (await db.execute(select(Document).where(Document.id == request.document_id))).scalar_one_or_none()
     if document is None:
-        raise HTTPException(status_code=404, detail="Document not found")
+        raise HTTPException(status_code=404, detail="文档不存在")
     if document.process_status != DocumentStatus.PROCESSED:
-        raise HTTPException(status_code=400, detail="Document is not processed")
+        raise HTTPException(status_code=400, detail="文档未处理完成")
 
     if request.audit_type not in AUDIT_TYPE_TO_TASK_TYPE:
         raise HTTPException(
@@ -83,5 +83,5 @@ async def get_agent_audit_status(
 ):
     task = (await db.execute(select(AuditTask).where(AuditTask.id == task_id))).scalar_one_or_none()
     if task is None:
-        raise HTTPException(status_code=404, detail="Task not found")
+        raise HTTPException(status_code=404, detail="任务不存在")
     return await build_task_payload(db, task)

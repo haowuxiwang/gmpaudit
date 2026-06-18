@@ -24,10 +24,10 @@ from app.models.finding import Finding, FindingStatus, FindingType, SeverityLeve
 from app.models.report import Report, ReportType
 from app.models.risk_alert import AlertLevel, AlertStatus, RiskAlert
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 async def _create_task(db: AsyncSession, **kwargs) -> AuditTask:
     defaults = {
@@ -93,51 +93,65 @@ async def _create_alert(db: AsyncSession, finding_id: int, **kwargs) -> RiskAler
 # api/audit.py - Create Task
 # ===========================================================================
 
+
 @pytest.mark.asyncio
 class TestAuditCreateTask:
     async def test_create_task_success(self, client: AsyncClient, db_session):
         doc = await _create_doc(db_session, process_status=DocumentStatus.PROCESSED)
-        resp = await client.post("/api/audit/tasks", json={
-            "task_name": "New Task",
-            "task_type": "deviation_analysis",
-            "document_ids": [doc.id],
-        })
+        resp = await client.post(
+            "/api/audit/tasks",
+            json={
+                "task_name": "New Task",
+                "task_type": "deviation_analysis",
+                "document_ids": [doc.id],
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["task_name"] == "New Task"
         assert data["status"] == "pending"
 
     async def test_create_task_invalid_type(self, client: AsyncClient):
-        resp = await client.post("/api/audit/tasks", json={
-            "task_name": "Bad Task",
-            "task_type": "invalid_type",
-            "document_ids": [],
-        })
+        resp = await client.post(
+            "/api/audit/tasks",
+            json={
+                "task_name": "Bad Task",
+                "task_type": "invalid_type",
+                "document_ids": [],
+            },
+        )
         assert resp.status_code == 422
 
     async def test_create_task_with_sop_type(self, client: AsyncClient, db_session):
         doc = await _create_doc(db_session, process_status=DocumentStatus.PROCESSED)
-        resp = await client.post("/api/audit/tasks", json={
-            "task_name": "SOP Task",
-            "task_type": "sop_compliance",
-            "document_ids": [doc.id],
-        })
+        resp = await client.post(
+            "/api/audit/tasks",
+            json={
+                "task_name": "SOP Task",
+                "task_type": "sop_compliance",
+                "document_ids": [doc.id],
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["task_name"] == "SOP Task"
 
     async def test_create_task_empty_documents(self, client: AsyncClient):
-        resp = await client.post("/api/audit/tasks", json={
-            "task_name": "Empty Doc Task",
-            "task_type": "deviation_analysis",
-            "document_ids": [],
-        })
+        resp = await client.post(
+            "/api/audit/tasks",
+            json={
+                "task_name": "Empty Doc Task",
+                "task_type": "deviation_analysis",
+                "document_ids": [],
+            },
+        )
         assert resp.status_code == 200
 
 
 # ===========================================================================
 # api/audit.py - List Tasks (with batch findings/reports loading)
 # ===========================================================================
+
 
 @pytest.mark.asyncio
 class TestAuditListTasks:
@@ -171,8 +185,10 @@ class TestAuditListTasks:
         await _create_finding(db_session, task.id, severity=SeverityLevel.HIGH)
         await _create_finding(db_session, task.id, severity=SeverityLevel.MEDIUM)
         report = Report(
-            task_id=task.id, report_type=ReportType.FULL_REPORT,
-            title="Report", content="Content",
+            task_id=task.id,
+            report_type=ReportType.FULL_REPORT,
+            title="Report",
+            content="Content",
         )
         db_session.add(report)
         await db_session.commit()
@@ -200,6 +216,7 @@ class TestAuditListTasks:
 # api/audit.py - Get Task
 # ===========================================================================
 
+
 @pytest.mark.asyncio
 class TestAuditGetTask:
     async def test_get_task_success(self, client: AsyncClient, db_session):
@@ -225,6 +242,7 @@ class TestAuditGetTask:
 # ===========================================================================
 # api/audit.py - Run Task
 # ===========================================================================
+
 
 @pytest.mark.asyncio
 class TestAuditRunTask:
@@ -254,14 +272,14 @@ class TestAuditRunTask:
         with patch("app.api.audit.is_agent_available", return_value=True):
             resp = await client.post(f"/api/audit/tasks/{task.id}/run")
             assert resp.status_code == 400
-            assert "already running" in resp.json()["detail"].lower()
+            assert "运行中" in resp.json()["detail"]
 
     async def test_run_task_document_not_found(self, client: AsyncClient, db_session):
         task = await _create_task(db_session, document_ids=[99999])
         with patch("app.api.audit.is_agent_available", return_value=True):
             resp = await client.post(f"/api/audit/tasks/{task.id}/run")
             assert resp.status_code == 400
-            assert "Document 99999 not found" in resp.json()["detail"]
+            assert "文档 99999 不存在" in resp.json()["detail"]
 
     async def test_run_task_document_not_processed(self, client: AsyncClient, db_session):
         doc = await _create_doc(db_session, process_status=DocumentStatus.UPLOADED)
@@ -269,7 +287,7 @@ class TestAuditRunTask:
         with patch("app.api.audit.is_agent_available", return_value=True):
             resp = await client.post(f"/api/audit/tasks/{task.id}/run")
             assert resp.status_code == 400
-            assert "not processed" in resp.json()["detail"].lower()
+            assert "未处理" in resp.json()["detail"]
 
     async def test_run_task_success(self, client: AsyncClient, db_session):
         doc = await _create_doc(db_session, process_status=DocumentStatus.PROCESSED)
@@ -317,6 +335,7 @@ class TestAuditRunTask:
 # api/audit.py - Cancel Task
 # ===========================================================================
 
+
 @pytest.mark.asyncio
 class TestAuditCancelTask:
     async def test_cancel_task_not_found(self, client: AsyncClient):
@@ -337,6 +356,7 @@ class TestAuditCancelTask:
         mock_factory = MagicMock(return_value=mock_runner)
 
         from app.main import app as fastapi_app
+
         original_factory = fastapi_app.state.task_runner_factory
         fastapi_app.state.task_runner_factory = mock_factory
         try:
@@ -354,6 +374,7 @@ class TestAuditCancelTask:
         mock_factory = MagicMock(return_value=mock_runner)
 
         from app.main import app as fastapi_app
+
         original_factory = fastapi_app.state.task_runner_factory
         fastapi_app.state.task_runner_factory = mock_factory
         try:
@@ -367,6 +388,7 @@ class TestAuditCancelTask:
 # ===========================================================================
 # api/audit.py - Approve Task
 # ===========================================================================
+
 
 @pytest.mark.asyncio
 class TestAuditApproveTask:
@@ -396,6 +418,7 @@ class TestAuditApproveTask:
         mock_event_bus.publish_done = AsyncMock()
 
         from app.main import app as fastapi_app
+
         original_bus = getattr(fastapi_app.state, "event_bus", None)
         fastapi_app.state.event_bus = mock_event_bus
         try:
@@ -413,8 +436,10 @@ class TestAuditApproveTask:
         task = await _create_task(db_session, status=TaskStatus.AWAITING_REVIEW)
         await _create_finding(db_session, task.id, severity=SeverityLevel.HIGH)
 
-        with patch("app.services.notification.is_feishu_configured", return_value=True), \
-             patch("app.services.notification.notify_audit_complete", new_callable=AsyncMock) as mock_notify:
+        with (
+            patch("app.services.notification.is_feishu_configured", return_value=True),
+            patch("app.services.notification.notify_audit_complete", new_callable=AsyncMock) as mock_notify,
+        ):
             resp = await client.post(
                 f"/api/audit/tasks/{task.id}/approve",
                 json={"comment": "Approved with Feishu"},
@@ -426,8 +451,14 @@ class TestAuditApproveTask:
         """Feishu notification failure should not break the approve flow."""
         task = await _create_task(db_session, status=TaskStatus.AWAITING_REVIEW)
 
-        with patch("app.services.notification.is_feishu_configured", return_value=True), \
-             patch("app.services.notification.notify_audit_complete", new_callable=AsyncMock, side_effect=Exception("Network error")):
+        with (
+            patch("app.services.notification.is_feishu_configured", return_value=True),
+            patch(
+                "app.services.notification.notify_audit_complete",
+                new_callable=AsyncMock,
+                side_effect=Exception("Network error"),
+            ),
+        ):
             resp = await client.post(
                 f"/api/audit/tasks/{task.id}/approve",
                 json={"comment": "Approved despite Feishu error"},
@@ -438,6 +469,7 @@ class TestAuditApproveTask:
 # ===========================================================================
 # api/audit.py - Reject Task
 # ===========================================================================
+
 
 @pytest.mark.asyncio
 class TestAuditRejectTask:
@@ -463,6 +495,7 @@ class TestAuditRejectTask:
 # api/audit.py - Findings
 # ===========================================================================
 
+
 @pytest.mark.asyncio
 class TestAuditFindings:
     async def test_get_findings_empty(self, client: AsyncClient, db_session):
@@ -474,7 +507,8 @@ class TestAuditFindings:
     async def test_get_findings_with_data(self, client: AsyncClient, db_session):
         task = await _create_task(db_session, status=TaskStatus.COMPLETED)
         finding = await _create_finding(
-            db_session, task.id,
+            db_session,
+            task.id,
             evidence="Evidence text",
             suggestion="Fix suggestion",
             location="Section 3.1",
@@ -498,6 +532,7 @@ class TestAuditFindings:
         finding = await _create_finding(db_session, task.id)
         # Simulate a reviewed finding
         from datetime import UTC, datetime
+
         finding.status = FindingStatus.APPROVED
         finding.reviewer_comment = "Looks correct"
         finding.reviewed_at = datetime.now(UTC)
@@ -514,6 +549,7 @@ class TestAuditFindings:
 # ===========================================================================
 # api/audit.py - Approve/Reject Finding
 # ===========================================================================
+
 
 @pytest.mark.asyncio
 class TestFindingApproval:
@@ -566,6 +602,7 @@ class TestFindingApproval:
 # api/audit.py - Risk Assessment
 # ===========================================================================
 
+
 @pytest.mark.asyncio
 class TestAuditRiskAssessment:
     async def test_get_risk_no_findings(self, client: AsyncClient, db_session):
@@ -599,6 +636,7 @@ class TestAuditRiskAssessment:
 # api/audit.py - Dashboard
 # ===========================================================================
 
+
 @pytest.mark.asyncio
 class TestAuditDashboard:
     async def test_dashboard_empty(self, client: AsyncClient):
@@ -630,6 +668,7 @@ class TestAuditDashboard:
 # ===========================================================================
 # api/audit.py - SSE Streams
 # ===========================================================================
+
 
 @pytest.mark.asyncio
 class TestAuditStreams:
@@ -714,6 +753,7 @@ class TestAuditStreams:
 # api/audit.py - Memory
 # ===========================================================================
 
+
 @pytest.mark.asyncio
 class TestAuditMemory:
     async def test_get_memory(self, client: AsyncClient):
@@ -741,6 +781,7 @@ class TestAuditMemory:
 # ===========================================================================
 # api/audit.py - Estimate
 # ===========================================================================
+
 
 @pytest.mark.asyncio
 class TestAuditEstimate:
@@ -771,8 +812,12 @@ class TestAuditEstimate:
         assert data["estimated_llm_calls"] == 12
 
     async def test_estimate_multiple_documents(self, client: AsyncClient, db_session):
-        doc1 = await _create_doc(db_session, filename="d1.pdf", content_text="A" * 500, process_status=DocumentStatus.PROCESSED)
-        doc2 = await _create_doc(db_session, filename="d2.pdf", content_text="B" * 500, process_status=DocumentStatus.PROCESSED)
+        doc1 = await _create_doc(
+            db_session, filename="d1.pdf", content_text="A" * 500, process_status=DocumentStatus.PROCESSED
+        )
+        doc2 = await _create_doc(
+            db_session, filename="d2.pdf", content_text="B" * 500, process_status=DocumentStatus.PROCESSED
+        )
         resp = await client.post("/api/audit/estimate", json={"document_ids": [doc1.id, doc2.id]})
         assert resp.status_code == 200
         data = resp.json()
@@ -795,6 +840,7 @@ class TestAuditEstimate:
 # api/agent_audit.py
 # ===========================================================================
 
+
 @pytest.mark.asyncio
 class TestAgentAudit:
     async def test_run_agent_audit_not_found(self, client: AsyncClient):
@@ -808,7 +854,7 @@ class TestAgentAudit:
             json={"document_id": doc.id, "audit_type": "deviation"},
         )
         assert resp.status_code == 400
-        assert "not processed" in resp.json()["detail"].lower()
+        assert "未处理" in resp.json()["detail"]
 
     async def test_run_agent_audit_unavailable(self, client: AsyncClient, db_session):
         doc = await _create_doc(db_session, process_status=DocumentStatus.PROCESSED)
@@ -952,6 +998,7 @@ class TestAgentAudit:
 # api/reports.py - List Reports
 # ===========================================================================
 
+
 @pytest.mark.asyncio
 class TestReportsList:
     async def test_list_reports_empty(self, client: AsyncClient):
@@ -964,8 +1011,10 @@ class TestReportsList:
     async def test_list_reports_with_data(self, client: AsyncClient, db_session):
         task = await _create_task(db_session, status=TaskStatus.COMPLETED)
         report = Report(
-            task_id=task.id, report_type=ReportType.FULL_REPORT,
-            title="Test Report", content="Content",
+            task_id=task.id,
+            report_type=ReportType.FULL_REPORT,
+            title="Test Report",
+            content="Content",
             report_metadata={"report_source": "agent_report_writer"},
         )
         db_session.add(report)
@@ -995,10 +1044,14 @@ class TestReportsList:
     async def test_list_reports_pagination(self, client: AsyncClient, db_session):
         task = await _create_task(db_session, status=TaskStatus.COMPLETED)
         for i in range(5):
-            db_session.add(Report(
-                task_id=task.id, report_type=ReportType.FULL_REPORT,
-                title=f"R{i}", content=f"C{i}",
-            ))
+            db_session.add(
+                Report(
+                    task_id=task.id,
+                    report_type=ReportType.FULL_REPORT,
+                    title=f"R{i}",
+                    content=f"C{i}",
+                )
+            )
         await db_session.commit()
 
         resp = await client.get("/api/reports/", params={"page": 1, "page_size": 2})
@@ -1027,6 +1080,7 @@ class TestReportsList:
 # api/reports.py - Get Report
 # ===========================================================================
 
+
 @pytest.mark.asyncio
 class TestReportGet:
     async def test_get_report_not_found(self, client: AsyncClient):
@@ -1035,8 +1089,10 @@ class TestReportGet:
 
     async def test_get_report_detail(self, client: AsyncClient, db_session):
         report = Report(
-            task_id=1, report_type=ReportType.FULL_REPORT,
-            title="Detail Report", content="Detailed content",
+            task_id=1,
+            report_type=ReportType.FULL_REPORT,
+            title="Detail Report",
+            content="Detailed content",
             report_metadata={"report_mode": "single_document"},
         )
         db_session.add(report)
@@ -1054,8 +1110,10 @@ class TestReportGet:
 
     async def test_get_report_empty_content(self, client: AsyncClient, db_session):
         report = Report(
-            task_id=1, report_type=ReportType.FULL_REPORT,
-            title="Empty", content="",
+            task_id=1,
+            report_type=ReportType.FULL_REPORT,
+            title="Empty",
+            content="",
         )
         db_session.add(report)
         await db_session.commit()
@@ -1070,6 +1128,7 @@ class TestReportGet:
 # api/reports.py - Generate Report
 # ===========================================================================
 
+
 @pytest.mark.asyncio
 class TestReportGenerate:
     async def test_generate_report_task_not_found(self, client: AsyncClient):
@@ -1080,7 +1139,7 @@ class TestReportGenerate:
         task = await _create_task(db_session, status=TaskStatus.COMPLETED)
         resp = await client.post(f"/api/reports/generate/{task.id}")
         assert resp.status_code == 400
-        assert "No findings" in resp.json()["detail"]
+        assert "暂无审计发现" in resp.json()["detail"]
 
     async def test_generate_report_success(self, client: AsyncClient, db_session):
         task = await _create_task(db_session, status=TaskStatus.COMPLETED)
@@ -1159,6 +1218,7 @@ class TestReportGenerate:
 # api/reports.py - Export HTML
 # ===========================================================================
 
+
 @pytest.mark.asyncio
 class TestReportExportHTML:
     async def test_export_html_not_found(self, client: AsyncClient):
@@ -1167,8 +1227,10 @@ class TestReportExportHTML:
 
     async def test_export_html_success(self, client: AsyncClient, db_session):
         report = Report(
-            task_id=1, report_type=ReportType.FULL_REPORT,
-            title="HTML Export", content="# Test\n\n**Bold** text.",
+            task_id=1,
+            report_type=ReportType.FULL_REPORT,
+            title="HTML Export",
+            content="# Test\n\n**Bold** text.",
         )
         db_session.add(report)
         await db_session.commit()
@@ -1182,7 +1244,8 @@ class TestReportExportHTML:
 
     async def test_export_html_with_table(self, client: AsyncClient, db_session):
         report = Report(
-            task_id=1, report_type=ReportType.FULL_REPORT,
+            task_id=1,
+            report_type=ReportType.FULL_REPORT,
             title="Table Report",
             content="| A | B |\n|---|---|\n| 1 | 2 |",
         )
@@ -1196,8 +1259,10 @@ class TestReportExportHTML:
 
     async def test_export_html_empty_content(self, client: AsyncClient, db_session):
         report = Report(
-            task_id=1, report_type=ReportType.FULL_REPORT,
-            title="Empty", content="",
+            task_id=1,
+            report_type=ReportType.FULL_REPORT,
+            title="Empty",
+            content="",
         )
         db_session.add(report)
         await db_session.commit()
@@ -1208,8 +1273,10 @@ class TestReportExportHTML:
 
     async def test_export_html_empty_title(self, client: AsyncClient, db_session):
         report = Report(
-            task_id=1, report_type=ReportType.FULL_REPORT,
-            title="", content="Some content",
+            task_id=1,
+            report_type=ReportType.FULL_REPORT,
+            title="",
+            content="Some content",
         )
         db_session.add(report)
         await db_session.commit()
@@ -1221,8 +1288,10 @@ class TestReportExportHTML:
 
     async def test_export_html_sanitizes_script(self, client: AsyncClient, db_session):
         report = Report(
-            task_id=1, report_type=ReportType.FULL_REPORT,
-            title="XSS", content='<script>alert("xss")</script>Safe content',
+            task_id=1,
+            report_type=ReportType.FULL_REPORT,
+            title="XSS",
+            content='<script>alert("xss")</script>Safe content',
         )
         db_session.add(report)
         await db_session.commit()
@@ -1235,8 +1304,10 @@ class TestReportExportHTML:
 
     async def test_export_html_sanitizes_iframe(self, client: AsyncClient, db_session):
         report = Report(
-            task_id=1, report_type=ReportType.FULL_REPORT,
-            title="Iframe", content='<iframe src="evil.com"></iframe>Good',
+            task_id=1,
+            report_type=ReportType.FULL_REPORT,
+            title="Iframe",
+            content='<iframe src="evil.com"></iframe>Good',
         )
         db_session.add(report)
         await db_session.commit()
@@ -1249,8 +1320,10 @@ class TestReportExportHTML:
 
     async def test_export_html_with_code_block(self, client: AsyncClient, db_session):
         report = Report(
-            task_id=1, report_type=ReportType.FULL_REPORT,
-            title="Code", content="```python\nprint('hello')\n```",
+            task_id=1,
+            report_type=ReportType.FULL_REPORT,
+            title="Code",
+            content="```python\nprint('hello')\n```",
         )
         db_session.add(report)
         await db_session.commit()
@@ -1262,8 +1335,10 @@ class TestReportExportHTML:
 
     async def test_export_html_with_links(self, client: AsyncClient, db_session):
         report = Report(
-            task_id=1, report_type=ReportType.FULL_REPORT,
-            title="Links", content='[Example](https://example.com "Title")',
+            task_id=1,
+            report_type=ReportType.FULL_REPORT,
+            title="Links",
+            content='[Example](https://example.com "Title")',
         )
         db_session.add(report)
         await db_session.commit()
@@ -1278,6 +1353,7 @@ class TestReportExportHTML:
 # api/reports.py - Export PDF
 # ===========================================================================
 
+
 @pytest.mark.asyncio
 class TestReportExportPDF:
     async def test_export_pdf_not_found(self, client: AsyncClient):
@@ -1286,8 +1362,10 @@ class TestReportExportPDF:
 
     async def test_export_pdf_success(self, client: AsyncClient, db_session):
         report = Report(
-            task_id=1, report_type=ReportType.FULL_REPORT,
-            title="PDF Report", content="# PDF Content",
+            task_id=1,
+            report_type=ReportType.FULL_REPORT,
+            title="PDF Report",
+            content="# PDF Content",
         )
         db_session.add(report)
         await db_session.commit()
@@ -1311,8 +1389,10 @@ class TestReportExportPDF:
 
     async def test_export_pdf_generation_error(self, client: AsyncClient, db_session):
         report = Report(
-            task_id=1, report_type=ReportType.FULL_REPORT,
-            title="Bad PDF", content="# Content",
+            task_id=1,
+            report_type=ReportType.FULL_REPORT,
+            title="Bad PDF",
+            content="# Content",
         )
         db_session.add(report)
         await db_session.commit()
@@ -1330,8 +1410,10 @@ class TestReportExportPDF:
 
     async def test_export_pdf_exception(self, client: AsyncClient, db_session):
         report = Report(
-            task_id=1, report_type=ReportType.FULL_REPORT,
-            title="Exception PDF", content="# Content",
+            task_id=1,
+            report_type=ReportType.FULL_REPORT,
+            title="Exception PDF",
+            content="# Content",
         )
         db_session.add(report)
         await db_session.commit()
@@ -1348,8 +1430,10 @@ class TestReportExportPDF:
 
     async def test_export_pdf_content_disposition(self, client: AsyncClient, db_session):
         report = Report(
-            task_id=1, report_type=ReportType.FULL_REPORT,
-            title="Filename Test", content="Content",
+            task_id=1,
+            report_type=ReportType.FULL_REPORT,
+            title="Filename Test",
+            content="Content",
         )
         db_session.add(report)
         await db_session.commit()
@@ -1371,8 +1455,10 @@ class TestReportExportPDF:
 
     async def test_export_pdf_empty_title(self, client: AsyncClient, db_session):
         report = Report(
-            task_id=1, report_type=ReportType.FULL_REPORT,
-            title="", content="Content",
+            task_id=1,
+            report_type=ReportType.FULL_REPORT,
+            title="",
+            content="Content",
         )
         db_session.add(report)
         await db_session.commit()
@@ -1395,8 +1481,10 @@ class TestReportExportPDF:
 
     async def test_export_pdf_with_table(self, client: AsyncClient, db_session):
         report = Report(
-            task_id=1, report_type=ReportType.FULL_REPORT,
-            title="Table PDF", content="| A | B |\n|---|---|\n| 1 | 2 |",
+            task_id=1,
+            report_type=ReportType.FULL_REPORT,
+            title="Table PDF",
+            content="| A | B |\n|---|---|\n| 1 | 2 |",
         )
         db_session.add(report)
         await db_session.commit()
@@ -1417,8 +1505,10 @@ class TestReportExportPDF:
 
     async def test_export_pdf_special_chars_in_title(self, client: AsyncClient, db_session):
         report = Report(
-            task_id=1, report_type=ReportType.FULL_REPORT,
-            title="Report/with\\special:chars*?<>|", content="Content",
+            task_id=1,
+            report_type=ReportType.FULL_REPORT,
+            title="Report/with\\special:chars*?<>|",
+            content="Content",
         )
         db_session.add(report)
         await db_session.commit()
@@ -1445,6 +1535,7 @@ class TestReportExportPDF:
 # ===========================================================================
 # api/alerts.py - List Alerts
 # ===========================================================================
+
 
 @pytest.mark.asyncio
 class TestAlertsList:
@@ -1531,6 +1622,7 @@ class TestAlertsList:
 # api/alerts.py - Acknowledge Alert
 # ===========================================================================
 
+
 @pytest.mark.asyncio
 class TestAlertAcknowledge:
     async def test_acknowledge_alert_success(self, client: AsyncClient, db_session):
@@ -1567,6 +1659,7 @@ class TestAlertAcknowledge:
 # ===========================================================================
 # api/alerts.py - Resolve Alert
 # ===========================================================================
+
 
 @pytest.mark.asyncio
 class TestAlertResolve:
@@ -1605,6 +1698,7 @@ class TestAlertResolve:
 # api/documents.py - Upload
 # ===========================================================================
 
+
 @pytest.mark.asyncio
 class TestDocumentUpload:
     async def test_upload_unsupported_type(self, client: AsyncClient):
@@ -1622,7 +1716,13 @@ class TestDocumentUpload:
         assert data["status"] == "uploaded"
 
     async def test_upload_docx(self, client: AsyncClient):
-        files = {"file": ("test.docx", b"PK fake docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")}
+        files = {
+            "file": (
+                "test.docx",
+                b"PK fake docx",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            )
+        }
         resp = await client.post("/api/documents/upload", files=files)
         assert resp.status_code == 200
 
@@ -1648,6 +1748,7 @@ class TestDocumentUpload:
 # ===========================================================================
 # api/documents.py - Batch Upload
 # ===========================================================================
+
 
 @pytest.mark.asyncio
 class TestDocumentBatchUpload:
@@ -1675,6 +1776,7 @@ class TestDocumentBatchUpload:
 # ===========================================================================
 # api/documents.py - List Documents
 # ===========================================================================
+
 
 @pytest.mark.asyncio
 class TestDocumentsList:
@@ -1731,6 +1833,7 @@ class TestDocumentsList:
 # api/documents.py - Get Document
 # ===========================================================================
 
+
 @pytest.mark.asyncio
 class TestDocumentGet:
     async def test_get_document_not_found(self, client: AsyncClient):
@@ -1762,6 +1865,7 @@ class TestDocumentGet:
 # api/documents.py - Process Document
 # ===========================================================================
 
+
 @pytest.mark.asyncio
 class TestDocumentProcess:
     async def test_process_document_not_found(self, client: AsyncClient):
@@ -1778,13 +1882,16 @@ class TestDocumentProcess:
         doc = await _create_doc(db_session, process_status=DocumentStatus.UPLOADED)
 
         import app.services.document_processor as dp_module
+
         mock_processor = MagicMock()
-        mock_processor.process_document = AsyncMock(return_value={
-            "content": "Processed content",
-            "chunks": ["chunk1"],
-            "chunk_count": 1,
-            "char_count": 16,
-        })
+        mock_processor.process_document = AsyncMock(
+            return_value={
+                "content": "Processed content",
+                "chunks": ["chunk1"],
+                "chunk_count": 1,
+                "char_count": 16,
+            }
+        )
         original = dp_module.document_processor
         dp_module.document_processor = mock_processor
         try:
@@ -1801,6 +1908,7 @@ class TestDocumentProcess:
         doc = await _create_doc(db_session, process_status=DocumentStatus.UPLOADED)
 
         import app.services.document_processor as dp_module
+
         mock_processor = MagicMock()
         mock_processor.process_document = AsyncMock(side_effect=Exception("Processing error"))
         original = dp_module.document_processor
@@ -1816,6 +1924,7 @@ class TestDocumentProcess:
 # ===========================================================================
 # api/documents.py - Delete Document
 # ===========================================================================
+
 
 @pytest.mark.asyncio
 class TestDocumentDelete:
@@ -1889,6 +1998,7 @@ class TestDocumentDelete:
 # Health API
 # ===========================================================================
 
+
 @pytest.mark.asyncio
 class TestHealthAPI:
     async def test_health_check(self, client: AsyncClient):
@@ -1908,11 +2018,14 @@ class TestHealthAPI:
 # Config API
 # ===========================================================================
 
+
 @pytest.mark.asyncio
 class TestConfigAPI:
     async def test_get_config(self, client: AsyncClient, db_session):
         config = Configuration(
-            config_key="TEST_KEY", config_value="TEST_VALUE", config_type="string",
+            config_key="TEST_KEY",
+            config_value="TEST_VALUE",
+            config_type="string",
         )
         db_session.add(config)
         await db_session.commit()
@@ -1922,7 +2035,9 @@ class TestConfigAPI:
 
     async def test_get_config_by_key(self, client: AsyncClient, db_session):
         config = Configuration(
-            config_key="LOG_LEVEL", config_value="DEBUG", config_type="string",
+            config_key="LOG_LEVEL",
+            config_value="DEBUG",
+            config_type="string",
         )
         db_session.add(config)
         await db_session.commit()
@@ -1939,7 +2054,9 @@ class TestConfigAPI:
 
     async def test_update_config(self, client: AsyncClient, db_session):
         config = Configuration(
-            config_key="LOG_LEVEL", config_value="INFO", config_type="string",
+            config_key="LOG_LEVEL",
+            config_value="INFO",
+            config_type="string",
         )
         db_session.add(config)
         await db_session.commit()

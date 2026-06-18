@@ -27,9 +27,9 @@ async def test_run_audit_task_already_running(client: AsyncClient, db_session: A
 
     response = await client.post(f"/api/audit/tasks/{task.id}/run")
     assert response.status_code == 400
-    detail = response.json()["detail"].lower()
-    # Either "already running" or "未配置 LLM" (LLM check fires first)
-    assert "already running" in detail or "llm" in detail or "未配置" in detail
+    detail = response.json()["detail"]
+    # Either "运行中" or "未配置 LLM" (LLM check fires first)
+    assert "运行中" in detail or "llm" in detail.lower() or "未配置" in detail
 
 
 @pytest.mark.asyncio

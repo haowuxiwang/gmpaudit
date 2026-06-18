@@ -473,10 +473,12 @@ async def test_anthropic_adapter_chat_with_system():
     }
 
     with patch.object(adapter._client, "post", new_callable=AsyncMock, return_value=mock_response) as mock_post:
-        await adapter.chat([
-            {"role": "system", "content": "You are helpful"},
-            {"role": "user", "content": "Hello"},
-        ])
+        await adapter.chat(
+            [
+                {"role": "system", "content": "You are helpful"},
+                {"role": "user", "content": "Hello"},
+            ]
+        )
         call_kwargs = mock_post.call_args
         body = call_kwargs.kwargs.get("json") or call_kwargs[1].get("json")
         assert body["system"] == "You are helpful"
@@ -496,7 +498,9 @@ async def test_reload_provider_openai():
     engine.adapters["deepseek"] = old_adapter
 
     with patch("httpx.AsyncClient"):
-        await engine.reload_provider("deepseek", api_key="new-key", base_url="https://new.example.com/v1", model="new-model")
+        await engine.reload_provider(
+            "deepseek", api_key="new-key", base_url="https://new.example.com/v1", model="new-model"
+        )
     assert "deepseek" in engine.adapters
     adapter = engine.adapters["deepseek"]
     assert isinstance(adapter, OpenAICompatibleAdapter)
@@ -662,6 +666,7 @@ async def test_anthropic_adapter_close():
 def test_get_llm_engine_singleton():
     """Test get_llm_engine returns a singleton."""
     import app.services.llm_engine as module
+
     old = module.llm_engine
     try:
         module.llm_engine = None
