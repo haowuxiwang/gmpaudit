@@ -1,10 +1,10 @@
 # AuditBee
 
-基于 LangGraph 多 Agent + LightRAG 知识图谱的制药行业 GMP 合规性审计系统，支持文档解析、智能审计分析、法规检索和结构化报告生成。以 PyInstaller 打包的本地 Web 应用形式分发，通过系统浏览器访问。
+基于 LangGraph 顺序 Agent 流水线 + LightRAG 知识图谱的制药行业 GMP 合规性审计系统，支持文档解析、智能审计分析、法规检索和结构化报告生成。以 PyInstaller 打包的本地单机 Web 应用形式分发，通过系统浏览器访问。**无需服务器、域名和登录**，用户只需解压 zip 双击 exe 即可使用。
 
 ## 核心特性
 
-- **多 Agent 审计流程**：LangGraph Supervisor 模式，法规专家 → 风险评估 → 报告撰写，确定性路由保障可靠性
+- **多 Agent 审计流程**：LangGraph 顺序流水线，法规专家 → 风险评估 → 报告撰写，确定性路由保障可靠性
 - **实时 SSE 流式推送**：EventBus 内存总线 + Server-Sent Events，Agent 执行进度和思考过程实时推送到前端
 - **Agent 思考面板**：实时展示各 Agent 节点的执行状态和 LLM 输出，支持折叠/展开和打字机动画
 - **任务取消**：支持取消运行中的审计任务，安全中断 asyncio 执行链
@@ -28,7 +28,7 @@
 | **桌面打包** | PyInstaller + tkinter 启动器 |
 | **后端框架** | Python FastAPI + Uvicorn |
 | **数据库** | SQLAlchemy 2.0 (async) + aiosqlite (SQLite) |
-| **Agent 系统** | LangGraph (StateGraph + Supervisor 模式) |
+| **Agent 系统** | LangGraph (StateGraph 顺序流水线) |
 | **知识图谱** | LightRAG + NanoVectorDB |
 | **Embedding** | 本地 BAAI/bge-large-zh-v1.5 (sentence-transformers) |
 | **文档处理** | PyMuPDF + python-docx + RapidOCR |
@@ -70,8 +70,34 @@ scripts\start.bat
 
 ### 4. 访问系统
 
-- 前端界面：http://localhost:3000
+- 生产模式（打包后）：http://localhost:8000（前端由 FastAPI 静态文件服务）
+- 开发模式：前端 http://localhost:3000 + 后端 http://localhost:8000
 - API 文档：http://localhost:8000/docs
+
+## v1 发布说明
+
+**v1 定义**：面向无代码用户的本地 zip 分发 AI GMP 审计助手。
+
+**使用方式**：
+1. 解压 zip 文件
+2. 双击 `AuditBee.exe`
+3. 在启动器中选择 LLM provider 并填写 API Key
+4. 系统自动打开浏览器
+5. 上传 GMP 相关文档，运行审计，生成报告
+
+**v1 特性**：
+- 本地单机运行，无需服务器和域名
+- 无需登录，session token 自动管理
+- 顺序 Agent 流水线（parse_doc → regulation_expert → risk_assessor → report_writer）
+- 本地 LightRAG 知识图谱 + 硬编码法规库双重保障
+- 支持 8 个 LLM 提供商（DeepSeek、Qwen、GLM、SiliconFlow、OpenRouter、Mimo、Anthropic、OpenAI）
+
+**v1 限制**：
+- 需要至少一个 LLM API Key 才能运行完整智能审计
+- 无 API Key 时只能看到降级/模板能力
+- 不是分布式多 Agent 系统
+- 不支持多用户协作
+- 审计质量依赖 LLM provider 和 API Key 质量
 
 ## 系统架构
 
@@ -82,7 +108,6 @@ Backend API (FastAPI)
     ↓
 Agent 系统 (LangGraph)
     ├─ parse_doc: 文档解析 (PDF/DOCX/TXT)
-    ├─ supervisor: 流程调度 (确定性路由)
     ├─ regulation_expert: 法规检索 (LightRAG + 备用DB)
     ├─ risk_assessor: 风险评估 (LLM分析)
     └─ report_writer: 报告生成 (Markdown)

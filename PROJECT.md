@@ -2,7 +2,7 @@
 
 ## What We're Building
 
-An AI-powered GMP compliance audit assistant for pharmaceutical quality management personnel. Combines multi-agent orchestration (LangGraph) with knowledge graph retrieval (LightRAG) to automate document analysis, risk identification, and report generation. Distributed as an Electron desktop application.
+An AI-powered GMP compliance audit assistant for pharmaceutical quality management personnel. Combines multi-agent orchestration (LangGraph) with knowledge graph retrieval (LightRAG) to automate document analysis, risk identification, and report generation. Distributed as a PyInstaller desktop application with tkinter launcher.
 
 ## Core Design Principles
 
@@ -14,21 +14,20 @@ An AI-powered GMP compliance audit assistant for pharmaceutical quality manageme
 ## Pipeline
 
 ```
-parse_doc → supervisor → regulation_expert → risk_assessor → report_writer → END
+parse_doc → regulation_expert → risk_assessor → report_writer → END
 ```
 
-- **parse_doc**: Extract text, detect document type
-- **regulation_expert**: Search LightRAG knowledge graph (fallback: hardcoded DB of 10 entries), LLM analysis
+- **parse_doc**: Extract text, detect document type (conditional edge: stops on error)
+- **regulation_expert**: Search LightRAG knowledge graph (fallback: hardcoded DB of 22 entries), LLM analysis
 - **risk_assessor**: LLM identifies findings, calculates risk score
 - **report_writer**: LLM generates Markdown report (fallback: template)
-- **supervisor**: Deterministic routing based on state flags
 
 ## Current Status (2026-05-18)
 
 ### Working
 - End-to-end audit pipeline (document → report)
-- 4-agent Supervisor pattern with deterministic routing
-- LightRAG knowledge graph with 5 regulation documents (GMP + ICH Q9/Q10)
+- 4-node sequential pipeline with deterministic routing
+- LightRAG knowledge graph with 16 regulation documents (GMP chapters 1-14 + ICH Q9/Q10)
 - 8 LLM providers via unified adapter
 - Frontend: 8 pages, fully Chinese UI, knowledge graph visualization
 - Feishu webhook notifications (HMAC-SHA256)
@@ -45,7 +44,7 @@ parse_doc → supervisor → regulation_expert → risk_assessor → report_writ
 ### Recently Fixed
 - LightRAG fallback chain was dead code — now properly triggers on failure
 - LLM failures no longer cascade-terminate the pipeline
-- Added LLM retry (1 retry, 2s delay) for transient failures
+- Added LLM retry (3 retries, exponential backoff with jitter) for transient failures
 - Supervisor only terminates on early errors (before regulation check)
 - Antiword subprocess encoding crash on Windows (GBK → UTF-8)
 - Frontend fully localized to Chinese (Ant Design zhCN locale)
@@ -58,7 +57,7 @@ parse_doc → supervisor → regulation_expert → risk_assessor → report_writ
 - API error interceptor extracts backend `detail` field into `error.message`
 
 ### Known Limitations
-- Regulation fallback DB has only 10 entries
+- Regulation fallback DB has 22 entries
 - Document content truncated to 3000 chars for LLM analysis
 - No verification agent to challenge findings
 - Backend-Agent bridge uses `sys.path` injection

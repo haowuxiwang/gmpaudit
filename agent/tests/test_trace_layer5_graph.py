@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from agent.trace import PipelineTrace, set_current_trace, clear_current_trace
+from agent.trace import PipelineTrace, clear_current_trace, set_current_trace
 
 
 @pytest.fixture(autouse=True)
@@ -49,7 +49,6 @@ class TestGraphTrace:
         }
 
         mock_regs = [{"regulation": "GMP", "title": "test", "content": "content"}]
-        mock_findings = [{"title": "test finding", "severity": "medium", "description": "test"}]
         mock_lightrag = MagicMock()
         mock_lightrag.lightrag_search = AsyncMock(return_value=mock_regs)
 
@@ -59,13 +58,15 @@ class TestGraphTrace:
         mock_llm._trace_node = "unknown"
         mock_llm.ainvoke = AsyncMock(return_value=MagicMock(content='[{"title":"test"}]'))
 
-        with patch.dict(sys.modules, {"agent.tools.lightrag_tool": mock_lightrag}), \
-             patch("agent.agents.regulation_expert.get_llm_with_fallback", return_value=mock_llm), \
-             patch("agent.agents.regulation_expert.load_prompt", return_value="Analyze: {document_content}"), \
-             patch("agent.agents.risk_assessor.get_llm_with_fallback", return_value=mock_llm), \
-             patch("agent.agents.risk_assessor.load_prompt", return_value="Assess: {document_content}"), \
-             patch("agent.agents.report_writer.get_llm_with_fallback", return_value=mock_llm), \
-             patch("agent.agents.report_writer.load_prompt", return_value="Report: {document_name}"):
+        with (
+            patch.dict(sys.modules, {"agent.tools.lightrag_tool": mock_lightrag}),
+            patch("agent.agents.regulation_expert.get_llm_with_fallback", return_value=mock_llm),
+            patch("agent.agents.regulation_expert.load_prompt", return_value="Analyze: {document_content}"),
+            patch("agent.agents.risk_assessor.get_llm_with_fallback", return_value=mock_llm),
+            patch("agent.agents.risk_assessor.load_prompt", return_value="Assess: {document_content}"),
+            patch("agent.agents.report_writer.get_llm_with_fallback", return_value=mock_llm),
+            patch("agent.agents.report_writer.load_prompt", return_value="Report: {document_name}"),
+        ):
             graph = build_audit_graph()
             final_state = await graph.ainvoke(initial_state)
 
@@ -146,13 +147,15 @@ class TestGraphTrace:
         mock_llm._trace_node = "unknown"
         mock_llm.ainvoke = AsyncMock(return_value=MagicMock(content='[{"title":"test"}]'))
 
-        with patch.dict(sys.modules, {"agent.tools.lightrag_tool": None}), \
-             patch("agent.agents.regulation_expert.get_llm_with_fallback", return_value=mock_llm), \
-             patch("agent.agents.regulation_expert.load_prompt", return_value="Analyze: {document_content}"), \
-             patch("agent.agents.risk_assessor.get_llm_with_fallback", return_value=mock_llm), \
-             patch("agent.agents.risk_assessor.load_prompt", return_value="Assess: {document_content}"), \
-             patch("agent.agents.report_writer.get_llm_with_fallback", return_value=mock_llm), \
-             patch("agent.agents.report_writer.load_prompt", return_value="Report: {document_name}"):
+        with (
+            patch.dict(sys.modules, {"agent.tools.lightrag_tool": None}),
+            patch("agent.agents.regulation_expert.get_llm_with_fallback", return_value=mock_llm),
+            patch("agent.agents.regulation_expert.load_prompt", return_value="Analyze: {document_content}"),
+            patch("agent.agents.risk_assessor.get_llm_with_fallback", return_value=mock_llm),
+            patch("agent.agents.risk_assessor.load_prompt", return_value="Assess: {document_content}"),
+            patch("agent.agents.report_writer.get_llm_with_fallback", return_value=mock_llm),
+            patch("agent.agents.report_writer.load_prompt", return_value="Report: {document_name}"),
+        ):
             graph = build_audit_graph()
             await graph.ainvoke(initial_state)
 

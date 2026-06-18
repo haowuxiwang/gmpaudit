@@ -19,6 +19,7 @@ sys.path.insert(0, str(_project_root))
 # Load .env for standalone CLI mode
 try:
     from dotenv import load_dotenv
+
     load_dotenv(_project_root / "config" / ".env")
 except ImportError:
     pass
@@ -37,7 +38,7 @@ async def run_audit(file_path: str, doc_type: str = "unknown", focus: str = "") 
     Returns:
         Final state dictionary
     """
-    from agent.trace import PipelineTrace, set_current_trace, clear_current_trace
+    from agent.trace import PipelineTrace, clear_current_trace, set_current_trace
 
     trace = PipelineTrace(document_name=file_path)
     set_current_trace(trace)
@@ -66,13 +67,13 @@ async def run_audit(file_path: str, doc_type: str = "unknown", focus: str = "") 
             "report_generated": False,
         }
 
-        print(f"\n{'='*60}")
-        print(f"GMP Audit Agent - Starting")
+        print(f"\n{'=' * 60}")
+        print("GMP Audit Agent - Starting")
         print(f"File: {file_path}")
         print(f"Type: {doc_type}")
         if focus:
             print(f"Focus: {focus}")
-        print(f"{'='*60}\n")
+        print(f"{'=' * 60}\n")
 
         final_state = await graph.ainvoke(initial_state)
 
@@ -82,15 +83,15 @@ async def run_audit(file_path: str, doc_type: str = "unknown", focus: str = "") 
         final_state["trace"] = trace.to_dict()
 
         # Print execution log
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print("Execution Log:")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
         for msg in final_state.get("messages", []):
             print(f"  > {msg}")
 
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"Status: {status}")
-        print(f"{'='*60}\n")
+        print(f"{'=' * 60}\n")
 
         # Print trace report
         print(trace.summary_report())
@@ -103,12 +104,14 @@ async def run_audit(file_path: str, doc_type: str = "unknown", focus: str = "") 
 def main():
     parser = argparse.ArgumentParser(description="GMP Compliance Audit Agent")
     parser.add_argument(
-        "--file", "-f",
+        "--file",
+        "-f",
         required=True,
         help="Path to the document file to audit",
     )
     parser.add_argument(
-        "--type", "-t",
+        "--type",
+        "-t",
         default="unknown",
         choices=["deviation", "sop", "change_control", "unknown"],
         help="Document type hint",
@@ -119,7 +122,8 @@ def main():
         help="Optional audit focus area (e.g., 'data integrity')",
     )
     parser.add_argument(
-        "--output", "-o",
+        "--output",
+        "-o",
         default="",
         help="Output path for the audit report (default: stdout)",
     )

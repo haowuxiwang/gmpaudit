@@ -68,8 +68,8 @@ const DashboardPage: React.FC = () => {
       });
       setDashboard(dashData);
       setRecentTasks(tasks.slice(0, 5));
-    } catch {
-      message.error('加载工作台数据失败');
+    } catch (e: unknown) {
+      message.error(e instanceof Error ? e.message : '加载工作台数据失败');
     } finally {
       setLoading(false);
     }

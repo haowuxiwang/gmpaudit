@@ -6,6 +6,7 @@ LLM provider for entity extraction and querying.
 """
 
 import asyncio
+import contextlib
 import hashlib
 import logging
 import os
@@ -31,8 +32,10 @@ async def _get_llm_client() -> httpx.AsyncClient:
                 _llm_client = httpx.AsyncClient(timeout=180)
     return _llm_client
 
+
 try:
     from app.core import paths as _paths
+
     INPUT_DIR = _paths.KG_INPUT_DIR
     WORKING_DIR = _paths.KG_OUTPUT_DIR
     MODEL_DIR = _paths.MODEL_DIR
@@ -58,13 +61,13 @@ def _get_embedding_func():
             async with _embedding_lock:
                 if _embedding_model is None:
                     from sentence_transformers import SentenceTransformer
+
                     logger.info("Loading embedding model from %s", MODEL_DIR)
                     _embedding_model = SentenceTransformer(str(MODEL_DIR), device="cpu")
         import numpy as np
+
         loop = asyncio.get_running_loop()
-        embeddings = await loop.run_in_executor(
-            None, lambda: _embedding_model.encode(texts, normalize_embeddings=True)
-        )
+        embeddings = await loop.run_in_executor(None, lambda: _embedding_model.encode(texts, normalize_embeddings=True))
         return np.array(embeddings)
 
     return EmbeddingFunc(
@@ -80,7 +83,7 @@ def _get_llm_func():
     Integrates with the agent trace system for observability.
     Enforces Chinese output for entity extraction tasks.
     """
-    from agent.trace import get_current_trace, LLMTraceEvent, now_ms
+    from agent.trace import LLMTraceEvent, get_current_trace, now_ms
 
     # System prompt to enforce Chinese output for GMP domain
     _CHINESE_SYSTEM_PROMPT = """你是一个专业的药品生产质量管理规范（GMP）法规专家。
@@ -96,7 +99,7 @@ def _get_llm_func():
         history_messages: list = None,
         **kwargs,
     ) -> str:
-        from agent.config import get_llm_config, get_default_provider, LLMAuthError
+        from agent.config import LLMAuthError, get_default_provider, get_llm_config
 
         # Inject Chinese system prompt for entity extraction tasks
         is_extraction = "entity" in prompt.lower() and "relationship" in prompt.lower()
@@ -110,8 +113,10 @@ def _get_llm_func():
 
         # Anthropic uses a different API format — delegate to LangChain adapter
         if provider == "anthropic":
+            from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+
             from agent.config import get_llm_with_fallback
-            from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
+
             llm = get_llm_with_fallback(temperature=0.3)
             lc_messages = []
             if system_prompt:
@@ -127,22 +132,35 @@ def _get_llm_func():
                 resp = await llm.ainvoke(lc_messages)
                 latency = now_ms() - t0
                 if trace:
-                    trace.llm_events.append(LLMTraceEvent(
-                        provider="anthropic", model=getattr(llm, "_model", "unknown"),
-                        node="lightrag", prompt_length=len(prompt),
-                        prompt_preview=prompt[:200], response_length=len(resp.content),
-                        latency_ms=round(latency, 1), success=True,
-                    ))
+                    trace.llm_events.append(
+                        LLMTraceEvent(
+                            provider="anthropic",
+                            model=getattr(llm, "_model", "unknown"),
+                            node="lightrag",
+                            prompt_length=len(prompt),
+                            prompt_preview=prompt[:200],
+                            response_length=len(resp.content),
+                            latency_ms=round(latency, 1),
+                            success=True,
+                        )
+                    )
                 return resp.content
             except Exception as e:
                 latency = now_ms() - t0
                 if trace:
-                    trace.llm_events.append(LLMTraceEvent(
-                        provider="anthropic", model=getattr(llm, "_model", "unknown"),
-                        node="lightrag", prompt_length=len(prompt),
-                        prompt_preview=prompt[:200], response_length=0,
-                        latency_ms=round(latency, 1), success=False, error=str(e)[:500],
-                    ))
+                    trace.llm_events.append(
+                        LLMTraceEvent(
+                            provider="anthropic",
+                            model=getattr(llm, "_model", "unknown"),
+                            node="lightrag",
+                            prompt_length=len(prompt),
+                            prompt_preview=prompt[:200],
+                            response_length=0,
+                            latency_ms=round(latency, 1),
+                            success=False,
+                            error=str(e)[:500],
+                        )
+                    )
                 raise
 
         config = get_llm_config()
@@ -150,6 +168,7 @@ def _get_llm_func():
         # Ensure model name is not empty (fallback to provider default)
         if not config.get("model"):
             from agent.config import MODEL_ENDPOINTS
+
             config["model"] = MODEL_ENDPOINTS.get(provider, {}).get("default_model", "mimo-v2.5-pro")
             logger.warning("LLM model name was empty, falling back to default: %s", config["model"])
 
@@ -183,71 +202,108 @@ def _get_llm_func():
                 )
                 resp.raise_for_status()
                 data = resp.json()
-                content = data["choices"][0]["message"]["content"]
+                msg = data["choices"][0]["message"]
+                content = msg.get("content", "")
+                # Reasoning models (DeepSeek-R1, etc.) put output in reasoning_content
+                if not content:
+                    reasoning = msg.get("reasoning_content", "")
+                    if reasoning:
+                        content = reasoning
+                        logger.info("Recovered %d chars from reasoning_content (raw HTTP, model=%s)", len(reasoning), model_name)
                 latency = now_ms() - t0
                 if trace:
-                    trace.llm_events.append(LLMTraceEvent(
-                        provider=provider, model=model_name,
-                        node="lightrag", prompt_length=len(prompt),
-                        prompt_preview=prompt[:200], response_length=len(content),
-                        latency_ms=round(latency, 1), success=True,
-                        retry_count=total_retries,
-                    ))
+                    trace.llm_events.append(
+                        LLMTraceEvent(
+                            provider=provider,
+                            model=model_name,
+                            node="lightrag",
+                            prompt_length=len(prompt),
+                            prompt_preview=prompt[:200],
+                            response_length=len(content),
+                            latency_ms=round(latency, 1),
+                            success=True,
+                            retry_count=total_retries,
+                        )
+                    )
                 return content
             except httpx.HTTPStatusError as e:
                 total_retries = _attempt
                 resp_body = ""
-                try:
+                with contextlib.suppress(Exception):
                     resp_body = e.response.text[:500]
-                except Exception:
-                    pass
                 total_chars = sum(len(m.get("content", "")) for m in messages)
                 logger.error(
                     "LLM HTTP %d (attempt %d/3): %s | model=%s msgs=%d chars=%d max_tokens=%d | body: %s",
-                    e.response.status_code, _attempt + 1, url,
-                    model_name, len(messages), total_chars,
-                    kwargs.get("max_tokens", 4096), resp_body,
+                    e.response.status_code,
+                    _attempt + 1,
+                    url,
+                    model_name,
+                    len(messages),
+                    total_chars,
+                    kwargs.get("max_tokens", 4096),
+                    resp_body,
                 )
                 # Auth errors: wrap with LLMAuthError for consistent handling
                 if e.response.status_code in (401, 403):
                     latency = now_ms() - t0
                     if trace:
-                        trace.llm_events.append(LLMTraceEvent(
-                            provider=provider, model=model_name,
-                            node="lightrag", prompt_length=len(prompt),
-                            prompt_preview=prompt[:200], response_length=0,
-                            latency_ms=round(latency, 1), success=False,
-                            error=f"HTTP {e.response.status_code}", retry_count=total_retries,
-                        ))
+                        trace.llm_events.append(
+                            LLMTraceEvent(
+                                provider=provider,
+                                model=model_name,
+                                node="lightrag",
+                                prompt_length=len(prompt),
+                                prompt_preview=prompt[:200],
+                                response_length=0,
+                                latency_ms=round(latency, 1),
+                                success=False,
+                                error=f"HTTP {e.response.status_code}",
+                                retry_count=total_retries,
+                            )
+                        )
                     raise LLMAuthError(provider, str(e)) from e
                 if e.response.status_code in (429, 500, 502, 503, 504) and _attempt < 2:
-                    await asyncio.sleep(2 ** _attempt)
+                    await asyncio.sleep(2**_attempt)
                     continue
                 # Non-retryable error
                 latency = now_ms() - t0
                 if trace:
-                    trace.llm_events.append(LLMTraceEvent(
-                        provider=provider, model=model_name,
-                        node="lightrag", prompt_length=len(prompt),
-                        prompt_preview=prompt[:200], response_length=0,
-                        latency_ms=round(latency, 1), success=False,
-                        error=f"HTTP {e.response.status_code}", retry_count=total_retries,
-                    ))
+                    trace.llm_events.append(
+                        LLMTraceEvent(
+                            provider=provider,
+                            model=model_name,
+                            node="lightrag",
+                            prompt_length=len(prompt),
+                            prompt_preview=prompt[:200],
+                            response_length=0,
+                            latency_ms=round(latency, 1),
+                            success=False,
+                            error=f"HTTP {e.response.status_code}",
+                            retry_count=total_retries,
+                        )
+                    )
                 raise
             except (httpx.TimeoutException, httpx.ConnectError) as e:
                 total_retries = _attempt
                 if _attempt < 2:
-                    await asyncio.sleep(2 ** _attempt)
+                    await asyncio.sleep(2**_attempt)
                     continue
                 latency = now_ms() - t0
                 if trace:
-                    trace.llm_events.append(LLMTraceEvent(
-                        provider=provider, model=model_name,
-                        node="lightrag", prompt_length=len(prompt),
-                        prompt_preview=prompt[:200], response_length=0,
-                        latency_ms=round(latency, 1), success=False,
-                        error=str(e)[:500], retry_count=total_retries,
-                    ))
+                    trace.llm_events.append(
+                        LLMTraceEvent(
+                            provider=provider,
+                            model=model_name,
+                            node="lightrag",
+                            prompt_length=len(prompt),
+                            prompt_preview=prompt[:200],
+                            response_length=0,
+                            latency_ms=round(latency, 1),
+                            success=False,
+                            error=str(e)[:500],
+                            retry_count=total_retries,
+                        )
+                    )
                 raise
 
     return llm_complete
@@ -277,7 +333,6 @@ async def get_lightrag():
             llm_model_func=_get_llm_func(),
             chunk_token_size=1200,
             chunk_overlap_token_size=100,
-            top_k=5,
         )
         await rag.initialize_storages()
         _lightrag_instance = rag
@@ -378,16 +433,39 @@ def get_cache_stats() -> dict:
 def _extract_title(content: str, query: str) -> str:
     """Extract a meaningful title from search result content."""
     # Try first line if it looks like a heading (short, no period)
-    first_line = content.split('\n')[0].strip()
-    if first_line and len(first_line) <= 80 and not first_line.endswith(('。', '，', '；')):
+    first_line = content.split("\n")[0].strip()
+    if first_line and len(first_line) <= 80 and not first_line.endswith(("。", "，", "；")):
         return first_line[:80]
     # Fall back to first sentence
-    for sep in ('。', '；', '\n'):
+    for sep in ("。", "；", "\n"):
         idx = content.find(sep)
         if 0 < idx <= 60:
             return content[:idx].strip()
     # Truncate
-    return content[:60].strip() + ('...' if len(content) > 60 else '')
+    return content[:60].strip() + ("..." if len(content) > 60 else "")
+
+
+def _extract_keywords_locally(query: str) -> tuple[list[str], list[str]]:
+    """Extract high-level and low-level keywords from query using jieba, skipping LLM call.
+
+    Returns (hl_keywords, ll_keywords) for LightRAG QueryParam.
+    """
+    try:
+        import jieba
+        words = [w.strip() for w in jieba.cut(query) if len(w.strip()) > 1]
+    except ImportError:
+        # Fallback: split on whitespace and punctuation
+        import re
+        words = [w.strip() for w in re.split(r'[\s，。；、]+', query) if len(w.strip()) > 1]
+
+    if not words:
+        return [query], [query]
+
+    # hl_keywords = longer phrases (2-3 words), ll_keywords = individual terms
+    hl_keywords = list(dict.fromkeys(words))[:5]  # deduplicated, max 5
+    ll_keywords = [w for w in words if len(w) >= 2][:8]  # meaningful terms, max 8
+
+    return hl_keywords or [query], ll_keywords or [query]
 
 
 async def lightrag_search(query: str, method: str = "local") -> list[dict]:
@@ -411,44 +489,41 @@ async def lightrag_search(query: str, method: str = "local") -> list[dict]:
     _cache_misses += 1
     try:
         from lightrag.base import QueryParam
+
         rag = await get_lightrag()
-        mode = "local" if method == "local" else "global"
+        # Use "mix" mode by default (combines local + global graph traversal)
+        mode = method if method in ("local", "global", "naive", "mix", "hybrid") else "mix"
+
+        # Pre-extract keywords locally to skip LightRAG's LLM-based keyword extraction (saves 3-8s)
+        hl_keywords, ll_keywords = _extract_keywords_locally(query)
+
+        param = QueryParam(
+            mode=mode,
+            top_k=10,
+            chunk_top_k=10,
+            enable_rerank=True,
+            hl_keywords=hl_keywords,
+            ll_keywords=ll_keywords,
+        )
         result = await asyncio.wait_for(
-            rag.aquery(query, param=QueryParam(mode=mode)),
-            timeout=60,
+            rag.aquery(query, param=param),
+            timeout=120,
         )
 
         if not result or not result.strip():
             _set_cached(query, method, [])
             return []
 
-        # Split result into multiple entries if it contains multiple paragraphs
-        paragraphs = [p.strip() for p in result.split('\n\n') if p.strip()]
-
-        if len(paragraphs) <= 1:
-            # Single result
-            results = [
-                {
-                    "regulation": "GMP法规知识库",
-                    "chapter": f"查询: {query[:40]}",
-                    "title": _extract_title(result, query),
-                    "content": result,
-                    "relevance": "知识图谱语义匹配",
-                }
-            ]
-            _set_cached(query, method, results)
-            return results
-
-        # Multiple results
-        results = []
-        for i, para in enumerate(paragraphs[:5]):  # Limit to 5 results
-            results.append({
+        # Return as single coherent result (LightRAG returns synthesized text, not a list)
+        results = [
+            {
                 "regulation": "GMP法规知识库",
                 "chapter": f"查询: {query[:40]}",
-                "title": _extract_title(para, query),
-                "content": para,
+                "title": _extract_title(result, query),
+                "content": result,
                 "relevance": "知识图谱语义匹配",
-            })
+            }
+        ]
         _set_cached(query, method, results)
         return results
     except Exception as e:
@@ -467,6 +542,7 @@ async def preload_embedding_model():
             return
         try:
             from sentence_transformers import SentenceTransformer
+
             logger.info("Preloading embedding model from %s", MODEL_DIR)
             loop = asyncio.get_running_loop()
             _embedding_model = await loop.run_in_executor(

@@ -50,8 +50,13 @@ async def test_query_without_index(client):
 async def test_query_with_index(client):
     """Query should return results when index is built."""
     mock_results = [{"regulation": "test", "content": "test content", "title": "test"}]
-    with patch("app.api.kg._get_index_info", return_value={"built": True, "file_count": 5, "last_modified": "2026-01-01T00:00:00"}), \
-         patch("agent.tools.lightrag_tool.lightrag_search", new_callable=AsyncMock, return_value=mock_results):
+    with (
+        patch(
+            "app.api.kg._get_index_info",
+            return_value={"built": True, "file_count": 5, "last_modified": "2026-01-01T00:00:00"},
+        ),
+        patch("agent.tools.lightrag_tool.lightrag_search", new_callable=AsyncMock, return_value=mock_results),
+    ):
         resp = await client.post("/api/kg/query", json={"query": "GMP 数据完整性", "method": "local"})
         assert resp.status_code == 200
         data = resp.json()
@@ -62,8 +67,10 @@ async def test_query_with_index(client):
 @pytest.mark.asyncio
 async def test_build_without_input(client):
     """Build should fail when no input files exist."""
-    with patch("app.api.kg.os.path.isdir", return_value=True), \
-         patch("app.api.kg.os.listdir", return_value=[".gitkeep"]):
+    with (
+        patch("app.api.kg.os.path.isdir", return_value=True),
+        patch("app.api.kg.os.listdir", return_value=[".gitkeep"]),
+    ):
         resp = await client.post("/api/kg/build")
         assert resp.status_code == 400
         assert "没有输入文件" in resp.json()["detail"]

@@ -1,10 +1,11 @@
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, lazy, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ConfigProvider, Layout, Spin } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
 import Header from './components/common/Header';
 import Sidebar from './components/common/Sidebar';
 import ErrorBoundary from './components/common/ErrorBoundary';
+import { fetchApiToken } from './services/api';
 
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const DocumentsPage = lazy(() => import('./pages/DocumentsPage'));
@@ -49,6 +50,10 @@ const AppLayout: React.FC = () => (
 );
 
 const App: React.FC = () => {
+  useEffect(() => {
+    void fetchApiToken();
+  }, []);
+
   return (
     <ConfigProvider
       locale={zhCN}

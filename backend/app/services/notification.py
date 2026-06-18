@@ -1,9 +1,11 @@
 import asyncio
-import httpx
+import hashlib
+import hmac
 import logging
 import time
-import hmac
-import hashlib
+
+import httpx
+
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -24,11 +26,15 @@ def _get_httpx_client() -> httpx.AsyncClient:
 def _build_sign(timestamp: str, secret: str) -> str:
     """Build HMAC-SHA256 signature for Feishu webhook."""
     string_to_sign = f"{timestamp}\n{secret}"
-    return hmac.new(
-        secret.encode("utf-8"),
-        string_to_sign.encode("utf-8"),
-        digestmod=hashlib.sha256,
-    ).digest().hex()
+    return (
+        hmac.new(
+            secret.encode("utf-8"),
+            string_to_sign.encode("utf-8"),
+            digestmod=hashlib.sha256,
+        )
+        .digest()
+        .hex()
+    )
 
 
 async def send_feishu_notification(
@@ -61,20 +67,29 @@ async def send_feishu_notification(
 
     if action_url:
         elements.append({"tag": "hr"})
-        elements.append({
-            "tag": "action",
-            "actions": [{
-                "tag": "button",
-                "text": {"tag": "plain_text", "content": "查看审计报告"},
-                "type": "primary",
-                "url": action_url,
-            }],
-        })
+        elements.append(
+            {
+                "tag": "action",
+                "actions": [
+                    {
+                        "tag": "button",
+                        "text": {"tag": "plain_text", "content": "查看审计报告"},
+                        "type": "primary",
+                        "url": action_url,
+                    }
+                ],
+            }
+        )
 
     elements.append({"tag": "hr"})
-    elements.append({"tag": "note", "elements": [
-        {"tag": "plain_text", "content": "AuditBee 自动审计系统"},
-    ]})
+    elements.append(
+        {
+            "tag": "note",
+            "elements": [
+                {"tag": "plain_text", "content": "AuditBee 自动审计系统"},
+            ],
+        }
+    )
 
     card = {
         "msg_type": "interactive",
@@ -137,11 +152,7 @@ async def notify_audit_complete(
     if low_count > 0:
         risk_parts.append(f"🟢 低风险: **{low_count}**")
 
-    content = (
-        f"**任务:** {task_name}\n"
-        f"**发现总数:** {findings_count}\n"
-        f"{' | '.join(risk_parts)}"
-    )
+    content = f"**任务:** {task_name}\n**发现总数:** {findings_count}\n{' | '.join(risk_parts)}"
 
     # Add top findings summary
     if top_findings:
@@ -162,21 +173,14 @@ async def notify_audit_complete(
 async def notify_high_risk_finding(task_name: str, finding_title: str, severity: str, description: str):
     """Send immediate notification for high-risk findings."""
     title = f"⚠️ 高风险发现: {finding_title}"
-    content = (
-        f"**任务:** {task_name}\n"
-        f"**严重程度:** {severity}\n"
-        f"**描述:** {description[:200]}"
-    )
+    content = f"**任务:** {task_name}\n**严重程度:** {severity}\n**描述:** {description[:200]}"
     await send_feishu_notification(title, content, "high")
 
 
 async def notify_task_failed(task_name: str, error_message: str):
     """Send notification when an audit task fails."""
     title = f"❌ 审计任务失败: {task_name}"
-    content = (
-        f"**任务:** {task_name}\n"
-        f"**错误:** {error_message[:300]}"
-    )
+    content = f"**任务:** {task_name}\n**错误:** {error_message[:300]}"
     await send_feishu_notification(title, content, "high")
 
 
@@ -184,3 +188,11 @@ def is_feishu_configured() -> bool:
     """Check if Feishu webhook is configured and valid."""
     url = (settings.FEISHU_WEBHOOK_URL or "").strip()
     return bool(url and url.startswith("http"))
+
+
+async def close_httpx_client() -> None:
+    """Close the module-level httpx client. Call during app shutdown."""
+    global _httpx_client
+    if _httpx_client is not None and not _httpx_client.is_closed:
+        await _httpx_client.aclose()
+    _httpx_client = None

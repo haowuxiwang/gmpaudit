@@ -2,12 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Modal, Input, Spin, message, Typography } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import { documentApi } from '../services/api';
+import { THEME } from '../constants/theme';
 
 const { Text } = Typography;
 
 interface DocumentPreviewProps {
   documentId: number;
   highlightText?: string;
+  location?: string;
   visible: boolean;
   onClose: () => void;
 }
@@ -104,7 +106,7 @@ function getWindowAroundHighlight(
   };
 }
 
-const DocumentPreview: React.FC<DocumentPreviewProps> = ({ documentId, highlightText, visible, onClose }) => {
+const DocumentPreview: React.FC<DocumentPreviewProps> = ({ documentId, highlightText, location, visible, onClose }) => {
   const [content, setContent] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState(highlightText || '');
@@ -152,7 +154,7 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({ documentId, highlight
     const parts = text.split(new RegExp(`(${highlight.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'));
     return parts.map((part, index) =>
       part.toLowerCase() === highlight.toLowerCase() ? (
-        <mark key={index} ref={highlightRef} style={{ backgroundColor: '#fff3b0', padding: '0 2px', borderRadius: 2 }}>
+        <mark key={index} ref={highlightRef} style={{ backgroundColor: THEME.bgWarning, padding: '0 2px', borderRadius: 2 }}>
           {part}
         </mark>
       ) : part
@@ -160,8 +162,15 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({ documentId, highlight
   };
 
   // Check if we should show focused view
+  // Try highlightText first, then fall back to location (section path)
   const hasHighlightText = Boolean(searchText?.trim());
-  const windowData = hasHighlightText ? getWindowAroundHighlight(content, searchText) : null;
+  let windowData = hasHighlightText ? getWindowAroundHighlight(content, searchText) : null;
+  let usedLocation = false;
+  if (!windowData && location?.trim()) {
+    // Try to find the section in the document
+    windowData = getWindowAroundHighlight(content, location);
+    if (windowData) usedLocation = true;
+  }
   const hasHighlight = Boolean(windowData);
 
   return (
@@ -191,7 +200,7 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({ documentId, highlight
           {/* Focused view: only the relevant section */}
           <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Text type="secondary" style={{ fontSize: 12 }}>
-              显示相关段落
+              {usedLocation ? `定位到章节: ${location}` : '显示相关段落'}
             </Text>
             <a onClick={() => setShowFull(true)} style={{ fontSize: 12 }}>
               查看完整文档
@@ -206,13 +215,13 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({ documentId, highlight
               maxHeight: '50vh',
               overflow: 'auto',
               padding: 16,
-              background: '#fafafa',
+              background: THEME.bgLayout,
               borderRadius: 8,
-              border: '1px solid #f0f0f0',
+              border: `1px solid ${THEME.borderLight}`,
             }}
           >
             {windowData.before}
-            <mark style={{ backgroundColor: '#fff3b0', padding: '2px 4px', borderRadius: 2, fontWeight: 500 }}>
+            <mark style={{ backgroundColor: THEME.bgWarning, padding: '2px 4px', borderRadius: 2, fontWeight: 500 }}>
               {windowData.match}
             </mark>
             {windowData.after}
@@ -237,9 +246,9 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({ documentId, highlight
               maxHeight: '50vh',
               overflow: 'auto',
               padding: 16,
-              background: '#fafafa',
+              background: THEME.bgLayout,
               borderRadius: 8,
-              border: '1px solid #f0f0f0',
+              border: `1px solid ${THEME.borderLight}`,
             }}
           >
             {highlightContent(content, searchText)}

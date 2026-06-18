@@ -1,5 +1,7 @@
 from sqlalchemy import Column, Integer, String, Text
+
 from app.core.database import Base
+
 
 class Configuration(Base):
     __tablename__ = "configurations"

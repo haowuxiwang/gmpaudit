@@ -47,10 +47,9 @@ class TestFormatFindings:
 
     def test_optional_fields(self):
         """Optional fields included when present."""
-        findings = [{
-            "title": "T", "severity": "low", "description": "d",
-            "suggestion": "Fix it", "regulation_ref": "GMP Ch2"
-        }]
+        findings = [
+            {"title": "T", "severity": "low", "description": "d", "suggestion": "Fix it", "regulation_ref": "GMP Ch2"}
+        ]
         result = _format_findings(findings)
         assert "Fix it" in result
         assert "GMP Ch2" in result
@@ -61,9 +60,7 @@ class TestGenerateFallbackReport:
 
     def test_basic_report_structure(self, sample_findings):
         """Fallback report has all required sections."""
-        report = _generate_fallback_report(
-            "test.txt", "deviation", 55, "high", "Summary", sample_findings
-        )
+        report = _generate_fallback_report("test.txt", "deviation", 55, "high", "Summary", sample_findings)
         assert "# GMP 合规性审计报告" in report
         assert "## 1. 审计概述" in report
         assert "## 2. 法规依据" in report
@@ -111,10 +108,12 @@ class TestReportWriterNode:
         mock_llm.ainvoke = AsyncMock(return_value=MagicMock(content="# Test Report"))
         mock_prompt = "Generate: {document_name}\n{findings_text}"
 
-        with patch("agent.agents.report_writer.get_llm_with_fallback", return_value=mock_llm), \
-             patch("agent.agents.report_writer.load_prompt", return_value=mock_prompt), \
-             patch("pathlib.Path.write_text"), \
-             patch("pathlib.Path.mkdir"):
+        with (
+            patch("agent.agents.report_writer.get_llm_with_fallback", return_value=mock_llm),
+            patch("agent.agents.report_writer.load_prompt", return_value=mock_prompt),
+            patch("pathlib.Path.write_text"),
+            patch("pathlib.Path.mkdir"),
+        ):
             result = await report_writer_node(sample_state)
 
         assert result["report_generated"] is True
@@ -130,14 +129,35 @@ class TestReportWriterNode:
         mock_llm.ainvoke = AsyncMock(side_effect=Exception("LLM timeout"))
         mock_prompt = "Generate: {document_name}\n{findings_text}"
 
-        with patch("agent.agents.report_writer.get_llm_with_fallback", return_value=mock_llm), \
-             patch("agent.agents.report_writer.load_prompt", return_value=mock_prompt), \
-             patch("pathlib.Path.write_text"), \
-             patch("pathlib.Path.mkdir"):
+        with (
+            patch("agent.agents.report_writer.get_llm_with_fallback", return_value=mock_llm),
+            patch("agent.agents.report_writer.load_prompt", return_value=mock_prompt),
+            patch("pathlib.Path.write_text"),
+            patch("pathlib.Path.mkdir"),
+        ):
             result = await report_writer_node(sample_state)
 
         assert result["report_generated"] is True
         assert "GMP 合规性审计报告" in result["report_markdown"]
+
+    async def test_fallback_also_fails(self, sample_state):
+        """When both LLM and fallback report generation fail."""
+        sample_state["findings"] = []
+        mock_llm = AsyncMock()
+        mock_llm.ainvoke = AsyncMock(side_effect=Exception("LLM timeout"))
+        mock_prompt = "Generate: {document_name}\n{findings_text}"
+
+        with (
+            patch("agent.agents.report_writer.get_llm_with_fallback", return_value=mock_llm),
+            patch("agent.agents.report_writer.load_prompt", return_value=mock_prompt),
+            patch("agent.agents.report_writer._generate_fallback_report", side_effect=Exception("fallback crash")),
+            patch("pathlib.Path.write_text"),
+            patch("pathlib.Path.mkdir"),
+        ):
+            result = await report_writer_node(sample_state)
+
+        assert result["report_generated"] is True
+        assert "报告生成失败" in result["report_markdown"]
 
     async def test_file_save_failure(self, sample_state):
         """File save fails but report content still returned."""
@@ -145,10 +165,12 @@ class TestReportWriterNode:
         mock_llm.ainvoke = AsyncMock(return_value=MagicMock(content="# Report"))
         mock_prompt = "Generate: {document_name}\n{findings_text}"
 
-        with patch("agent.agents.report_writer.get_llm_with_fallback", return_value=mock_llm), \
-             patch("agent.agents.report_writer.load_prompt", return_value=mock_prompt), \
-             patch("pathlib.Path.mkdir"), \
-             patch("pathlib.Path.write_text", side_effect=PermissionError("No write access")):
+        with (
+            patch("agent.agents.report_writer.get_llm_with_fallback", return_value=mock_llm),
+            patch("agent.agents.report_writer.load_prompt", return_value=mock_prompt),
+            patch("pathlib.Path.mkdir"),
+            patch("pathlib.Path.write_text", side_effect=PermissionError("No write access")),
+        ):
             result = await report_writer_node(sample_state)
 
         assert result["report_generated"] is True
@@ -161,10 +183,12 @@ class TestReportWriterNode:
         mock_llm.ainvoke = AsyncMock(return_value=MagicMock(content="# Report"))
         mock_prompt = "Generate: {document_name}\n{findings_text}"
 
-        with patch("agent.agents.report_writer.get_llm_with_fallback", return_value=mock_llm), \
-             patch("agent.agents.report_writer.load_prompt", return_value=mock_prompt), \
-             patch("pathlib.Path.write_text"), \
-             patch("pathlib.Path.mkdir"):
+        with (
+            patch("agent.agents.report_writer.get_llm_with_fallback", return_value=mock_llm),
+            patch("agent.agents.report_writer.load_prompt", return_value=mock_prompt),
+            patch("pathlib.Path.write_text"),
+            patch("pathlib.Path.mkdir"),
+        ):
             result = await report_writer_node(sample_state)
 
         assert result["report_generated"] is True

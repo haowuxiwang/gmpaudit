@@ -174,10 +174,26 @@ GMP_REGULATIONS = [
 ]
 
 
-def search_regulations(query: str, n_results: int = 5) -> list[dict]:
-    """Search regulations by keyword matching.
+def _tokenize_chinese(text: str) -> list[str]:
+    """Tokenize Chinese text using jieba, with fallback to character bigrams."""
+    try:
+        import jieba
 
-    Simple fallback before GraphRAG integration.
+        return [w for w in jieba.cut(text) if len(w.strip()) > 1]
+    except ImportError:
+        # Fallback: character bigrams for Chinese, split by space for others
+        tokens = []
+        for part in text.split():
+            if len(part) > 1:
+                # Add the full part and character bigrams
+                tokens.append(part)
+                for i in range(len(part) - 1):
+                    tokens.append(part[i : i + 2])
+        return tokens
+
+
+def search_regulations(query: str, n_results: int = 5) -> list[dict]:
+    """Search regulations by keyword matching with Chinese tokenization.
 
     Args:
         query: Search query
@@ -187,7 +203,7 @@ def search_regulations(query: str, n_results: int = 5) -> list[dict]:
         List of matching regulation dicts
     """
     query_lower = query.lower()
-    keywords = [kw.strip() for kw in query_lower.split() if len(kw.strip()) > 1]
+    keywords = _tokenize_chinese(query_lower)
 
     scored = []
     for reg in GMP_REGULATIONS:

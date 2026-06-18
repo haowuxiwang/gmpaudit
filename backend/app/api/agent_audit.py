@@ -1,5 +1,3 @@
-from typing import Optional
-
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -9,7 +7,7 @@ from app.core.database import get_db
 from app.models.audit_task import AuditTask, TaskStatus, TaskType
 from app.models.document import Document, DocumentStatus
 from app.services.task_runner import append_event, build_task_payload, get_execution_meta, set_execution_meta, set_stage
-from app.utils.agent_helpers import AGENT_AVAILABLE
+from app.utils.agent_helpers import is_agent_available
 
 router = APIRouter()
 
@@ -23,7 +21,7 @@ AUDIT_TYPE_TO_TASK_TYPE = {
 class AgentAuditRequest(BaseModel):
     document_id: int
     audit_type: str = "deviation"
-    focus: Optional[str] = None
+    focus: str | None = None
 
 
 class AgentAuditResponse(BaseModel):
@@ -38,7 +36,7 @@ async def run_agent_audit(
     http_request: Request,
     db: AsyncSession = Depends(get_db),
 ):
-    if not AGENT_AVAILABLE:
+    if not is_agent_available():
         raise HTTPException(status_code=503, detail="Agent audit system is unavailable")
 
     document = (await db.execute(select(Document).where(Document.id == request.document_id))).scalar_one_or_none()
@@ -48,7 +46,10 @@ async def run_agent_audit(
         raise HTTPException(status_code=400, detail="Document is not processed")
 
     if request.audit_type not in AUDIT_TYPE_TO_TASK_TYPE:
-        raise HTTPException(status_code=400, detail=f"无效的审计类型: {request.audit_type}，可选: {list(AUDIT_TYPE_TO_TASK_TYPE.keys())}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"无效的审计类型: {request.audit_type}，可选: {list(AUDIT_TYPE_TO_TASK_TYPE.keys())}",
+        )
     audit_type = request.audit_type
     task = AuditTask(
         task_name=f"Agent audit - {document.filename}",
@@ -70,7 +71,7 @@ async def run_agent_audit(
     try:
         http_request.app.state.task_runner_factory().enqueue(task.id)
     except RuntimeError as e:
-        raise HTTPException(status_code=503, detail=str(e))
+        raise HTTPException(status_code=503, detail=str(e)) from e
 
     return AgentAuditResponse(task_id=task.id, status="pending", message="Agent audit queued")
 

@@ -34,7 +34,7 @@ gmpaudit/
   model/            # Pre-downloaded embedding model (BAAI/bge-large-zh-v1.5)
   tools/            # Bundled tools (ffmpeg)
   agent/            # LangGraph multi-agent system (PRIMARY audit engine)
-    agents/         # Agent nodes: supervisor, regulation_expert, risk_assessor, report_writer
+    agents/         # Agent nodes: regulation_expert, risk_assessor, report_writer
     parsers/        # Document parsers: pdf, docx, text
     tools/          # Utilities: lightrag_tool, regulation_db, risk_matrix, json_parser
     prompts/        # LLM prompt templates (Chinese)
@@ -72,8 +72,8 @@ gmpaudit/
 ## Key Patterns
 
 ### Agent System (Primary Audit Engine)
-- LangGraph StateGraph with Supervisor pattern for deterministic agent routing
-- Flow: `parse_doc → supervisor → regulation_expert → risk_assessor → report_writer → END`
+- LangGraph StateGraph with sequential pipeline for deterministic agent routing
+- Flow: `parse_doc → regulation_expert → risk_assessor → report_writer → END`
 - `AuditState` TypedDict shared between all agents with `Annotated[list, merge_lists]` reducer
 - Supervisor uses deterministic routing (not LLM-based) for reliability
 - Regulation Expert tries LightRAG first, falls back to hardcoded regulation DB (10 entries)

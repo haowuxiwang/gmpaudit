@@ -16,7 +16,6 @@ import asyncio
 import json
 import os
 import sys
-import time
 from pathlib import Path
 
 # Setup paths
@@ -28,6 +27,7 @@ _env_file = _PROJECT_ROOT / "config" / ".env"
 if _env_file.exists():
     try:
         from dotenv import load_dotenv
+
         load_dotenv(_env_file)
     except ImportError:
         for line in _env_file.read_text(encoding="utf-8").splitlines():
@@ -69,11 +69,13 @@ def layer1_checks() -> list[VerificationResult]:
 
     def check_dir():
         return kg_output.is_dir() or "KG output dir missing"
+
     results.append(run_check("KG output directory exists", check_dir))
 
     def check_graphml():
         p = kg_output / "graph_chunk_entity_relation.graphml"
         return p.exists() and p.stat().st_size > 0 or "GraphML missing/empty"
+
     results.append(run_check("GraphML index file", check_graphml))
 
     def check_vdb():
@@ -82,15 +84,16 @@ def layer1_checks() -> list[VerificationResult]:
             if not p.exists() or p.stat().st_size == 0:
                 return f"{name} missing/empty"
         return True
+
     results.append(run_check("VDB index files", check_vdb))
 
     def check_input():
         txt_files = list(kg_input.glob("*.txt"))
         return len(txt_files) >= 10 or f"Only {len(txt_files)} input files (need >= 10)"
+
     results.append(run_check("KG input files (>=10)", check_input))
 
     def check_status():
-        import json
         status_file = kg_output / "kv_store_doc_status.json"
         if not status_file.exists():
             return "doc_status file missing"
@@ -98,17 +101,22 @@ def layer1_checks() -> list[VerificationResult]:
             data = json.load(f)
         processed = sum(1 for v in data.values() if isinstance(v, dict) and v.get("status") == "processed")
         return processed >= 5 or f"Only {processed} processed docs (need >= 5)"
+
     results.append(run_check("Doc status (>=5 processed)", check_status))
 
     def check_fallback_db():
         from agent.tools.regulation_db import GMP_REGULATIONS
+
         return len(GMP_REGULATIONS) >= 20 or f"Only {len(GMP_REGULATIONS)} regulations (need >= 20)"
+
     results.append(run_check("Fallback DB (>=20 regulations)", check_fallback_db))
 
     def check_fallback_search():
         from agent.tools.regulation_db import search_regulations
+
         results = search_regulations("偏差处理", n_results=3)
         return len(results) > 0 or "No results for fallback search"
+
     results.append(run_check("Fallback DB search", check_fallback_search))
 
     return results
@@ -120,20 +128,26 @@ def layer2_checks(quick: bool = False) -> list[VerificationResult]:
 
     def check_provider():
         from agent.config import get_default_provider
+
         p = get_default_provider()
         return True if p else "No default provider set"
+
     results.append(run_check("Default provider set", check_provider))
 
     def check_fallback():
         from agent.config import get_llm_with_fallback
+
         llm = get_llm_with_fallback(temperature=0.1)
         return llm is not None or "get_llm_with_fallback returned None"
+
     results.append(run_check("LLM fallback works", check_fallback))
 
     if not quick:
+
         def check_10x():
             import asyncio
-            from agent.config import get_llm_with_fallback, call_llm_with_retry
+
+            from agent.config import call_llm_with_retry, get_llm_with_fallback
 
             async def run():
                 llm = get_llm_with_fallback(temperature=0.1)
@@ -154,6 +168,7 @@ def layer2_checks(quick: bool = False) -> list[VerificationResult]:
             if auth_errors > 0:
                 return f"{auth_errors} auth errors"
             return successes >= 8 or f"Only {successes}/10 succeeded"
+
         results.append(run_check("10x consecutive LLM calls", check_10x))
 
     return results
@@ -162,26 +177,27 @@ def layer2_checks(quick: bool = False) -> list[VerificationResult]:
 def layer3_checks() -> list[VerificationResult]:
     """Layer 3: RAG/KG Retrieval with trace."""
     import asyncio
-    from agent.trace import PipelineTrace, set_current_trace, clear_current_trace
+
+    from agent.trace import PipelineTrace, clear_current_trace, set_current_trace
 
     results = []
 
     def check_trace_import():
-        from agent.trace import PipelineTrace, get_current_trace
         return True
+
     results.append(run_check("Trace module imports", check_trace_import))
 
     def check_search_trace():
-        import asyncio
-        from agent.trace import PipelineTrace, set_current_trace, clear_current_trace
 
         async def run():
             from agent.agents.regulation_expert import _search_regulations
+
             trace = PipelineTrace(document_name="test.txt")
             set_current_trace(trace)
             try:
                 import sys
                 from unittest.mock import patch
+
                 with patch.dict(sys.modules, {"agent.tools.lightrag_tool": None}):
                     results, source = await _search_regulations("偏差处理")
                 return source == "fallback_db" and len(trace.kg_events) >= 1
@@ -189,6 +205,7 @@ def layer3_checks() -> list[VerificationResult]:
                 clear_current_trace()
 
         return asyncio.run(run()) or "Trace not recorded"
+
     results.append(run_check("KG search records trace", check_search_trace))
 
     return results
@@ -198,31 +215,46 @@ def layer5_checks() -> list[VerificationResult]:
     """Layer 5: LangGraph execution path."""
     import asyncio
     from unittest.mock import AsyncMock, MagicMock, patch
-    from agent.trace import PipelineTrace, set_current_trace, clear_current_trace
+
+    from agent.trace import PipelineTrace, clear_current_trace, set_current_trace
 
     results = []
 
     def check_graph_builds():
         from agent.graph import build_audit_graph
+
         graph = build_audit_graph()
         return graph is not None
+
     results.append(run_check("Graph builds successfully", check_graph_builds))
 
     def check_nodes_traced():
         async def run():
             from agent.graph import build_audit_graph
+
             trace = PipelineTrace(document_name="test.txt")
             set_current_trace(trace)
             try:
                 initial_state = {
-                    "document_name": "test.txt", "document_path": "test.txt",
-                    "document_type": "deviation", "audit_focus": "",
-                    "document_content": "偏差处理程序", "next_agent": "",
-                    "supervisor_reasoning": "", "matched_regulations": [],
-                    "regulation_summary": "", "findings": [], "risk_score": 0,
-                    "risk_level": "", "report_markdown": "", "report_path": "",
-                    "messages": [], "iteration": 0, "status": "running",
-                    "regulation_checked": False, "risk_assessed": False,
+                    "document_name": "test.txt",
+                    "document_path": "test.txt",
+                    "document_type": "deviation",
+                    "audit_focus": "",
+                    "document_content": "偏差处理程序",
+                    "next_agent": "",
+                    "supervisor_reasoning": "",
+                    "matched_regulations": [],
+                    "regulation_summary": "",
+                    "findings": [],
+                    "risk_score": 0,
+                    "risk_level": "",
+                    "report_markdown": "",
+                    "report_path": "",
+                    "messages": [],
+                    "iteration": 0,
+                    "status": "running",
+                    "regulation_checked": False,
+                    "risk_assessed": False,
                     "report_generated": False,
                 }
 
@@ -232,24 +264,27 @@ def layer5_checks() -> list[VerificationResult]:
                 mock_llm._trace_node = "unknown"
                 mock_llm.ainvoke = AsyncMock(return_value=MagicMock(content='[{"title":"t"}]'))
 
-                with patch.dict(sys.modules, {"agent.tools.lightrag_tool": None}), \
-                     patch("agent.agents.regulation_expert.get_llm_with_fallback", return_value=mock_llm), \
-                     patch("agent.agents.regulation_expert.load_prompt", return_value="x: {document_content}"), \
-                     patch("agent.agents.risk_assessor.get_llm_with_fallback", return_value=mock_llm), \
-                     patch("agent.agents.risk_assessor.load_prompt", return_value="x: {document_content}"), \
-                     patch("agent.agents.report_writer.get_llm_with_fallback", return_value=mock_llm), \
-                     patch("agent.agents.report_writer.load_prompt", return_value="x: {document_name}"):
+                with (
+                    patch.dict(sys.modules, {"agent.tools.lightrag_tool": None}),
+                    patch("agent.agents.regulation_expert.get_llm_with_fallback", return_value=mock_llm),
+                    patch("agent.agents.regulation_expert.load_prompt", return_value="x: {document_content}"),
+                    patch("agent.agents.risk_assessor.get_llm_with_fallback", return_value=mock_llm),
+                    patch("agent.agents.risk_assessor.load_prompt", return_value="x: {document_content}"),
+                    patch("agent.agents.report_writer.get_llm_with_fallback", return_value=mock_llm),
+                    patch("agent.agents.report_writer.load_prompt", return_value="x: {document_name}"),
+                ):
                     graph = build_audit_graph()
                     await graph.ainvoke(initial_state)
 
                 nodes = {e.node for e in trace.node_events}
-                expected = {"parse_doc", "supervisor", "regulation_expert", "risk_assessor", "report_writer"}
+                expected = {"parse_doc", "regulation_expert", "risk_assessor", "report_writer"}
                 return expected.issubset(nodes) or f"Missing: {expected - nodes}"
             finally:
                 clear_current_trace()
 
         return asyncio.run(run())
-    results.append(run_check("All 5 nodes traced", check_nodes_traced))
+
+    results.append(run_check("All 4 nodes traced", check_nodes_traced))
 
     return results
 
@@ -259,8 +294,10 @@ def e2e_checks(quick: bool = False) -> list[VerificationResult]:
     results = []
 
     if not quick:
+
         def check_e2e():
             from agent.main import run_audit
+
             doc_path = str(_PROJECT_ROOT / "data" / "test_documents" / "sample_deviation.txt")
 
             async def run():
@@ -338,9 +375,9 @@ def main():
     passed = sum(1 for r in all_results if r.passed)
     failed = total - passed
 
-    print(f"\n{'='*50}")
+    print(f"\n{'=' * 50}")
     print(f"FINAL RESULT: {passed}/{total} passed, {failed} failed")
-    print(f"{'='*50}")
+    print(f"{'=' * 50}")
 
     if failed > 0:
         print("\nFailed checks:")

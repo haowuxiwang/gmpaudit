@@ -8,6 +8,9 @@ on:
 jobs:
   build:
     runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
 
@@ -19,40 +22,75 @@ jobs:
         with:
           node-version: "18"
 
-      # 前端构建
+      # Frontend build
       - name: Build frontend
         working-directory: frontend
         run: |
           npm ci
           npm run build
 
-      # 复制前端到后端静态目录
+      # Copy frontend to backend static
       - name: Copy frontend build
         run: cp -r frontend/build/* backend/app/static/
 
-      # 安装 Python 依赖
+      # Install Python dependencies
       - name: Install Python dependencies
         working-directory: backend
         run: |
           pip install -r requirements.txt
           pip install pyinstaller
 
-      # PyInstaller 打包
+      # PyInstaller build
       - name: Build exe with PyInstaller
         run: |
           cd backend
           pyinstaller ../scripts/build.spec --noconfirm
 
-      # 上传 artifact
+      # Create runtime directories and config
+      - name: Setup runtime directories
+        run: |
+          mkdir -p backend/dist/AuditBee/config
+          mkdir -p backend/dist/AuditBee/data/{database,documents,processed,reports,logs,kg_output,kg_input}
+          cp config/.env.example backend/dist/AuditBee/config/.env
+          cp config/.env.example backend/dist/AuditBee/config/.env.example
+
+      # Copy pre-built LightRAG index if available
+      - name: Copy LightRAG index
+        run: |
+          if [ -d "lightrag_index/lightrag_output" ]; then
+            mkdir -p backend/dist/AuditBee/_internal/lightrag_index
+            cp -r lightrag_index/lightrag_output backend/dist/AuditBee/_internal/lightrag_index/
+            echo "LightRAG index copied."
+          else
+            echo "WARNING: lightrag_index/lightrag_output not found. KG will need rebuild."
+          fi
+
+      # Copy embedding model if available
+      - name: Copy embedding model
+        run: |
+          if [ -d "model" ]; then
+            cp -r model backend/dist/AuditBee/model
+            echo "Embedding model copied."
+          else
+            echo "WARNING: model/ not found. User must download manually."
+          fi
+
+      # Zip the distribution
+      - name: Package distribution
+        run: |
+          cd backend/dist
+          7z a -tzip AuditBee-${{ github.ref_name }}.zip AuditBee/
+
+      # Upload artifact
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: AuditBee-${{ github.ref_name }}
-          path: backend/dist/AuditBee/
+          path: backend/dist/AuditBee-${{ github.ref_name }}.zip
 
-      # 创建 GitHub Release
+      # Create GitHub Release with zip
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          files: backend/dist/AuditBee/
+          files: backend/dist/AuditBee-${{ github.ref_name }}.zip
           generate_release_notes: true

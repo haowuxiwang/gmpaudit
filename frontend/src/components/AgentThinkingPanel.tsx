@@ -7,6 +7,7 @@ import {
   LoadingOutlined,
 } from '@ant-design/icons';
 import type { AgentThinkingEvent } from '../types/api';
+import { THEME } from '../constants/theme';
 
 const { Text } = Typography;
 
@@ -31,7 +32,7 @@ function getStepStatus(
   lastActiveStage: string,
   isRunning: boolean,
 ): 'pending' | 'active' | 'done' | 'failed' {
-  if (!isRunning && currentStage === 'completed') return 'done';
+  if (!isRunning && (currentStage === 'completed' || currentStage === 'awaiting_review')) return 'done';
   if (!isRunning && currentStage === 'failed') {
     // Use lastActiveStage to determine which step failed
     const failedIdx = STAGE_ORDER.indexOf(lastActiveStage);
@@ -84,12 +85,13 @@ const AgentThinkingPanel: React.FC<AgentThinkingPanelProps> = ({
 
   // Compute completed step count
   const completedCount = useMemo(() => {
-    if (!isRunning && currentStage === 'completed') return STEPS.length;
+    if (!isRunning && (currentStage === 'completed' || currentStage === 'awaiting_review')) return STEPS.length;
     const idx = STAGE_ORDER.indexOf(currentStage);
     return idx >= 0 ? idx : 0;
   }, [currentStage, isRunning]);
 
   const isFailed = !isRunning && currentStage === 'failed';
+  const isAwaitingReview = !isRunning && currentStage === 'awaiting_review';
 
   const summaryText = useMemo(() => {
     if (isRunning) {
@@ -99,9 +101,10 @@ const AgentThinkingPanel: React.FC<AgentThinkingPanelProps> = ({
       return activeStep ? `正在进行: ${activeStep.label}...` : '准备中...';
     }
     if (isFailed) return '审计任务失败';
+    if (isAwaitingReview) return `已完成 ${completedCount}/${STEPS.length} 个步骤，等待审批`;
     if (thinkingEvents.length === 0) return '等待开始';
     return `已完成 ${completedCount}/${STEPS.length} 个步骤`;
-  }, [isRunning, currentStage, thinkingEvents.length, completedCount, isFailed]);
+  }, [isRunning, currentStage, thinkingEvents.length, completedCount, isFailed, isAwaitingReview]);
 
   return (
     <Collapse
@@ -142,10 +145,10 @@ const AgentThinkingPanel: React.FC<AgentThinkingPanelProps> = ({
                         borderRadius: '50%',
                         background:
                           status === 'done'
-                            ? '#52c41a'
+                            ? THEME.success
                             : status === 'active'
-                              ? '#1890ff'
-                              : '#d9d9d9',
+                              ? THEME.info
+                              : THEME.pending,
                         transition: 'background 0.3s',
                       }}
                     />
@@ -187,7 +190,7 @@ const AgentThinkingPanel: React.FC<AgentThinkingPanelProps> = ({
                           width: 2,
                           height: 32,
                           background:
-                            status === 'done' ? '#52c41a' : '#f0f0f0',
+                            status === 'done' ? THEME.success : THEME.borderLight,
                           transition: 'background 0.3s',
                         }}
                       />
@@ -206,20 +209,20 @@ const AgentThinkingPanel: React.FC<AgentThinkingPanelProps> = ({
                     >
                       {status === 'done' ? (
                         <CheckCircleFilled
-                          style={{ fontSize: 18, color: '#52c41a' }}
+                          style={{ fontSize: 18, color: THEME.success }}
                         />
                       ) : status === 'failed' ? (
                         <CloseCircleFilled
-                          style={{ fontSize: 18, color: '#ff4d4f' }}
+                          style={{ fontSize: 18, color: THEME.error }}
                         />
                       ) : status === 'active' ? (
                         <LoadingOutlined
-                          style={{ fontSize: 18, color: '#1890ff' }}
+                          style={{ fontSize: 18, color: THEME.info }}
                           spin
                         />
                       ) : (
                         <ClockCircleOutlined
-                          style={{ fontSize: 16, color: '#d9d9d9' }}
+                          style={{ fontSize: 16, color: THEME.pending }}
                         />
                       )}
                     </div>
@@ -238,10 +241,10 @@ const AgentThinkingPanel: React.FC<AgentThinkingPanelProps> = ({
                           fontSize: 13,
                           color:
                             status === 'active'
-                              ? '#1890ff'
+                              ? THEME.info
                               : status === 'done'
-                                ? '#333'
-                                : '#999',
+                                ? THEME.text
+                                : THEME.textTertiary,
                         }}
                       >
                         {step.icon} {step.label}

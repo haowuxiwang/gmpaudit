@@ -1,6 +1,5 @@
 import os
-import sys
-import tempfile
+
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -83,15 +82,18 @@ async def test_process_document_success(client: AsyncClient, db_session: AsyncSe
     await db_session.refresh(doc)
 
     from unittest.mock import AsyncMock, MagicMock
+
     import app.services.document_processor as dp_module
 
     mock_processor = MagicMock()
-    mock_processor.process_document = AsyncMock(return_value={
-        "content": "Processed content",
-        "chunks": ["chunk1"],
-        "chunk_count": 1,
-        "char_count": 16,
-    })
+    mock_processor.process_document = AsyncMock(
+        return_value={
+            "content": "Processed content",
+            "chunks": ["chunk1"],
+            "chunk_count": 1,
+            "char_count": 16,
+        }
+    )
 
     original = dp_module.document_processor
     dp_module.document_processor = mock_processor
@@ -119,6 +121,7 @@ async def test_process_document_failure(client: AsyncClient, db_session: AsyncSe
     await db_session.refresh(doc)
 
     from unittest.mock import AsyncMock, MagicMock
+
     import app.services.document_processor as dp_module
 
     mock_processor = MagicMock()
@@ -137,6 +140,7 @@ async def test_process_document_failure(client: AsyncClient, db_session: AsyncSe
 @pytest.mark.asyncio
 async def test_delete_document_removes_file(client: AsyncClient, db_session: AsyncSession):
     from app.core.config import settings
+
     upload_dir = settings.UPLOAD_DIR
     os.makedirs(upload_dir, exist_ok=True)
     test_file = os.path.join(upload_dir, "test_delete_file.pdf")

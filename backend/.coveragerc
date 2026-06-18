@@ -1,0 +1,16 @@
+[run]
+omit =
+    app/launcher.py
+    app/tkinter_launcher.py
+    app/services/memory.py
+    app/main.py
+
+[report]
+exclude_lines =
+    pragma: no cover
+    if __name__ == .__main__
+    raise NotImplementedError
+    def _configure_logging
+    def _preload_embedding
+    threading.Thread
+    async def _eventbus_cleanup

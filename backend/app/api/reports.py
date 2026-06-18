@@ -2,7 +2,7 @@ import asyncio
 import html as html_module
 import io
 import logging
-from datetime import timezone
+from datetime import UTC
 
 logger = logging.getLogger(__name__)
 
@@ -24,9 +24,32 @@ router = APIRouter()
 
 # Tags allowed in markdown-generated HTML (strip <script>, <iframe>, etc.)
 _ALLOWED_TAGS = [
-    "h1", "h2", "h3", "h4", "h5", "h6", "p", "ul", "ol", "li",
-    "table", "thead", "tbody", "tr", "th", "td", "code", "pre",
-    "blockquote", "strong", "em", "a", "br", "hr", "span", "div",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "p",
+    "ul",
+    "ol",
+    "li",
+    "table",
+    "thead",
+    "tbody",
+    "tr",
+    "th",
+    "td",
+    "code",
+    "pre",
+    "blockquote",
+    "strong",
+    "em",
+    "a",
+    "br",
+    "hr",
+    "span",
+    "div",
 ]
 _ALLOWED_ATTRS = {"a": ["href", "title"]}
 
@@ -61,7 +84,7 @@ async def list_reports(
                 "task_id": report.task_id,
                 "report_type": report.report_type.value,
                 "title": report.title,
-                "created_at": report.created_at.replace(tzinfo=timezone.utc).isoformat() if report.created_at else None,
+                "created_at": report.created_at.replace(tzinfo=UTC).isoformat() if report.created_at else None,
                 "report_metadata": report.report_metadata,
             }
             for report in reports
@@ -98,14 +121,16 @@ async def generate_report(
         for finding in findings
     ]
     try:
-        report_content = await asyncio.wait_for(llm.generate_report(findings_data), timeout=settings.LLM_REQUEST_TIMEOUT)
+        report_content = await asyncio.wait_for(
+            llm.generate_report(findings_data), timeout=settings.LLM_REQUEST_TIMEOUT
+        )
     except ValueError as exc:
-        raise HTTPException(status_code=503, detail=f"LLM 服务不可用: {exc}")
-    except asyncio.TimeoutError:
-        raise HTTPException(status_code=504, detail=f"LLM 调用超时（{settings.LLM_REQUEST_TIMEOUT}秒）")
+        raise HTTPException(status_code=503, detail=f"LLM 服务不可用: {exc}") from exc
+    except TimeoutError:
+        raise HTTPException(status_code=504, detail=f"LLM 调用超时（{settings.LLM_REQUEST_TIMEOUT}秒）") from None
     except Exception as exc:
         logger.exception("Report generation failed")
-        raise HTTPException(status_code=502, detail=f"LLM 调用失败: {type(exc).__name__}")
+        raise HTTPException(status_code=502, detail="LLM 调用失败，请检查配置") from exc
 
     report = Report(
         task_id=task_id,
@@ -146,7 +171,7 @@ async def get_report(
         "report_type": report.report_type.value,
         "title": report.title,
         "content": report.content,
-        "created_at": report.created_at.replace(tzinfo=timezone.utc).isoformat() if report.created_at else None,
+        "created_at": report.created_at.replace(tzinfo=UTC).isoformat() if report.created_at else None,
         "report_metadata": report.report_metadata,
     }
 
@@ -161,7 +186,7 @@ async def export_report_html(
         raise HTTPException(status_code=404, detail="Report not found")
 
     safe_title = html_module.escape(report.title or "Untitled")
-    created_display = report.created_at.replace(tzinfo=timezone.utc).isoformat() if report.created_at else ""
+    created_display = report.created_at.replace(tzinfo=UTC).isoformat() if report.created_at else ""
     html_body = _sanitize_html(markdown.markdown(report.content or "", extensions=["tables", "fenced_code"]))
     html = f"""<!DOCTYPE html>
 <html lang="zh-CN">
@@ -200,7 +225,7 @@ async def export_report_pdf(
         raise HTTPException(status_code=404, detail="Report not found")
 
     safe_title = html_module.escape(report.title or "Untitled")
-    created_display = report.created_at.replace(tzinfo=timezone.utc).isoformat() if report.created_at else ""
+    created_display = report.created_at.replace(tzinfo=UTC).isoformat() if report.created_at else ""
     html_body = _sanitize_html(markdown.markdown(report.content or "", extensions=["tables", "fenced_code"]))
     full_html = f"""<!DOCTYPE html>
 <html lang="zh-CN">
@@ -231,19 +256,22 @@ async def export_report_pdf(
     try:
         from reportlab.pdfbase import pdfmetrics
         from reportlab.pdfbase.cidfonts import UnicodeCIDFont
-        pdfmetrics.registerFont(UnicodeCIDFont('STSong-Light'))
+
+        pdfmetrics.registerFont(UnicodeCIDFont("STSong-Light"))
 
         from xhtml2pdf import pisa
+
         pdf_buffer = io.BytesIO()
-        status = pisa.CreatePDF(full_html, dest=pdf_buffer, encoding="utf-8")
+        status = await asyncio.to_thread(pisa.CreatePDF, full_html, dest=pdf_buffer, encoding="utf-8")
         if status.err:
             raise RuntimeError(f"PDF rendering errors: {status.err}")
         pdf_bytes = pdf_buffer.getvalue()
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"PDF 生成失败: {exc}")
+        raise HTTPException(status_code=500, detail="PDF 生成失败") from exc
 
     import re
-    safe_filename = re.sub(r'[^\w一-鿿\-]', '_', (report.title or "report"))[:100]
+
+    safe_filename = re.sub(r"[^\w一-鿿\-]", "_", (report.title or "report"))[:100]
     return StreamingResponse(
         io.BytesIO(pdf_bytes),
         media_type="application/pdf",

@@ -10,13 +10,13 @@ Each node handles its own errors gracefully (returns fallback results).
 
 import logging
 
-from langgraph.graph import StateGraph, END
+from langgraph.graph import END, StateGraph
 
-from agent.state import AuditState
-from agent.parsers import parse_file
 from agent.agents.regulation_expert import regulation_expert_node
-from agent.agents.risk_assessor import risk_assessor_node
 from agent.agents.report_writer import report_writer_node
+from agent.agents.risk_assessor import risk_assessor_node
+from agent.parsers import parse_file
+from agent.state import AuditState
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +27,8 @@ def traced_node(node_func, node_name: str = ""):
     Supports both sync and async node functions.
     """
     import asyncio
-    from agent.trace import get_current_trace, NodeTraceEvent, now_ms
+
+    from agent.trace import NodeTraceEvent, get_current_trace, now_ms
 
     is_async = asyncio.iscoroutinefunction(node_func)
 
@@ -39,7 +40,7 @@ def traced_node(node_func, node_name: str = ""):
             if is_async:
                 result = await node_func(state)
             else:
-                result = node_func(state)
+                result = await asyncio.to_thread(node_func, state)
             event.finished_at = now_ms()
             event.latency_ms = round(event.finished_at - event.started_at, 1)
             if trace:
@@ -52,6 +53,7 @@ def traced_node(node_func, node_name: str = ""):
             if trace:
                 trace.node_events.append(event)
             raise
+
     return wrapper
 
 
@@ -99,7 +101,9 @@ def parse_document_node(state: AuditState) -> dict:
         "risk_assessed": False,
         "report_generated": False,
         "status": "running",
-        "messages": [f"Document parsed: {state.get('document_name', file_path)} ({len(content)} chars, type={doc_type})"],
+        "messages": [
+            f"Document parsed: {state.get('document_name', file_path)} ({len(content)} chars, type={doc_type})"
+        ],
     }
 
 

@@ -2,8 +2,8 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 
 interface UseSSEOptions {
   url: string | null;
-  onMessage?: (data: any) => void;
-  onEvent?: Record<string, (data: any) => void>;
+  onMessage?: (data: unknown) => void;
+  onEvent?: Record<string, (data: unknown) => void>;
   onError?: (error: Event) => void;
   onOpen?: () => void;
   enabled?: boolean;
@@ -64,6 +64,7 @@ export function useSSE({ url, onMessage, onEvent, onError, onOpen, enabled = tru
     setReadyState(EventSource.CONNECTING);
 
     source.onopen = () => {
+      console.log('[useSSE] connected:', url);
       setReadyState(EventSource.OPEN);
       setConnectionError(false);
       errorCountRef.current = 0;
@@ -101,12 +102,14 @@ export function useSSE({ url, onMessage, onEvent, onError, onOpen, enabled = tru
     }
 
     source.onerror = (event) => {
+      console.warn('[useSSE] error:', url, 'readyState:', source.readyState, 'errorCount:', errorCountRef.current + 1);
       setReadyState(source.readyState);
       errorCountRef.current += 1;
       setReconnectCount(errorCountRef.current);
 
       // After MAX_RECONNECT_ATTEMPTS, mark as connection error
       if (errorCountRef.current >= MAX_RECONNECT_ATTEMPTS) {
+        console.error('[useSSE] max reconnect attempts reached:', url);
         setConnectionError(true);
       }
 
@@ -114,6 +117,7 @@ export function useSSE({ url, onMessage, onEvent, onError, onOpen, enabled = tru
     };
 
     return () => {
+      console.log('[useSSE] cleanup:', url);
       for (const [eventType, listener] of listeners) {
         source.removeEventListener(eventType, listener);
       }

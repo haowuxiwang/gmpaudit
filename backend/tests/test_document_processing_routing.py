@@ -1,7 +1,8 @@
 """Tests verifying each file_type routes to the correct processor method."""
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock, AsyncMock
 
 from app.services.document_processor import DocumentProcessor
 
@@ -29,8 +30,7 @@ async def test_word_routes_to_mammoth():
     mock_result = MagicMock()
     mock_result.value = "Word document content"
 
-    with patch("builtins.open", MagicMock()), \
-         patch("app.services.document_processor.mammoth") as mock_mammoth:
+    with patch("builtins.open", MagicMock()), patch("app.services.document_processor.mammoth") as mock_mammoth:
         mock_mammoth.extract_raw_text.return_value = mock_result
         result = await dp.process_document("test.docx", "word")
         assert "Word document content" in result["content"]

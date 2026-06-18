@@ -7,22 +7,44 @@ from app.models.finding import Finding, FindingType, SeverityLevel
 
 logger = logging.getLogger(__name__)
 
-AGENT_AVAILABLE = False
-build_audit_graph = None
+# Lazy loading: None = not checked, True = available, False = unavailable
+_AGENT_CHECKED: bool | None = None
+_build_audit_graph = None
 
-try:
-    from app.core import paths as _paths
-    # In frozen mode, agent is bundled inside _internal/ (sys._MEIPASS)
-    # In dev mode, agent is at project root
-    _search = str(_paths.BUNDLE_DIR) if _paths.FROZEN else str(_paths.APP_DIR)
-    if _search not in sys.path:
-        sys.path.insert(0, _search)
-    from agent.graph import build_audit_graph
 
-    AGENT_AVAILABLE = True
-except ImportError as exc:
-    logger.warning("Agent system not available: %s", exc)
-    build_audit_graph = None
+def _ensure_agent() -> bool:
+    """Lazy-load agent modules on first call. Returns True if available."""
+    global _AGENT_CHECKED, _build_audit_graph
+    if _AGENT_CHECKED is not None:
+        return _AGENT_CHECKED
+    try:
+        from app.core import paths as _paths
+
+        # In frozen mode, agent is bundled inside _internal/ (sys._MEIPASS)
+        # In dev mode, agent is at project root
+        _search = str(_paths.BUNDLE_DIR) if _paths.FROZEN else str(_paths.APP_DIR)
+        if _search not in sys.path:
+            sys.path.insert(0, _search)
+        from agent.graph import build_audit_graph as _build
+
+        _build_audit_graph = _build
+        _AGENT_CHECKED = True
+    except ImportError as exc:
+        logger.warning("Agent system not available: %s", exc)
+        _build_audit_graph = None
+        _AGENT_CHECKED = False
+    return _AGENT_CHECKED
+
+
+def get_build_audit_graph():
+    """Return the build_audit_graph function, loading agent if needed."""
+    _ensure_agent()
+    return _build_audit_graph
+
+
+def is_agent_available() -> bool:
+    """Check if agent system is available (triggers lazy load on first call)."""
+    return _ensure_agent()
 
 
 def build_initial_state(
@@ -82,6 +104,6 @@ def normalize_finding(finding_data: dict, task_id: int, document_id: int | None 
         description=finding_data.get("description", ""),
         evidence=finding_data.get("evidence", ""),
         suggestion=finding_data.get("suggestion", ""),
-        location=finding_data.get("location", ""),
+        location=finding_data.get("location", "") or finding_data.get("source_section", ""),
         regulation_ref=finding_data.get("regulation_ref", ""),
     )

@@ -4,7 +4,7 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.document import Document, DocumentStatus
+from app.models.document import Document
 
 
 @pytest.mark.asyncio
@@ -19,7 +19,13 @@ async def test_upload_pdf(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_upload_docx(client: AsyncClient):
-    files = {"file": ("report.docx", b"fake docx content", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")}
+    files = {
+        "file": (
+            "report.docx",
+            b"fake docx content",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        )
+    }
     response = await client.post("/api/documents/upload", files=files)
     assert response.status_code == 200
     data = response.json()
@@ -78,23 +84,25 @@ async def test_upload_doc_stored_as_word_legacy(client: AsyncClient, db_session:
     assert response.status_code == 200
     doc_id = response.json()["id"]
 
-    result = await db_session.execute(
-        Document.__table__.select().where(Document.id == doc_id)
-    )
+    result = await db_session.execute(Document.__table__.select().where(Document.id == doc_id))
     row = result.fetchone()
     assert row.file_type == "word_legacy"
 
 
 @pytest.mark.asyncio
 async def test_upload_docx_stored_as_word(client: AsyncClient, db_session: AsyncSession):
-    files = {"file": ("report.docx", b"fake docx content", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")}
+    files = {
+        "file": (
+            "report.docx",
+            b"fake docx content",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        )
+    }
     response = await client.post("/api/documents/upload", files=files)
     assert response.status_code == 200
     doc_id = response.json()["id"]
 
-    result = await db_session.execute(
-        Document.__table__.select().where(Document.id == doc_id)
-    )
+    result = await db_session.execute(Document.__table__.select().where(Document.id == doc_id))
     row = result.fetchone()
     assert row.file_type == "word"
 
@@ -103,7 +111,10 @@ async def test_upload_docx_stored_as_word(client: AsyncClient, db_session: Async
 async def test_batch_upload_mixed_formats(client: AsyncClient):
     files = [
         ("files", ("a.pdf", b"pdf content", "application/pdf")),
-        ("files", ("b.docx", b"docx content", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")),
+        (
+            "files",
+            ("b.docx", b"docx content", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
+        ),
         ("files", ("c.doc", b"doc content", "application/msword")),
         ("files", ("d.txt", b"text content", "text/plain")),
         ("files", ("e.xyz", b"bad", "application/octet-stream")),

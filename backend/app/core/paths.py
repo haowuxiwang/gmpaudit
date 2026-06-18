@@ -8,18 +8,14 @@ Design principle:
 import os
 import sys
 from pathlib import Path
-from typing import Optional
 
 FROZEN = getattr(sys, "frozen", False)
 
 # Read-only resource directory (PyInstaller extracts datas here)
-BUNDLE_DIR: Optional[Path] = Path(sys._MEIPASS) if FROZEN else None
+BUNDLE_DIR: Path | None = Path(sys._MEIPASS) if FROZEN else None
 
 # Writable application directory
-if FROZEN:
-    APP_DIR = Path(os.path.dirname(sys.executable))  # dist/AuditBee/
-else:
-    APP_DIR = Path(__file__).resolve().parent.parent.parent.parent  # project root
+APP_DIR = Path(os.path.dirname(sys.executable)) if FROZEN else Path(__file__).resolve().parent.parent.parent.parent
 
 # Resource base: bundled resources in frozen mode, project root in dev
 RESOURCE_BASE = BUNDLE_DIR if FROZEN else APP_DIR
@@ -33,10 +29,7 @@ TOOLS_DIR = RESOURCE_BASE / "tools"
 CONFIG_DIR_WRITABLE = APP_DIR / "config"
 
 # Static files: in frozen mode build.spec maps backend/static -> static/ in _internal
-if FROZEN:
-    STATIC_DIR = BUNDLE_DIR / "static"
-else:
-    STATIC_DIR = APP_DIR / "backend" / "static"
+STATIC_DIR = BUNDLE_DIR / "static" if FROZEN else APP_DIR / "backend" / "static"
 
 # Model directory: in frozen mode, prefer the bundled model inside _internal/
 # (read-only, no download needed); fall back to APP_DIR/model if not bundled.
@@ -75,7 +68,14 @@ ENV_FILE = CONFIG_DIR_WRITABLE / ".env"
 def ensure_writable_dirs() -> None:
     """Create all writable directories. Call once at startup."""
     for d in [
-        DATA_DIR, DB_DIR, LOG_DIR, DOCS_DIR, PROCESSED_DIR,
-        REPORTS_DIR, KG_OUTPUT_DIR, CONFIG_DIR_WRITABLE, KG_INPUT_DIR,
+        DATA_DIR,
+        DB_DIR,
+        LOG_DIR,
+        DOCS_DIR,
+        PROCESSED_DIR,
+        REPORTS_DIR,
+        KG_OUTPUT_DIR,
+        CONFIG_DIR_WRITABLE,
+        KG_INPUT_DIR,
     ]:
         d.mkdir(parents=True, exist_ok=True)

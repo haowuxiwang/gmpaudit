@@ -14,28 +14,15 @@ import {
   Upload,
   message,
 } from 'antd';
-import { DeleteOutlined, InboxOutlined } from '@ant-design/icons';
+import { DeleteOutlined, InboxOutlined, ReloadOutlined } from '@ant-design/icons';
 import type { UploadProps } from 'antd';
 
 import { documentApi } from '../services/api';
 import type { Document } from '../types/api';
 import { THEME } from '../constants/theme';
+import { DOC_STATUS_COLORS, DOC_STATUS_LABELS } from '../constants/audit';
 
 const { Title, Paragraph, Text } = Typography;
-
-const STATUS_COLORS: Record<string, string> = {
-  uploaded: 'default',
-  processing: 'processing',
-  processed: 'success',
-  failed: 'error',
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  uploaded: '已上传',
-  processing: '处理中',
-  processed: '已处理',
-  failed: '处理失败',
-};
 
 const DocumentsPage: React.FC = () => {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -55,8 +42,8 @@ const DocumentsPage: React.FC = () => {
       documentsRef.current = items;
       setDocuments(items);
       setTotal(result?.total || 0);
-    } catch {
-      message.error('加载文档失败');
+    } catch (e: unknown) {
+      message.error(e instanceof Error ? e.message : '加载文档失败');
     }
   }, []);
 
@@ -94,9 +81,10 @@ const DocumentsPage: React.FC = () => {
       onSuccess?.(result);
       message.success('上传成功，正在处理中');
       void loadDocuments();
-    } catch (error: any) {
+    } catch (error: unknown) {
       onError?.(error as Error);
-      const detail = error?.response?.data?.detail || error?.message || '未知错误';
+      const err = error as { response?: { data?: { detail?: string } }; message?: string };
+      const detail = err?.response?.data?.detail || err?.message || '未知错误';
       message.error(`上传失败: ${detail}`);
     } finally {
       setUploading(false);
@@ -114,12 +102,25 @@ const DocumentsPage: React.FC = () => {
           await documentApi.delete(id);
           message.success('文档已删除');
           void loadDocuments();
-        } catch (err: any) {
-          const detail = err?.response?.data?.detail || '删除失败';
+        } catch (err: unknown) {
+          const e = err as { response?: { data?: { detail?: string } }; message?: string };
+          const detail = e?.response?.data?.detail || '删除失败';
           message.error(detail);
         }
       },
     });
+  };
+
+  const handleRetry = async (id: number) => {
+    try {
+      await documentApi.retryProcess(id);
+      message.success('正在重新处理...');
+      void loadDocuments();
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { detail?: string } }; message?: string };
+      const detail = e?.response?.data?.detail || '重试失败';
+      message.error(detail);
+    }
   };
 
   const processedCount = documents.filter((doc) => doc.process_status === 'processed').length;
@@ -133,7 +134,7 @@ const DocumentsPage: React.FC = () => {
       render: (value: string, record: Document) => (
         <Space direction="vertical" size={0}>
           <Text strong>{value}</Text>
-          <Text type="secondary">{record.file_type.toUpperCase()}</Text>
+          <Text type="secondary">{(record.file_type || '').toUpperCase()}</Text>
         </Space>
       ),
     },
@@ -143,7 +144,7 @@ const DocumentsPage: React.FC = () => {
       key: 'process_status',
       width: 140,
       render: (status: string, record: Document) => {
-        const tag = <Tag color={STATUS_COLORS[status] || 'default'}>{STATUS_LABELS[status] || status}</Tag>;
+        const tag = <Tag color={DOC_STATUS_COLORS[status] || 'default'}>{DOC_STATUS_LABELS[status] || status}</Tag>;
         if (status === 'failed' && record.doc_metadata?.error) {
           return <Tooltip title={record.doc_metadata.error}>{tag}</Tooltip>;
         }
@@ -153,11 +154,18 @@ const DocumentsPage: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      width: 100,
+      width: 160,
       render: (_: unknown, record: Document) => (
-        <Button type="link" danger size="small" icon={<DeleteOutlined />} onClick={() => handleDelete(record.id)}>
-          删除
-        </Button>
+        <Space size={0}>
+          {record.process_status === 'failed' && (
+            <Button type="link" size="small" icon={<ReloadOutlined />} onClick={() => handleRetry(record.id)}>
+              重试
+            </Button>
+          )}
+          <Button type="link" danger size="small" icon={<DeleteOutlined />} onClick={() => handleDelete(record.id)}>
+            删除
+          </Button>
+        </Space>
       ),
     },
   ];
@@ -206,6 +214,14 @@ const DocumentsPage: React.FC = () => {
         showUploadList={false}
         accept=".pdf,.docx,.doc,.txt,.jpg,.jpeg,.png"
         disabled={uploading}
+        beforeUpload={(file) => {
+          const maxSize = 50 * 1024 * 1024; // 50MB
+          if (file.size > maxSize) {
+            message.error(`文件 ${file.name} 超过 50MB 限制`);
+            return Upload.LIST_IGNORE;
+          }
+          return true;
+        }}
         style={{ marginBottom: 16, borderRadius: 12, overflow: 'hidden' }}
       >
         <p className="ant-upload-drag-icon">

@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from agent.trace import PipelineTrace, set_current_trace, clear_current_trace, KGTraceEvent
+from agent.trace import PipelineTrace, clear_current_trace, set_current_trace
 
 
 @pytest.fixture(autouse=True)
@@ -103,9 +103,11 @@ class TestKGTraceEvents:
         mock_llm._trace_node = "regulation_expert"
         mock_llm.ainvoke = AsyncMock(return_value=MagicMock(content='[{"title":"test"}]'))
 
-        with patch.dict(sys.modules, {"agent.tools.lightrag_tool": mock_module}), \
-             patch("agent.agents.regulation_expert.get_llm_with_fallback", return_value=mock_llm), \
-             patch("agent.agents.regulation_expert.load_prompt", return_value="Analyze: {document_content}"):
+        with (
+            patch.dict(sys.modules, {"agent.tools.lightrag_tool": mock_module}),
+            patch("agent.agents.regulation_expert.get_llm_with_fallback", return_value=mock_llm),
+            patch("agent.agents.regulation_expert.load_prompt", return_value="Analyze: {document_content}"),
+        ):
             result = await regulation_expert_node(state)
 
         assert result["regulation_checked"] is True
@@ -113,5 +115,6 @@ class TestKGTraceEvents:
         assert len(trace.llm_events) >= 1, "No LLM events"
         # Query rewrite (regulation_expert_rewrite) runs before main analysis (regulation_expert)
         llm_nodes = [e.node for e in trace.llm_events]
-        assert "regulation_expert_rewrite" in llm_nodes or "regulation_expert" in llm_nodes, \
+        assert "regulation_expert_rewrite" in llm_nodes or "regulation_expert" in llm_nodes, (
             f"Expected regulation_expert nodes, got: {llm_nodes}"
+        )

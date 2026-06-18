@@ -1,21 +1,57 @@
 import React, { useState } from 'react';
-import { Card, Tag, Space, Typography, Button, Collapse } from 'antd';
-import { BranchesOutlined, FileSearchOutlined, BulbOutlined, BookOutlined } from '@ant-design/icons';
+import { Card, Tag, Space, Typography, Button, Collapse, message } from 'antd';
+import { BranchesOutlined, FileSearchOutlined, BulbOutlined, BookOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons';
 import { Finding } from '../types/api';
 import { SEVERITY_COLORS } from '../constants/audit';
+import { THEME } from '../constants/theme';
+import { auditApi } from '../services/api';
 import DocumentPreview from './DocumentPreview';
 
 const { Text, Paragraph } = Typography;
+
+const STATUS_MAP: Record<string, { color: string; label: string }> = {
+  pending: { color: 'default', label: '待审' },
+  approved: { color: 'success', label: '已通过' },
+  rejected: { color: 'error', label: '已驳回' },
+};
 
 interface FindingDetailCardProps {
   finding: Finding;
   onGraphTrace?: (title: string, taskId?: number) => void;
   taskId?: number;
   style?: React.CSSProperties;
+  onStatusChange?: () => void;
 }
 
-const FindingDetailCard: React.FC<FindingDetailCardProps> = ({ finding, onGraphTrace, taskId, style }) => {
+const FindingDetailCard: React.FC<FindingDetailCardProps> = ({ finding, onGraphTrace, taskId, style, onStatusChange }) => {
   const [docPreviewVisible, setDocPreviewVisible] = useState(false);
+  const [reviewing, setReviewing] = useState(false);
+
+  const handleApprove = async () => {
+    setReviewing(true);
+    try {
+      await auditApi.approveFinding(finding.id);
+      message.success('已通过');
+      onStatusChange?.();
+    } catch {
+      message.error('操作失败');
+    } finally {
+      setReviewing(false);
+    }
+  };
+
+  const handleReject = async () => {
+    setReviewing(true);
+    try {
+      await auditApi.rejectFinding(finding.id);
+      message.success('已驳回');
+      onStatusChange?.();
+    } catch {
+      message.error('操作失败');
+    } finally {
+      setReviewing(false);
+    }
+  };
 
   return (
     <Card
@@ -33,16 +69,21 @@ const FindingDetailCard: React.FC<FindingDetailCardProps> = ({ finding, onGraphT
           {finding.finding_type && (
             <Tag style={{ margin: 0, borderRadius: 4 }}>{finding.finding_type}</Tag>
           )}
+          {finding.status && finding.status !== 'pending' && (
+            <Tag color={STATUS_MAP[finding.status]?.color || 'default'} style={{ margin: 0, borderRadius: 4 }}>
+              {STATUS_MAP[finding.status]?.label || finding.status}
+            </Tag>
+          )}
         </Space>
 
         {/* Description */}
-        <Paragraph style={{ margin: 0, fontSize: 13, color: '#666' }}>
+        <Paragraph style={{ margin: 0, fontSize: 13, color: THEME.textSecondary }}>
           {finding.description || '暂无描述'}
         </Paragraph>
 
         {/* Evidence */}
         {finding.evidence && (
-          <div style={{ borderLeft: '3px solid #d9d9d9', paddingLeft: 12, marginLeft: 4 }}>
+          <div style={{ borderLeft: `3px solid ${THEME.border}`, paddingLeft: 12, marginLeft: 4 }}>
             <Text type="secondary" style={{ fontSize: 12 }}>证据原文</Text>
             <Paragraph style={{ margin: '4px 0 0', fontSize: 13, fontStyle: 'italic' }}>
               {finding.evidence}
@@ -61,9 +102,9 @@ const FindingDetailCard: React.FC<FindingDetailCardProps> = ({ finding, onGraphT
         {/* Regulation Reference */}
         {finding.regulation_ref && (
           <Space size={4}>
-            <BookOutlined style={{ color: '#1890ff' }} />
+            <BookOutlined style={{ color: THEME.info }} />
             <Text type="secondary" style={{ fontSize: 12 }}>法规引用：</Text>
-            <Text style={{ fontSize: 12, color: '#1890ff' }}>{finding.regulation_ref}</Text>
+            <Text style={{ fontSize: 12, color: THEME.info }}>{finding.regulation_ref}</Text>
           </Space>
         )}
 
@@ -75,7 +116,7 @@ const FindingDetailCard: React.FC<FindingDetailCardProps> = ({ finding, onGraphT
               key: 'suggestion',
               label: (
                 <Space size={4}>
-                  <BulbOutlined style={{ color: '#faad14' }} />
+                  <BulbOutlined style={{ color: THEME.warning }} />
                   <Text style={{ fontSize: 12 }}>改进建议</Text>
                 </Space>
               ),
@@ -106,6 +147,30 @@ const FindingDetailCard: React.FC<FindingDetailCardProps> = ({ finding, onGraphT
               图谱溯源
             </Button>
           )}
+          {finding.status !== 'approved' && finding.status !== 'rejected' && (
+            <>
+              <Button
+                type="link"
+                size="small"
+                icon={<CheckOutlined />}
+                loading={reviewing}
+                onClick={handleApprove}
+                style={{ color: THEME.success }}
+              >
+                通过
+              </Button>
+              <Button
+                type="link"
+                size="small"
+                icon={<CloseOutlined />}
+                loading={reviewing}
+                onClick={handleReject}
+                style={{ color: THEME.error }}
+              >
+                驳回
+              </Button>
+            </>
+          )}
         </Space>
       </Space>
 
@@ -113,7 +178,8 @@ const FindingDetailCard: React.FC<FindingDetailCardProps> = ({ finding, onGraphT
       {finding.document_id && (
         <DocumentPreview
           documentId={finding.document_id}
-          highlightText={finding.evidence || finding.title || finding.location}
+          highlightText={finding.evidence || finding.title}
+          location={finding.location}
           visible={docPreviewVisible}
           onClose={() => setDocPreviewVisible(false)}
         />

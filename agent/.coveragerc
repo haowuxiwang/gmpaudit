@@ -1,0 +1,13 @@
+[run]
+omit =
+    tests/*
+    prompts/*
+    __pycache__/*
+    main.py
+
+[report]
+exclude_lines =
+    pragma: no cover
+    if __name__ == .__main__
+    raise NotImplementedError
+    logger\.

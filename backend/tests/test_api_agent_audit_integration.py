@@ -1,12 +1,13 @@
 """Integration tests for agent audit API endpoints."""
 
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.document import Document, DocumentStatus
 from app.models.audit_task import AuditTask, TaskStatus, TaskType
+from app.models.document import Document, DocumentStatus
 
 
 @pytest.mark.asyncio
@@ -29,7 +30,7 @@ class TestAgentAuditIntegration:
         await db_session.refresh(doc)
 
         # Mock AGENT_AVAILABLE to True
-        with patch("app.api.agent_audit.AGENT_AVAILABLE", True):
+        with patch("app.api.agent_audit.is_agent_available", return_value=True):
             response = await client.post(
                 "/api/agent-audit/run",
                 json={"document_id": doc.id, "audit_type": "deviation"},
@@ -112,7 +113,7 @@ class TestAgentAuditIntegration:
         await db_session.refresh(doc)
 
         # Mock AGENT_AVAILABLE to False
-        with patch("app.api.agent_audit.AGENT_AVAILABLE", False):
+        with patch("app.api.agent_audit.is_agent_available", return_value=False):
             response = await client.post(
                 "/api/agent-audit/run",
                 json={"document_id": doc.id, "audit_type": "deviation"},

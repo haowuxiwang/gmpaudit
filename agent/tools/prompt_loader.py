@@ -17,6 +17,7 @@ def load_prompt(filename: str) -> str:
     if filename not in _prompt_cache:
         try:
             from app.core.paths import AGENT_DIR
+
             prompt_path = AGENT_DIR / "prompts" / filename
         except ImportError:
             prompt_path = Path(__file__).parent.parent / "prompts" / filename

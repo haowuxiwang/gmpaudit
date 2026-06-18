@@ -76,3 +76,28 @@ class TestParseLlmJson:
         input_str = '[{"title": "偏差处理", "desc": "test\\"quote"}]'
         result = parse_llm_json(input_str)
         assert result[0]["title"] == "偏差处理"
+
+    def test_trailing_commas_fixed_by_fix_common(self):
+        """Trailing commas fixed by _fix_common_json_errors when regex extraction fails."""
+        # Input with trailing commas that prevents direct parse and regex match
+        input_str = 'Result: {"a": 1, "b": 2,} end'
+        result = parse_llm_json(input_str)
+        assert len(result) == 1
+        assert result[0]["a"] == 1
+
+    def test_whole_content_fixed_by_fix_common_comments(self):
+        """Content with comments becomes valid JSON after _fix_common_json_errors."""
+        # Multi-line comment prevents direct parse and regex extraction;
+        # after _fix_common_json_errors removes comment, whole content is valid JSON
+        input_str = '{/* GMP note */ "key": "value", "num": 42}'
+        result = parse_llm_json(input_str)
+        assert len(result) == 1
+        assert result[0]["key"] == "value"
+
+    def test_single_quotes_fixed(self):
+        """Single quotes replaced by _fix_common_json_errors and extracted via regex."""
+        # Single quotes prevent direct parse; regex on fixed content should match
+        input_str = "analysis {'title': 'test', 'severity': 'high'} done"
+        result = parse_llm_json(input_str)
+        assert len(result) == 1
+        assert result[0]["title"] == "test"

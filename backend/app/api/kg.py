@@ -1,13 +1,14 @@
 """Knowledge graph management API (LightRAG-based)."""
 
+import asyncio
+import contextlib
 import json
 import logging
 import os
-import xml.etree.ElementTree as ET
-from datetime import datetime, timezone
-from typing import Optional
+import defusedxml.ElementTree as ET
+from datetime import UTC, datetime
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Request, UploadFile
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,10 +20,27 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+
+def _write_text_sync(path: str, text: str) -> None:
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(text)
+
+
+def _write_bytes_sync(path: str, data: bytes) -> None:
+    with open(path, "wb") as f:
+        f.write(data)
+
 from app.core import paths
 
 INPUT_DIR = str(paths.KG_INPUT_DIR)
 OUTPUT_DIR = str(paths.KG_OUTPUT_DIR)
+
+
+def _validate_path_within_input(filepath: str) -> bool:
+    """Check that resolved filepath is within INPUT_DIR (prevents path traversal via symlinks)."""
+    real_input = os.path.realpath(INPUT_DIR)
+    real_file = os.path.realpath(filepath)
+    return real_file.startswith(real_input + os.sep) or real_file == real_input
 
 # In-memory build status (fallback for when DB is not available)
 _build_status = {"building": False, "started_at": None, "error": None, "recent_logs": []}
@@ -71,7 +89,7 @@ def _get_index_info() -> dict:
     return {
         "built": True,
         "file_count": len(files),
-        "last_modified": datetime.fromtimestamp(latest_mtime, tz=timezone.utc).isoformat(),
+        "last_modified": datetime.fromtimestamp(latest_mtime, tz=UTC).isoformat(),
     }
 
 
@@ -127,10 +145,8 @@ def _parse_graphml(filepath: str) -> dict:
             if attr_name == "description":
                 edge_data["label"] = value[:100] if value else ""
             elif attr_name == "weight":
-                try:
+                with contextlib.suppress(ValueError, TypeError):
                     edge_data["weight"] = float(value)
-                except (ValueError, TypeError):
-                    pass
 
         edges.append(edge_data)
 
@@ -168,7 +184,7 @@ async def get_graph_data():
         return data
     except Exception as exc:
         logger.exception("Failed to parse graphml")
-        raise HTTPException(status_code=500, detail=f"解析图谱数据失败: {exc}")
+        raise HTTPException(status_code=500, detail="解析图谱数据失败") from exc
 
 
 @router.post("/build")
@@ -188,7 +204,7 @@ async def build_index(
 
     # Persist "building: True" to DB immediately so frontend polls see correct state
     _build_status["building"] = True
-    _build_status["started_at"] = datetime.now(timezone.utc).isoformat()
+    _build_status["started_at"] = datetime.now(UTC).isoformat()
     _build_status["error"] = None
     _build_status["recent_logs"] = ["Build started"]
     await _save_build_status_to_db(db, _build_status)
@@ -196,6 +212,7 @@ async def build_index(
     async def _build():
         try:
             from agent.tools.lightrag_tool import build_index as lr_build
+
             _append_build_log("Initializing LightRAG build")
             await lr_build(force_rebuild=force)
             _append_build_log("Build completed")
@@ -209,6 +226,7 @@ async def build_index(
             # Persist to database
             try:
                 from app.core.database import async_session
+
                 async with async_session() as db:
                     await _save_build_status_to_db(db, _build_status)
             except Exception as e:
@@ -244,10 +262,17 @@ async def query_kg(request: QueryRequest):
 
     try:
         from agent.tools.lightrag_tool import lightrag_search
-        results = await lightrag_search(request.query, method=request.method)
+
+        results = await asyncio.wait_for(
+            lightrag_search(request.query, method=request.method),
+            timeout=90,
+        )
         return {"results": results}
+    except asyncio.TimeoutError:
+        raise HTTPException(status_code=504, detail="图谱查询超时，请尝试更简短的查询词")
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"查询失败: {exc}")
+        logger.exception("KG query failed")
+        raise HTTPException(status_code=500, detail="图谱查询失败") from exc
 
 
 @router.get("/documents")
@@ -261,16 +286,19 @@ async def list_documents():
         filepath = os.path.join(INPUT_DIR, filename)
         if os.path.isfile(filepath):
             stat = os.stat(filepath)
-            docs.append({
-                "filename": filename,
-                "size": stat.st_size,
-                "modified": datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat(),
-            })
+            docs.append(
+                {
+                    "filename": filename,
+                    "size": stat.st_size,
+                    "modified": datetime.fromtimestamp(stat.st_mtime, tz=UTC).isoformat(),
+                }
+            )
     return {"documents": docs}
 
 
 @router.post("/documents/upload")
 async def upload_document(
+    request: Request,
     file: UploadFile = File(...),
 ):
     """Upload a regulation document to the input directory."""
@@ -288,9 +316,15 @@ async def upload_document(
     if ext not in allowed_extensions:
         raise HTTPException(status_code=400, detail=f"不支持的文件格式: {ext}，仅支持 .txt、.md、.pdf、.docx")
 
+    # Pre-check Content-Length before reading full file into memory
+    max_size = 10 * 1024 * 1024  # 10MB
+    content_length = request.headers.get("content-length")
+    if content_length and int(content_length) > max_size + 1024:
+        raise HTTPException(status_code=400, detail="文件大小超过 10MB 限制")
+
     # Validate file size (10MB limit)
     content = await file.read()
-    if len(content) > 10 * 1024 * 1024:
+    if len(content) > max_size:
         raise HTTPException(status_code=400, detail="文件大小超过 10MB 限制")
 
     # Ensure input directory exists
@@ -299,21 +333,26 @@ async def upload_document(
     # Convert PDF/DOCX to Markdown
     if ext in convertible_extensions:
         from app.services.converter import convert_to_markdown
+
         try:
             md_text = await convert_to_markdown(content, file.filename)
         except RuntimeError as exc:
-            raise HTTPException(status_code=400, detail=str(exc))
+            raise HTTPException(status_code=400, detail="文档转换失败") from exc
         save_name = os.path.splitext(file.filename)[0] + ".md"
         filepath = os.path.join(INPUT_DIR, save_name)
-        with open(filepath, "w", encoding="utf-8") as f:
-            f.write(md_text)
+        if not _validate_path_within_input(filepath):
+            raise HTTPException(status_code=400, detail="无效的文件路径")
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, lambda: _write_text_sync(filepath, md_text))
         logger.info("Uploaded and converted %s -> %s (%d chars)", file.filename, save_name, len(md_text))
         return {"message": "文件上传并转换成功", "filename": save_name, "converted_from": file.filename}
 
     # Save text/markdown files as-is
     filepath = os.path.join(INPUT_DIR, file.filename)
-    with open(filepath, "wb") as f:
-        f.write(content)
+    if not _validate_path_within_input(filepath):
+        raise HTTPException(status_code=400, detail="无效的文件路径")
+    loop = asyncio.get_running_loop()
+    await loop.run_in_executor(None, lambda: _write_bytes_sync(filepath, content))
 
     logger.info("Uploaded document: %s (%d bytes)", file.filename, len(content))
     return {"message": "文件上传成功", "filename": file.filename}
@@ -327,10 +366,17 @@ async def delete_document(filename: str):
         raise HTTPException(status_code=400, detail="无效的文件名")
 
     filepath = os.path.join(INPUT_DIR, filename)
+    if not _validate_path_within_input(filepath):
+        raise HTTPException(status_code=400, detail="无效的文件路径")
 
     if not os.path.isfile(filepath):
         raise HTTPException(status_code=404, detail="文件不存在")
 
-    os.remove(filepath)
-    logger.info(f"Deleted document: {filename}")
+    try:
+        os.remove(filepath)
+    except OSError as e:
+        logger.error("Failed to delete document '%s': %s", filename, e)
+        raise HTTPException(status_code=500, detail="文件删除失败") from e
+
+    logger.info("Deleted document: %s", filename)
     return {"message": "文件删除成功"}

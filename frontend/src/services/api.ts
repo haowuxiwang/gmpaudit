@@ -15,21 +15,53 @@ import type {
   DashboardData,
   GraphData,
   ConfigMap,
+  LLMModel,
 } from '../types/api';
 
 export const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || '/api';
+
+// Session API token (fetched on first request, included in all subsequent requests)
+let _apiToken = '';
+
+export async function fetchApiToken(): Promise<string> {
+  if (_apiToken) return _apiToken;
+  try {
+    const resp = await axios.get(`${API_BASE_URL}/auth/token`, { timeout: 5000 });
+    _apiToken = resp.data?.token || '';
+  } catch {
+    // Token endpoint may not be available (e.g., during tests)
+  }
+  return _apiToken;
+}
 
 const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000,
 });
 
+// Add auth token to all requests
+api.interceptors.request.use((config) => {
+  if (_apiToken) {
+    config.headers.Authorization = `Bearer ${_apiToken}`;
+  }
+  return config;
+});
+
 api.interceptors.response.use(
   (response) => response.data,
   (error) => {
-    const detail = error?.response?.data?.detail;
-    if (detail) {
-      error.message = detail;
+    if (!error.response) {
+      // Network error or timeout
+      if (error.code === 'ECONNABORTED') {
+        error.message = '请求超时，请检查网络连接';
+      } else {
+        error.message = '网络连接失败，请检查后端服务是否运行';
+      }
+    } else {
+      const detail = error?.response?.data?.detail;
+      if (detail) {
+        error.message = detail;
+      }
     }
     return Promise.reject(error);
   }
@@ -45,6 +77,7 @@ export const documentApi = {
     api.get('/documents/', { params: { page, page_size: pageSize } }) as Promise<PaginatedResponse<Document>>,
   getById: (id: number) => api.get(`/documents/${id}`) as Promise<Document>,
   delete: (id: number) => api.delete(`/documents/${id}`) as Promise<{ message: string }>,
+  retryProcess: (id: number) => api.post(`/documents/${id}/process`) as Promise<{ status: string }>,
 };
 
 export const auditApi = {
@@ -62,6 +95,18 @@ export const auditApi = {
   cancelTask: (id: number) =>
     api.post(`/audit/tasks/${id}/cancel`) as Promise<{ status: string; task_id: number }>,
   getDashboard: () => api.get('/audit/dashboard') as Promise<DashboardData>,
+  approveFinding: (findingId: number, comment?: string) =>
+    api.post(`/audit/findings/${findingId}/approve`, { comment }) as Promise<{ status: string; finding_id: number }>,
+  rejectFinding: (findingId: number, comment?: string) =>
+    api.post(`/audit/findings/${findingId}/reject`, { comment }) as Promise<{ status: string; finding_id: number }>,
+  estimateAudit: (documentIds: number[]) =>
+    api.post('/audit/estimate', { document_ids: documentIds }) as Promise<{
+      document_count: number;
+      estimated_llm_calls: number;
+      estimated_input_tokens: number;
+      estimated_output_tokens: number;
+      estimated_duration_seconds: number;
+    }>,
 };
 
 export const agentAuditApi = {
@@ -76,16 +121,6 @@ export const reportApi = {
   exportPdf: (id: number) =>
     api.get(`/reports/${id}/export/pdf`, { responseType: 'blob' }) as Promise<Blob>,
 };
-
-export interface LLMModel {
-  id: string;
-  name: string;
-  model: string;
-  available: boolean;
-  base_url: string;
-  default_model: string;
-  available_models: string[];
-}
 
 export const configApi = {
   getAll: () => api.get('/config/') as Promise<ConfigMap>,
@@ -109,7 +144,7 @@ export const kgApi = {
   build: (force = false) => api.post('/kg/build', null, { params: { force } }) as Promise<{ message: string }>,
   getBuildStatus: () => api.get('/kg/build-status') as Promise<KGBuildStatus>,
   query: (query: string, method = 'local') =>
-    api.post('/kg/query', { query, method }) as Promise<KGQueryResult>,
+    api.post('/kg/query', { query, method }, { timeout: 120000 }) as Promise<KGQueryResult>,
   getDocuments: () => api.get('/kg/documents') as Promise<{ documents: KGDocument[] }>,
   getGraphData: () => api.get('/kg/graph') as Promise<GraphData>,
   uploadDocument: (file: File) => {

@@ -1,7 +1,13 @@
-import pytest
-from unittest.mock import patch, AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
-from app.services.notification import send_feishu_notification, notify_audit_complete, notify_high_risk_finding, notify_task_failed
+import pytest
+
+from app.services.notification import (
+    notify_audit_complete,
+    notify_high_risk_finding,
+    notify_task_failed,
+    send_feishu_notification,
+)
 
 
 @pytest.mark.asyncio
@@ -81,7 +87,9 @@ async def test_send_notification_with_signature():
 
 @pytest.mark.asyncio
 async def test_notify_audit_complete():
-    with patch("app.services.notification.send_feishu_notification", new_callable=AsyncMock, return_value=True) as mock_send:
+    with patch(
+        "app.services.notification.send_feishu_notification", new_callable=AsyncMock, return_value=True
+    ) as mock_send:
         await notify_audit_complete("测试任务", 10, 3, 5)
         mock_send.assert_called_once()
         call_args = mock_send.call_args
@@ -91,7 +99,9 @@ async def test_notify_audit_complete():
 
 @pytest.mark.asyncio
 async def test_notify_audit_complete_with_top_findings():
-    with patch("app.services.notification.send_feishu_notification", new_callable=AsyncMock, return_value=True) as mock_send:
+    with patch(
+        "app.services.notification.send_feishu_notification", new_callable=AsyncMock, return_value=True
+    ) as mock_send:
         top = [{"title": "关键偏差", "severity": "high"}, {"title": "文档缺失", "severity": "high"}]
         await notify_audit_complete("任务", 5, 2, 1, top)
         call_args = mock_send.call_args
@@ -102,7 +112,9 @@ async def test_notify_audit_complete_with_top_findings():
 
 @pytest.mark.asyncio
 async def test_notify_audit_complete_medium_risk():
-    with patch("app.services.notification.send_feishu_notification", new_callable=AsyncMock, return_value=True) as mock_send:
+    with patch(
+        "app.services.notification.send_feishu_notification", new_callable=AsyncMock, return_value=True
+    ) as mock_send:
         await notify_audit_complete("任务", 5, 0, 3)
         call_args = mock_send.call_args
         assert call_args[0][2] == "medium"
@@ -110,7 +122,9 @@ async def test_notify_audit_complete_medium_risk():
 
 @pytest.mark.asyncio
 async def test_notify_audit_complete_low_risk():
-    with patch("app.services.notification.send_feishu_notification", new_callable=AsyncMock, return_value=True) as mock_send:
+    with patch(
+        "app.services.notification.send_feishu_notification", new_callable=AsyncMock, return_value=True
+    ) as mock_send:
         await notify_audit_complete("任务", 2, 0, 0)
         call_args = mock_send.call_args
         assert call_args[0][2] == "low"
@@ -119,8 +133,12 @@ async def test_notify_audit_complete_low_risk():
 @pytest.mark.asyncio
 async def test_notify_audit_complete_with_task_id():
     """Verify action_url is generated when task_id is provided."""
-    with patch("app.services.notification.send_feishu_notification", new_callable=AsyncMock, return_value=True) as mock_send, \
-         patch("app.services.notification.settings") as mock_settings:
+    with (
+        patch(
+            "app.services.notification.send_feishu_notification", new_callable=AsyncMock, return_value=True
+        ) as mock_send,
+        patch("app.services.notification.settings") as mock_settings,
+    ):
         mock_settings.APP_BASE_URL = "http://localhost:8000"
         await notify_audit_complete("任务", 5, 2, 1, task_id=42)
         call_args = mock_send.call_args
@@ -131,7 +149,9 @@ async def test_notify_audit_complete_with_task_id():
 @pytest.mark.asyncio
 async def test_notify_audit_complete_without_task_id():
     """Verify no action_url when task_id is not provided."""
-    with patch("app.services.notification.send_feishu_notification", new_callable=AsyncMock, return_value=True) as mock_send:
+    with patch(
+        "app.services.notification.send_feishu_notification", new_callable=AsyncMock, return_value=True
+    ) as mock_send:
         await notify_audit_complete("任务", 5, 2, 1)
         call_args = mock_send.call_args
         assert call_args.kwargs.get("action_url") is None
@@ -139,7 +159,9 @@ async def test_notify_audit_complete_without_task_id():
 
 @pytest.mark.asyncio
 async def test_notify_high_risk_finding():
-    with patch("app.services.notification.send_feishu_notification", new_callable=AsyncMock, return_value=True) as mock_send:
+    with patch(
+        "app.services.notification.send_feishu_notification", new_callable=AsyncMock, return_value=True
+    ) as mock_send:
         await notify_high_risk_finding("任务", "严重偏差", "high", "发现重大偏差")
         mock_send.assert_called_once()
         call_args = mock_send.call_args
@@ -149,7 +171,9 @@ async def test_notify_high_risk_finding():
 
 @pytest.mark.asyncio
 async def test_notify_task_failed():
-    with patch("app.services.notification.send_feishu_notification", new_callable=AsyncMock, return_value=True) as mock_send:
+    with patch(
+        "app.services.notification.send_feishu_notification", new_callable=AsyncMock, return_value=True
+    ) as mock_send:
         await notify_task_failed("测试任务", "连接超时")
         mock_send.assert_called_once()
         call_args = mock_send.call_args

@@ -1,7 +1,8 @@
 import asyncio
+import hashlib
 import logging
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -11,7 +12,6 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.config import settings
-
 from app.models.audit_task import AuditTask, TaskStatus, TaskType
 from app.models.document import Document, DocumentStatus
 from app.models.finding import Finding, SeverityLevel
@@ -24,9 +24,9 @@ from app.services.notification import (
     notify_task_failed,
 )
 from app.utils.agent_helpers import (
-    AGENT_AVAILABLE,
-    build_audit_graph,
     build_initial_state,
+    get_build_audit_graph,
+    is_agent_available,
     normalize_finding,
 )
 
@@ -52,7 +52,7 @@ DEFAULT_EXECUTION = {
 
 
 def _utcnow() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def get_execution_meta(task: AuditTask) -> dict[str, Any]:
@@ -99,13 +99,24 @@ def set_stage(task: AuditTask, stage: str, error: str | None = None) -> dict[str
     return meta
 
 
-async def build_task_payload(db: AsyncSession, task: AuditTask) -> dict[str, Any]:
-    findings_count = (
-        await db.execute(select(Finding).where(Finding.task_id == task.id))
-    ).scalars().all()
-    report = (
-        await db.execute(select(Report).where(Report.task_id == task.id).order_by(Report.created_at.desc()))
-    ).scalars().first()
+async def build_task_payload(
+    db: AsyncSession,
+    task: AuditTask,
+    *,
+    _findings_count: int | None = None,
+    _report_id: int | None = None,
+) -> dict[str, Any]:
+    if _findings_count is None:
+        _findings_count = len(
+            (await db.execute(select(Finding).where(Finding.task_id == task.id))).scalars().all()
+        )
+    if _report_id is None:
+        report = (
+            (await db.execute(select(Report).where(Report.task_id == task.id).order_by(Report.created_at.desc())))
+            .scalars()
+            .first()
+        )
+        _report_id = report.id if report else None
     meta = get_execution_meta(task)
     return {
         "id": task.id,
@@ -117,18 +128,22 @@ async def build_task_payload(db: AsyncSession, task: AuditTask) -> dict[str, Any
         "stage": meta.get("stage", "pending"),
         "error": meta.get("error") or task.error_message,
         "error_message": meta.get("error") or task.error_message,
-        "created_at": task.created_at.replace(tzinfo=timezone.utc).isoformat() if task.created_at else None,
+        "created_at": task.created_at.replace(tzinfo=UTC).isoformat() if task.created_at else None,
         "started_at": meta.get("started_at"),
-        "completed_at": task.completed_at.replace(tzinfo=timezone.utc).isoformat() if task.completed_at else meta.get("completed_at"),
-        "findings_count": len(findings_count),
-        "report_id": report.id if report else None,
+        "completed_at": task.completed_at.replace(tzinfo=UTC).isoformat()
+        if task.completed_at
+        else meta.get("completed_at"),
+        "findings_count": _findings_count,
+        "report_id": _report_id,
         "events": meta.get("events", []),
         "documents": meta.get("documents", []),
         "trace": (task.config or {}).get("_trace"),
     }
 
 
-def build_aggregate_report(task_name: str, document_results: list[dict[str, Any]], findings: list[dict[str, Any]]) -> str:
+def build_aggregate_report(
+    task_name: str, document_results: list[dict[str, Any]], findings: list[dict[str, Any]]
+) -> str:
     lines = [
         f"# 审计报告 - {task_name}",
         "",
@@ -225,15 +240,41 @@ def _build_node_summary(node_name: str, output: dict) -> str:
     return f"{node_name} 完成"
 
 
+_RESULT_CACHE_MAX_SIZE = 50
+_RESULT_CACHE_TTL = 1800  # 30 minutes
+
+# Cached audit graph (compiled once, reused across all documents)
+_cached_audit_graph = None
+
+
+def _get_audit_graph():
+    """Return cached audit graph, building it once on first call."""
+    global _cached_audit_graph
+    if _cached_audit_graph is None:
+        build_fn = get_build_audit_graph()
+        if build_fn is None:
+            raise RuntimeError("Agent system is not available")
+        _cached_audit_graph = build_fn()
+    return _cached_audit_graph
+
+
 class TaskRunner:
-    def __init__(self, session_factory: async_sessionmaker[AsyncSession], max_concurrency: int = 2, event_bus: "EventBus | None" = None):
+    def __init__(
+        self,
+        session_factory: async_sessionmaker[AsyncSession],
+        max_concurrency: int = 2,
+        llm_concurrency: int = 3,
+        event_bus: "EventBus | None" = None,
+    ):
         self._session_factory = session_factory
         self._max_concurrency = max_concurrency
         self._semaphore = asyncio.Semaphore(max_concurrency)
         self._active: dict[int, asyncio.Task] = {}
         self._event_bus = event_bus
         # LLM concurrency limiter for parallel document processing
-        self._llm_semaphore = asyncio.Semaphore(3)
+        self._llm_semaphore = asyncio.Semaphore(llm_concurrency)
+        # Per-document result cache: key -> (result_state, timestamp)
+        self._result_cache: dict[str, tuple[dict, float]] = {}
 
     async def _publish(self, task_id: int, event: dict[str, Any]) -> None:
         """Publish event to the in-memory event bus (non-blocking)."""
@@ -248,13 +289,17 @@ class TaskRunner:
     async def _publish_progress(self, task_id: int, percent: int, stage: str) -> None:
         """Publish progress event to the in-memory event bus and persist to DB."""
         if self._event_bus:
-            await self._event_bus.publish(task_id, {
-                "type": "progress",
-                "data": {"percent": percent, "stage": stage},
-            })
+            await self._event_bus.publish(
+                task_id,
+                {
+                    "type": "progress",
+                    "data": {"percent": percent, "stage": stage},
+                },
+            )
         # Atomic UPDATE prevents read-modify-write race in parallel document processing
         try:
             from sqlalchemy import update as sa_update
+
             async with self._session_factory() as db:
                 await db.execute(
                     sa_update(AuditTask)
@@ -308,7 +353,7 @@ class TaskRunner:
         done, pending = await asyncio.wait(self._active.values(), timeout=timeout)
         for task in pending:
             task.cancel()
-            logger.warning("Cancelled task: %s", task.get_name() if hasattr(task, 'get_name') else 'unknown')
+            logger.warning("Cancelled task: %s", task.get_name() if hasattr(task, "get_name") else "unknown")
         logger.info("TaskRunner shutdown complete: %d completed, %d cancelled", len(done), len(pending))
 
     async def _run(self, task_id: int) -> None:
@@ -319,9 +364,11 @@ class TaskRunner:
                 if task is None:
                     return
 
-                if not AGENT_AVAILABLE:
+                if not is_agent_available():
                     await self._mark_failed(db, task, "Agent audit system is unavailable")
                     return
+
+                doc_ids = task.document_ids or []
 
                 task.status = TaskStatus.RUNNING
                 task.progress = 0
@@ -329,10 +376,33 @@ class TaskRunner:
                 set_stage(task, "running")
                 append_event(task, "Task execution started", stage="running")
                 await db.commit()
-                await self._publish(task_id, {"type": "event", "data": {"time": datetime.now(timezone.utc).isoformat(), "stage": "running", "level": "info", "message": "Task execution started"}})
+                await self._publish(
+                    task_id,
+                    {
+                        "type": "event",
+                        "data": {
+                            "time": datetime.now(UTC).isoformat(),
+                            "stage": "running",
+                            "level": "info",
+                            "message": "Task execution started",
+                        },
+                    },
+                )
 
+            # Task-level total timeout: per-document timeout * doc count + 5 min buffer
+            total_timeout = settings.AGENT_TASK_TIMEOUT * len(doc_ids) + 300
             try:
-                await self._execute_task(task_id)
+                await asyncio.wait_for(
+                    self._execute_task(task_id),
+                    timeout=total_timeout,
+                )
+            except TimeoutError:
+                logger.error("Task %s timed out after %ds", task_id, total_timeout)
+                async with self._session_factory() as db:
+                    result = await db.execute(select(AuditTask).where(AuditTask.id == task_id))
+                    task = result.scalar_one_or_none()
+                    if task:
+                        await self._mark_failed(db, task, f"Task total timeout ({total_timeout}s)")
             except asyncio.CancelledError:
                 logger.info("Task %s was cancelled", task_id)
                 async with self._session_factory() as db:
@@ -340,12 +410,23 @@ class TaskRunner:
                     task = result.scalar_one_or_none()
                     if task:
                         task.status = TaskStatus.CANCELLED
-                        task.completed_at = datetime.now(timezone.utc)
+                        task.completed_at = datetime.now(UTC)
                         task.error_message = "Task cancelled"
                         set_stage(task, "cancelled")
                         append_event(task, "Task cancelled by user", stage="cancelled", level="warning")
                         await db.commit()
-                        await self._publish(task.id, {"type": "event", "data": {"time": datetime.now(timezone.utc).isoformat(), "stage": "cancelled", "level": "warning", "message": "Task cancelled by user"}})
+                        await self._publish(
+                            task.id,
+                            {
+                                "type": "event",
+                                "data": {
+                                    "time": datetime.now(UTC).isoformat(),
+                                    "stage": "cancelled",
+                                    "level": "warning",
+                                    "message": "Task cancelled by user",
+                                },
+                            },
+                        )
                         await self._publish_done(task.id, "cancelled")
             except Exception as exc:
                 logger.exception("Task %s failed", task_id)
@@ -370,7 +451,7 @@ class TaskRunner:
         Returns a dict with keys: findings, document_result, report, report_source, trace, error.
         Errors are captured in the 'error' key rather than raised (for parallel isolation).
         """
-        from agent.trace import PipelineTrace, set_current_trace, clear_current_trace, get_current_trace
+        from agent.trace import PipelineTrace, clear_current_trace, get_current_trace, set_current_trace
 
         NODE_STAGE_MAP = {
             "parse_doc": "parsing",
@@ -394,15 +475,33 @@ class TaskRunner:
         percent_start = int(((doc_index - 1) / total_docs) * 80)
         percent_end = int((doc_index / total_docs) * 80)
 
-        doc_label = f"[doc {doc_index}/{total_docs}]"
-        await self._publish(task_id, {"type": "event", "data": {
-            "time": datetime.now(timezone.utc).isoformat(),
-            "stage": "parsing", "level": "info",
-            "message": f"Processing document {document.filename}",
-        }})
+        await self._publish(
+            task_id,
+            {
+                "type": "event",
+                "data": {
+                    "time": datetime.now(UTC).isoformat(),
+                    "stage": "parsing",
+                    "level": "info",
+                    "message": f"Processing document {document.filename}",
+                },
+            },
+        )
         await self._publish_progress(task_id, percent_start, "parsing")
 
-        graph = build_audit_graph()
+        # Check per-document result cache
+        import time as _time
+
+        _cache_key_str = f"{document.content_text or ''}:{agent_doc_type}:{focus or ''}"
+        _cache_key = hashlib.md5(_cache_key_str.encode()).hexdigest()
+        _cached = self._result_cache.get(_cache_key)
+        if _cached and (_time.time() - _cached[1]) < _RESULT_CACHE_TTL:
+            logger.info("Cache hit for document %s, skipping agent pipeline", document.filename)
+            cached_result = _cached[0].copy()
+            cached_result["_cache_hit"] = True
+            return cached_result
+
+        graph = _get_audit_graph()
         initial_state = build_initial_state(
             document_path=document.file_path,
             document_type=agent_doc_type,
@@ -416,6 +515,7 @@ class TaskRunner:
         thinking_events: list[dict] = []
 
         try:
+
             async def _stream_graph():
                 result = {}
                 async for event in graph.astream_events(initial_state, version="v2"):
@@ -424,16 +524,19 @@ class TaskRunner:
 
                     if kind == "on_chain_start" and node_name in NODE_STAGE_MAP:
                         stage_name = NODE_STAGE_MAP[node_name]
-                        await self._publish(task_id, {
-                            "type": "agent_thinking",
-                            "data": {
-                                "stage": stage_name,
-                                "node": node_name,
-                                "status": "started",
-                                "message": NODE_START_MESSAGES.get(node_name, f"Agent {node_name} started"),
-                                "doc_name": document.filename,
+                        await self._publish(
+                            task_id,
+                            {
+                                "type": "agent_thinking",
+                                "data": {
+                                    "stage": stage_name,
+                                    "node": node_name,
+                                    "status": "started",
+                                    "message": NODE_START_MESSAGES.get(node_name, f"Agent {node_name} started"),
+                                    "doc_name": document.filename,
+                                },
                             },
-                        })
+                        )
                         if node_name in NODE_PROGRESS_MAP:
                             node_pct = NODE_PROGRESS_MAP[node_name]
                             progress = percent_start + int((node_pct / 80) * (percent_end - percent_start))
@@ -450,10 +553,13 @@ class TaskRunner:
                                 "message": summary,
                                 "doc_name": document.filename,
                             }
-                            await self._publish(task_id, {
-                                "type": "agent_thinking",
-                                "data": thinking_event,
-                            })
+                            await self._publish(
+                                task_id,
+                                {
+                                    "type": "agent_thinking",
+                                    "data": thinking_event,
+                                },
+                            )
                             # Persist for SSE reconnect replay
                             thinking_events.append(thinking_event)
                             result.update(output)
@@ -473,29 +579,40 @@ class TaskRunner:
             # Detect LLM auth failure and publish user-friendly warning
             report_source = result_state.get("report_source", "")
             if report_source == "fallback":
-                await self._publish(task_id, {
-                    "type": "agent_thinking",
-                    "data": {
-                        "stage": "report",
-                        "node": "report_writer",
-                        "status": "completed",
-                        "message": "API Key 无效或已过期，使用了备用模板生成报告。请在「设置」页面重新配置 API Key",
-                        "doc_name": document.filename,
+                await self._publish(
+                    task_id,
+                    {
+                        "type": "agent_thinking",
+                        "data": {
+                            "stage": "report",
+                            "node": "report_writer",
+                            "status": "completed",
+                            "message": "API Key 无效或已过期，使用了备用模板生成报告。请在「设置」页面重新配置 API Key",
+                            "doc_name": document.filename,
+                        },
                     },
-                })
+                )
 
             doc_findings = result_state.get("findings", [])
             for finding in doc_findings:
                 finding["document_id"] = document.id
 
             await self._publish_progress(task_id, percent_end, "report")
-            await self._publish(task_id, {"type": "event", "data": {
-                "time": datetime.now(timezone.utc).isoformat(),
-                "stage": "report", "level": "info",
-                "message": f"Completed document {document.filename}",
-            }})
+            await self._publish(
+                task_id,
+                {
+                    "type": "event",
+                    "data": {
+                        "time": datetime.now(UTC).isoformat(),
+                        "stage": "report",
+                        "level": "info",
+                        "message": f"Completed document {document.filename}",
+                    },
+                },
+            )
 
-            return {
+            # Cache the result for repeat documents
+            _result_to_cache = {
                 "findings": doc_findings,
                 "document_result": {
                     "document_id": document.id,
@@ -511,8 +628,14 @@ class TaskRunner:
                 "thinking_events": thinking_events,
                 "error": None,
             }
+            if len(self._result_cache) >= _RESULT_CACHE_MAX_SIZE:
+                oldest_key = min(self._result_cache, key=lambda k: self._result_cache[k][1])
+                del self._result_cache[oldest_key]
+            self._result_cache[_cache_key] = (_result_to_cache, _time.time())
 
-        except asyncio.TimeoutError:
+            return _result_to_cache
+
+        except TimeoutError:
             logger.error("Document %s timed out after %ds", document.filename, timeout_seconds)
             return {
                 "findings": [],
@@ -558,11 +681,12 @@ class TaskRunner:
             if task is None:
                 return
 
-            documents: list[Document] = []
-            for doc_id in task.document_ids or []:
-                doc = (await db.execute(select(Document).where(Document.id == doc_id))).scalar_one_or_none()
-                if doc is not None:
-                    documents.append(doc)
+            doc_ids = task.document_ids or []
+            if doc_ids:
+                result = await db.execute(select(Document).where(Document.id.in_(doc_ids)))
+                documents = list(result.scalars().all())
+            else:
+                documents = []
 
             if not documents:
                 raise RuntimeError("No documents available for audit")
@@ -571,32 +695,58 @@ class TaskRunner:
                 raise RuntimeError("All documents must be processed before audit")
 
             # Backup existing data before re-run (B6: data loss protection)
-            old_finding_ids = list((await db.execute(select(Finding.id).where(Finding.task_id == task.id))).scalars().all())
-            old_report_ids = list((await db.execute(select(Report.id).where(Report.task_id == task.id))).scalars().all())
+            old_finding_ids = list(
+                (await db.execute(select(Finding.id).where(Finding.task_id == task.id))).scalars().all()
+            )
+            old_report_ids = list(
+                (await db.execute(select(Report.id).where(Report.task_id == task.id))).scalars().all()
+            )
 
             timeout_seconds = settings.AGENT_TASK_TIMEOUT
             focus = get_execution_meta(task).get("focus", "")
             agent_doc_type = TASK_TYPE_TO_AGENT_TYPE.get(task.task_type, "deviation")
 
             total_docs = len(documents)
-            await self._publish(task_id, {"type": "event", "data": {
-                "time": datetime.now(timezone.utc).isoformat(),
-                "stage": "parsing", "level": "info",
-                "message": f"Starting audit of {total_docs} document(s)",
-            }})
+            await self._publish(
+                task_id,
+                {
+                    "type": "event",
+                    "data": {
+                        "time": datetime.now(UTC).isoformat(),
+                        "stage": "parsing",
+                        "level": "info",
+                        "message": f"Starting audit of {total_docs} document(s)",
+                    },
+                },
+            )
 
             # Process documents in parallel (or sequentially if only 1)
             if total_docs == 1:
-                doc_results = [await self._process_single_document(
-                    task_id, documents[0], agent_doc_type, focus, timeout_seconds, 1, 1,
-                )]
+                doc_results = [
+                    await self._process_single_document(
+                        task_id,
+                        documents[0],
+                        agent_doc_type,
+                        focus,
+                        timeout_seconds,
+                        1,
+                        1,
+                    )
+                ]
             else:
                 # Parallel processing with concurrency limiter
                 async def _limited_process(doc, idx):
                     async with self._llm_semaphore:
                         return await self._process_single_document(
-                            task_id, doc, agent_doc_type, focus, timeout_seconds, idx, total_docs,
+                            task_id,
+                            doc,
+                            agent_doc_type,
+                            focus,
+                            timeout_seconds,
+                            idx,
+                            total_docs,
                         )
+
                 doc_results = await asyncio.gather(
                     *[_limited_process(doc, i) for i, doc in enumerate(documents, start=1)],
                     return_exceptions=False,  # exceptions already caught in _process_single_document
@@ -631,11 +781,18 @@ class TaskRunner:
             # Log partial failures
             if errors:
                 append_event(task, f"{len(errors)}/{total_docs} document(s) had errors", stage="risk", level="warning")
-                await self._publish(task_id, {"type": "event", "data": {
-                    "time": datetime.now(timezone.utc).isoformat(),
-                    "stage": "risk", "level": "warning",
-                    "message": f"{len(errors)}/{total_docs} document(s) had errors",
-                }})
+                await self._publish(
+                    task_id,
+                    {
+                        "type": "event",
+                        "data": {
+                            "time": datetime.now(UTC).isoformat(),
+                            "stage": "risk",
+                            "level": "warning",
+                            "message": f"{len(errors)}/{total_docs} document(s) had errors",
+                        },
+                    },
+                )
 
             # Store trace metadata and thinking events on task
             task_config = dict(task.config or {})
@@ -659,8 +816,24 @@ class TaskRunner:
             valid_set = {id(f) for f in valid_finding_dicts}
             dropped_count = len(findings_to_save) - len(valid_finding_dicts)
             if dropped_count > 0:
-                append_event(task, f"Filtered {dropped_count} invalid findings (missing title/description)", stage="risk", level="warning")
-                await self._publish(task_id, {"type": "event", "data": {"time": datetime.now(timezone.utc).isoformat(), "stage": "risk", "level": "warning", "message": f"Filtered {dropped_count} invalid findings"}})
+                append_event(
+                    task,
+                    f"Filtered {dropped_count} invalid findings (missing title/description)",
+                    stage="risk",
+                    level="warning",
+                )
+                await self._publish(
+                    task_id,
+                    {
+                        "type": "event",
+                        "data": {
+                            "time": datetime.now(UTC).isoformat(),
+                            "stage": "risk",
+                            "level": "warning",
+                            "message": f"Filtered {dropped_count} invalid findings",
+                        },
+                    },
+                )
 
             # Add new findings to session first (before deleting old data)
             persisted_findings: list[dict[str, Any]] = []
@@ -677,7 +850,18 @@ class TaskRunner:
                 agent_report_sources=agent_report_sources,
             )
             append_event(task, "Generating audit report", stage="report")
-            await self._publish(task_id, {"type": "event", "data": {"time": datetime.now(timezone.utc).isoformat(), "stage": "report", "level": "info", "message": "Generating audit report"}})
+            await self._publish(
+                task_id,
+                {
+                    "type": "event",
+                    "data": {
+                        "time": datetime.now(UTC).isoformat(),
+                        "stage": "report",
+                        "level": "info",
+                        "message": "Generating audit report",
+                    },
+                },
+            )
             await self._publish_progress(task_id, 90, "report")
             report = Report(
                 task_id=task.id,
@@ -706,8 +890,15 @@ class TaskRunner:
                     db.add(RiskAlert(finding_id=finding.id, alert_level=AlertLevel.WARNING))
             await db.commit()
 
+            # Persist findings to audit memory (JSONL)
+            from app.services.memory import append_findings
+
+            await append_findings(task.id, task.task_name, persisted_findings, document_results)
+
             # Pre-compute finding statistics for notification
-            high_risk_count = sum(1 for item in persisted_findings if item.get("severity", "").lower() in {"high", "critical"})
+            high_risk_count = sum(
+                1 for item in persisted_findings if item.get("severity", "").lower() in {"high", "critical"}
+            )
             medium_count = sum(1 for item in persisted_findings if item.get("severity", "").lower() == "medium")
             top_findings = [
                 {"title": item.get("title", ""), "severity": item.get("severity", "")}
@@ -720,43 +911,73 @@ class TaskRunner:
                 task.status = TaskStatus.AWAITING_REVIEW
                 task.progress = 90
                 set_stage(task, "awaiting_review")
-                append_event(task, f"Task awaiting review: {high_risk_count} high-risk findings detected", stage="awaiting_review")
+                append_event(
+                    task,
+                    f"Task awaiting review: {high_risk_count} high-risk findings detected",
+                    stage="awaiting_review",
+                )
                 await db.commit()
-                await self._publish(task_id, {"type": "event", "data": {"time": datetime.now(timezone.utc).isoformat(), "stage": "awaiting_review", "level": "warning", "message": f"Task awaiting review: {high_risk_count} high-risk findings detected"}})
+                await self._publish(
+                    task_id,
+                    {
+                        "type": "event",
+                        "data": {
+                            "time": datetime.now(UTC).isoformat(),
+                            "stage": "awaiting_review",
+                            "level": "warning",
+                            "message": f"Task awaiting review: {high_risk_count} high-risk findings detected",
+                        },
+                    },
+                )
                 await self._publish_done(task_id, "awaiting_review")
                 await db.refresh(report)
 
-                # Create RiskAlerts even in awaiting_review path
-                result = await db.execute(select(Finding).where(Finding.task_id == task.id))
-                saved_findings = result.scalars().all()
-                for finding in saved_findings:
-                    if finding.severity == SeverityLevel.HIGH:
-                        db.add(RiskAlert(finding_id=finding.id, alert_level=AlertLevel.CRITICAL))
-                    elif finding.severity == SeverityLevel.MEDIUM:
-                        db.add(RiskAlert(finding_id=finding.id, alert_level=AlertLevel.WARNING))
-                await db.commit()
-
                 if is_feishu_configured():
                     try:
-                        await notify_audit_complete(task.task_name, len(persisted_findings), high_risk_count, medium_count, top_findings, task_id=task.id)
+                        await notify_audit_complete(
+                            task.task_name,
+                            len(persisted_findings),
+                            high_risk_count,
+                            medium_count,
+                            top_findings,
+                            task_id=task.id,
+                        )
                     except Exception:
                         logger.exception("Failed to send audit complete notification for task %s", task.id)
                 return
 
             task.status = TaskStatus.COMPLETED
             task.progress = 100
-            task.completed_at = datetime.now(timezone.utc)
+            task.completed_at = datetime.now(UTC)
             set_stage(task, "completed")
             append_event(task, "Task completed successfully", stage="completed")
             await db.commit()
-            await self._publish(task_id, {"type": "event", "data": {"time": datetime.now(timezone.utc).isoformat(), "stage": "completed", "level": "info", "message": "Task completed successfully"}})
+            await self._publish(
+                task_id,
+                {
+                    "type": "event",
+                    "data": {
+                        "time": datetime.now(UTC).isoformat(),
+                        "stage": "completed",
+                        "level": "info",
+                        "message": "Task completed successfully",
+                    },
+                },
+            )
             await self._publish_progress(task_id, 100, "completed")
             await self._publish_done(task_id, "completed")
             await db.refresh(report)
 
             if is_feishu_configured():
                 try:
-                    await notify_audit_complete(task.task_name, len(persisted_findings), high_risk_count, medium_count, top_findings, task_id=task.id)
+                    await notify_audit_complete(
+                        task.task_name,
+                        len(persisted_findings),
+                        high_risk_count,
+                        medium_count,
+                        top_findings,
+                        task_id=task.id,
+                    )
                 except Exception:
                     logger.exception("Failed to send audit complete notification for task %s", task.id)
                 for item in persisted_findings:
@@ -774,11 +995,17 @@ class TaskRunner:
     async def _mark_failed(self, db: AsyncSession, task: AuditTask, error: str) -> None:
         task.status = TaskStatus.FAILED
         task.error_message = error
-        task.completed_at = datetime.now(timezone.utc)
+        task.completed_at = datetime.now(UTC)
         set_stage(task, "failed", error=error)
         append_event(task, error, stage="failed", level="error")
         await db.commit()
-        await self._publish(task.id, {"type": "event", "data": {"time": datetime.now(timezone.utc).isoformat(), "stage": "failed", "level": "error", "message": error}})
+        await self._publish(
+            task.id,
+            {
+                "type": "event",
+                "data": {"time": datetime.now(UTC).isoformat(), "stage": "failed", "level": "error", "message": error},
+            },
+        )
         await self._publish_done(task.id, "failed")
         if is_feishu_configured():
             try:
@@ -790,6 +1017,7 @@ class TaskRunner:
 def get_task_runner_factory(
     session_factory: async_sessionmaker[AsyncSession],
     max_concurrency: int,
+    llm_concurrency: int = 3,
     event_bus: "EventBus | None" = None,
 ) -> Callable[[], TaskRunner]:
     runner: TaskRunner | None = None
@@ -797,7 +1025,12 @@ def get_task_runner_factory(
     def factory() -> TaskRunner:
         nonlocal runner
         if runner is None:
-            runner = TaskRunner(session_factory=session_factory, max_concurrency=max_concurrency, event_bus=event_bus)
+            runner = TaskRunner(
+                session_factory=session_factory,
+                max_concurrency=max_concurrency,
+                llm_concurrency=llm_concurrency,
+                event_bus=event_bus,
+            )
         return runner
 
     return factory

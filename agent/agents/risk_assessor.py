@@ -11,8 +11,8 @@ Supports two strategies based on document size:
 import asyncio
 import logging
 
-from agent.config import get_llm_with_fallback, call_llm_with_retry
-from agent.tools.document_chunker import select_strategy, chunk_document, deduplicate_findings
+from agent.config import call_llm_with_retry, get_llm_with_fallback
+from agent.tools.document_chunker import chunk_document, deduplicate_findings, select_strategy
 from agent.tools.json_parser import parse_llm_json as _parse_llm_json
 from agent.tools.prompt_loader import load_prompt
 
@@ -43,25 +43,32 @@ async def _analyze_chunk(
     doc_type: str,
     section_path: str,
 ) -> list[dict]:
-    """Analyze a single document chunk for compliance findings."""
-    try:
-        prompt = prompt_template.format(
-            document_content=chunk_content,
-            regulation_context=regulation_context,
-            document_type=doc_type,
-        )
-        response = await call_llm_with_retry(llm, prompt, node="risk_assessor")
-        findings = _parse_llm_json(response.content)
+    """Analyze a single document chunk for compliance findings.
 
-        # Tag each finding with its source section
-        for f in findings:
-            if section_path:
-                f.setdefault("source_section", section_path)
+    Retries once on failure before giving up.
+    """
+    for attempt in range(2):
+        try:
+            prompt = prompt_template.format(
+                document_content=chunk_content,
+                regulation_context=regulation_context,
+                document_type=doc_type,
+            )
+            response = await call_llm_with_retry(llm, prompt, node="risk_assessor")
+            findings = _parse_llm_json(response.content)
 
-        return findings
-    except Exception as e:
-        logger.warning("Chunk analysis failed for section '%s': %s", section_path, e)
-        return []
+            # Tag each finding with its source section
+            for f in findings:
+                if section_path:
+                    f.setdefault("source_section", section_path)
+
+            return findings
+        except Exception as e:
+            if attempt == 0:
+                logger.info("Chunk analysis retry for section '%s': %s", section_path, e)
+            else:
+                logger.warning("Chunk analysis failed for section '%s': %s", section_path, e)
+    return []
 
 
 def _ensure_finding_defaults(findings: list[dict]) -> list[dict]:
@@ -84,11 +91,15 @@ async def risk_assessor_node(state: AuditState) -> dict:
     full_content = state.get("document_content", "")
     doc_type = state.get("document_type", "unknown")
     regulations = state.get("matched_regulations", [])
-    doc_name = state.get("document_name", "unknown")
     strategy = select_strategy(full_content)
 
-    logger.info("Risk Assessor: doc_type=%s, content_len=%d, regulations=%d, strategy=%s",
-                doc_type, len(full_content), len(regulations), strategy)
+    logger.info(
+        "Risk Assessor: doc_type=%s, content_len=%d, regulations=%d, strategy=%s",
+        doc_type,
+        len(full_content),
+        len(regulations),
+        strategy,
+    )
 
     regulation_context = _format_regulations(regulations)
 
@@ -103,9 +114,7 @@ async def risk_assessor_node(state: AuditState) -> dict:
         if strategy == "stuff":
             # Single analysis with full content (no truncation for stuff strategy)
             doc_for_llm = full_content
-            findings = await _analyze_chunk(
-                llm, prompt_template, doc_for_llm, regulation_context, doc_type, ""
-            )
+            findings = await _analyze_chunk(llm, prompt_template, doc_for_llm, regulation_context, doc_type, "")
         else:
             # Map-Reduce: analyze chunks in parallel with concurrency limit
             chunks = chunk_document(full_content)
@@ -115,7 +124,11 @@ async def risk_assessor_node(state: AuditState) -> dict:
             async def _limited_analyze(chunk):
                 async with _sem:
                     return await _analyze_chunk(
-                        llm, prompt_template, chunk.content, regulation_context, doc_type,
+                        llm,
+                        prompt_template,
+                        chunk.content,
+                        regulation_context,
+                        doc_type,
                         chunk.section_path,
                     )
 
@@ -137,8 +150,13 @@ async def risk_assessor_node(state: AuditState) -> dict:
 
             # Deduplicate findings across chunks
             findings = deduplicate_findings(all_findings)
-            logger.info("Map-Reduce: %d raw findings → %d after dedup (coverage: %d/%d)",
-                        len(all_findings), len(findings), succeeded, total_chunks)
+            logger.info(
+                "Map-Reduce: %d raw findings → %d after dedup (coverage: %d/%d)",
+                len(all_findings),
+                len(findings),
+                succeeded,
+                total_chunks,
+            )
     except Exception as e:
         logger.warning("Risk Assessor LLM call failed: %s, using empty findings", e)
         return {

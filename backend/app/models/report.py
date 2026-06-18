@@ -1,18 +1,22 @@
-from sqlalchemy import Column, Integer, String, DateTime, Text, Enum, JSON, ForeignKey
-from sqlalchemy.sql import func
-from app.core.database import Base
 import enum
+
+from sqlalchemy import JSON, Column, DateTime, Enum, ForeignKey, Integer, String, Text
+from sqlalchemy.sql import func
+
+from app.core.database import Base
+
 
 class ReportType(enum.Enum):
     FULL_REPORT = "full_report"
     SUMMARY = "summary"
     RISK_ALERT = "risk_alert"
 
+
 class Report(Base):
     __tablename__ = "reports"
 
     id = Column(Integer, primary_key=True, index=True)
-    task_id = Column(Integer, ForeignKey("audit_tasks.id"), nullable=False)
+    task_id = Column(Integer, ForeignKey("audit_tasks.id"), nullable=False, index=True)
     report_type = Column(Enum(ReportType), nullable=False)
     title = Column(String(255), nullable=False)
     file_path = Column(String(500), nullable=True)

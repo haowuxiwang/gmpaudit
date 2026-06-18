@@ -8,12 +8,11 @@ Run with: pytest tests/test_trace_e2e.py -v --tb=short
 """
 
 import json
-import sys
 from pathlib import Path
 
 import pytest
 
-from agent.trace import PipelineTrace, set_current_trace, clear_current_trace
+from agent.trace import clear_current_trace
 
 # Skip if no real LLM configured
 pytestmark = pytest.mark.e2e
@@ -53,8 +52,7 @@ class TestE2E:
         result = await run_audit(doc_path, doc_type="deviation")
 
         # Verify pipeline completed
-        assert result.get("status") in ("completed", "running"), \
-            f"Pipeline status: {result.get('status')}"
+        assert result.get("status") in ("completed", "running"), f"Pipeline status: {result.get('status')}"
 
         # Verify trace exists and has all layers
         trace_data = result.get("trace")
@@ -116,8 +114,9 @@ class TestE2E:
 
         for i in range(5):
             result = await run_audit(doc_path, doc_type="deviation")
-            assert result.get("status") in ("completed", "running"), \
+            assert result.get("status") in ("completed", "running"), (
                 f"Run {i} failed with status: {result.get('status')}"
+            )
             trace = result.get("trace")
             assert trace is not None, f"Run {i} has no trace"
             traces.append(trace)
@@ -130,8 +129,7 @@ class TestE2E:
 
     async def test_10x_llm_stability(self):
         """10 consecutive LLM calls without 401 errors."""
-        import asyncio
-        from agent.config import get_llm_with_fallback, call_llm_with_retry
+        from agent.config import call_llm_with_retry, get_llm_with_fallback
 
         llm = get_llm_with_fallback(temperature=0.1)
         successes = 0

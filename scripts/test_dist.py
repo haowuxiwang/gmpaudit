@@ -6,12 +6,11 @@ Run with: python scripts/test_dist.py [--port PORT]
 
 import argparse
 import json
-import os
 import subprocess
 import sys
 import time
-import urllib.request
 import urllib.error
+import urllib.request
 from pathlib import Path
 
 DIST_DIR = Path(__file__).resolve().parent.parent / "dist" / "AuditBee"
@@ -20,6 +19,9 @@ BASE_URL = "http://127.0.0.1:8000"  # Overridden by --port arg in __main__
 
 # Test results collector
 results = []
+
+# Auth token (fetched from /api/auth/token in production mode)
+AUTH_TOKEN = [None]
 
 
 def test(name, passed, detail=""):
@@ -33,6 +35,8 @@ def api_get(path, timeout=10):
     url = f"{BASE_URL}{path}"
     try:
         req = urllib.request.Request(url)
+        if AUTH_TOKEN[0]:
+            req.add_header("Authorization", f"Bearer {AUTH_TOKEN[0]}")
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return resp.status, json.loads(resp.read().decode())
     except urllib.error.HTTPError as e:
@@ -48,6 +52,8 @@ def api_post(path, data=None, timeout=30):
         body = json.dumps(data).encode() if data else None
         req = urllib.request.Request(url, data=body, method="POST")
         req.add_header("Content-Type", "application/json")
+        if AUTH_TOKEN[0]:
+            req.add_header("Authorization", f"Bearer {AUTH_TOKEN[0]}")
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return resp.status, json.loads(resp.read().decode())
     except urllib.error.HTTPError as e:
@@ -65,6 +71,8 @@ def api_get_raw(path, timeout=10):
     url = f"{BASE_URL}{path}"
     try:
         req = urllib.request.Request(url)
+        if AUTH_TOKEN[0]:
+            req.add_header("Authorization", f"Bearer {AUTH_TOKEN[0]}")
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return resp.status, resp.read()
     except urllib.error.HTTPError as e:
@@ -76,6 +84,7 @@ def api_get_raw(path, timeout=10):
 # ============================================================
 # Layer 1: Startup & Infrastructure
 # ============================================================
+
 
 def test_layer1():
     print("\n=== Layer 1: Startup & Infrastructure ===")
@@ -99,8 +108,7 @@ def test_layer1():
     if env_path.exists():
         content = env_path.read_text(encoding="utf-8")
         has_real_key = any(
-            line.strip() and not line.startswith("#") and "=" in line
-            and "sk-" in line.split("=", 1)[1]
+            line.strip() and not line.startswith("#") and "=" in line and "sk-" in line.split("=", 1)[1]
             for line in content.splitlines()
         )
         test("1.3 No real API keys in .env", not has_real_key)
@@ -109,13 +117,17 @@ def test_layer1():
 
     # 1.4 Embedding model exists
     model_path = DIST_DIR / "model" / "pytorch_model.bin"
-    test("1.4 Embedding model", model_path.exists(),
-         f"size={model_path.stat().st_size:,} bytes" if model_path.exists() else "MISSING")
+    test(
+        "1.4 Embedding model",
+        model_path.exists(),
+        f"size={model_path.stat().st_size:,} bytes" if model_path.exists() else "MISSING",
+    )
 
 
 # ============================================================
 # Layer 2: API Endpoints (requires running server)
 # ============================================================
+
 
 def test_layer2():
     print("\n=== Layer 2: API Endpoints ===")
@@ -166,6 +178,7 @@ def test_layer2():
 # Layer 3: Core Business Flow
 # ============================================================
 
+
 def test_layer3():
     print("\n=== Layer 3: Core Business Flow ===")
 
@@ -184,7 +197,7 @@ def test_layer3():
             "3. 职责：QA 负责偏差的调查和处理\n"
             "4. 程序：发现偏差后应在24小时内填写偏差报告\n"
             "5. 偏差分类：严重偏差、一般偏差、微小偏差\n",
-            encoding="utf-8"
+            encoding="utf-8",
         )
         doc_files = [test_file]
 
@@ -192,23 +205,24 @@ def test_layer3():
     print(f"  Using test document: {test_file.name}")
 
     # Upload via multipart form data
-    import io
     boundary = "----TestBoundary"
     file_content = test_file.read_bytes()
 
     body = (
-        f"--{boundary}\r\n"
-        f'Content-Disposition: form-data; name="file"; filename="{test_file.name}"\r\n'
-        f"Content-Type: text/plain\r\n\r\n"
-    ).encode() + file_content + f"\r\n--{boundary}--\r\n".encode()
+        (
+            f"--{boundary}\r\n"
+            f'Content-Disposition: form-data; name="file"; filename="{test_file.name}"\r\n'
+            f"Content-Type: text/plain\r\n\r\n"
+        ).encode()
+        + file_content
+        + f"\r\n--{boundary}--\r\n".encode()
+    )
 
     try:
-        req = urllib.request.Request(
-            f"{BASE_URL}/api/documents/upload",
-            data=body,
-            method="POST"
-        )
+        req = urllib.request.Request(f"{BASE_URL}/api/documents/upload", data=body, method="POST")
         req.add_header("Content-Type", f"multipart/form-data; boundary={boundary}")
+        if AUTH_TOKEN[0]:
+            req.add_header("Authorization", f"Bearer {AUTH_TOKEN[0]}")
         with urllib.request.urlopen(req, timeout=30) as resp:
             upload_status = resp.status
             upload_data = json.loads(resp.read().decode())
@@ -222,14 +236,17 @@ def test_layer3():
         upload_status = None
         upload_data = str(e)
 
-    test("3.1 Document upload", upload_status == 200,
-         f"status={upload_status}, data={str(upload_data)[:200]}")
+    test("3.1 Document upload", upload_status == 200, f"status={upload_status}, data={str(upload_data)[:200]}")
 
     if upload_status != 200:
         print("  Skipping remaining Layer 3 tests (upload failed)")
         return
 
-    doc_id = upload_data.get("id") or (upload_data.get("documents", [{}])[0].get("id") if isinstance(upload_data, dict) and "documents" in upload_data else None)
+    doc_id = upload_data.get("id") or (
+        upload_data.get("documents", [{}])[0].get("id")
+        if isinstance(upload_data, dict) and "documents" in upload_data
+        else None
+    )
 
     # Wait for document processing (poll up to 30s)
     doc_status = "unknown"
@@ -240,17 +257,17 @@ def test_layer3():
             doc_status = doc_detail.get("process_status", "unknown")
             if doc_status in ("processed", "failed"):
                 break
-    test("3.2 Document processed", doc_status == "processed",
-         f"status={doc_status}")
+    test("3.2 Document processed", doc_status == "processed", f"status={doc_status}")
 
     # 3.3 Create audit task
-    status, task_data = api_post("/api/audit/tasks", {
-        "task_name": "分发测试任务",
-        "task_type": "deviation_analysis",
-        "document_ids": [doc_id]
-    })
-    test("3.3 Task created", status == 200,
-         f"status={status}, task_id={task_data.get('id') if isinstance(task_data, dict) else 'N/A'}")
+    status, task_data = api_post(
+        "/api/audit/tasks", {"task_name": "分发测试任务", "task_type": "deviation_analysis", "document_ids": [doc_id]}
+    )
+    test(
+        "3.3 Task created",
+        status == 200,
+        f"status={status}, task_id={task_data.get('id') if isinstance(task_data, dict) else 'N/A'}",
+    )
 
     if status != 200 or not isinstance(task_data, dict):
         print("  Skipping remaining Layer 3 tests (task creation failed)")
@@ -258,14 +275,18 @@ def test_layer3():
 
     task_id = task_data["id"]
 
-    # 3.4 Run task
+    # 3.4 Run task (may fail if no LLM API key configured)
     status, run_result = api_post(f"/api/audit/tasks/{task_id}/run")
+    if status == 400 and isinstance(run_result, dict) and "LLM" in str(run_result.get("detail", "")):
+        test("3.4 Task started", True, "No LLM API key configured (expected for clean dist)")
+        print("  Skipping remaining Layer 3 tests (no LLM configured)")
+        return
     test("3.4 Task started", status == 200, f"status={status}")
 
     if status == 200:
         # Wait for task completion (max 600s — agent pipeline can take 5-8 min)
         print("  Waiting for task completion (max 600s)...")
-        for i in range(120):
+        for _i in range(120):
             time.sleep(5)
             status, task_detail = api_get(f"/api/audit/tasks/{task_id}")
             if isinstance(task_detail, dict):
@@ -275,14 +296,12 @@ def test_layer3():
         else:
             current_status = task_detail.get("status", "unknown") if isinstance(task_detail, dict) else "unknown"
 
-        test("3.5 Task completed", current_status in ("completed", "awaiting_review"),
-             f"final_status={current_status}")
+        test("3.5 Task completed", current_status in ("completed", "awaiting_review"), f"final_status={current_status}")
 
         # 3.6 Check findings
         status, findings = api_get(f"/api/audit/tasks/{task_id}/findings")
         has_findings = isinstance(findings, list) and len(findings) > 0
-        test("3.6 Findings generated", has_findings,
-             f"count={len(findings) if isinstance(findings, list) else 0}")
+        test("3.6 Findings generated", has_findings, f"count={len(findings) if isinstance(findings, list) else 0}")
 
         # 3.7 Check reports (API returns paginated dict {items: [...]} or list)
         status, reports = api_get(f"/api/reports/?task_id={task_id}")
@@ -293,13 +312,13 @@ def test_layer3():
         else:
             report_items = []
         task_reports = [r for r in report_items if isinstance(r, dict) and r.get("task_id") == task_id]
-        test("3.7 Report generated", len(task_reports) > 0,
-             f"report_count={len(task_reports)}")
+        test("3.7 Report generated", len(task_reports) > 0, f"report_count={len(task_reports)}")
 
 
 # ============================================================
 # Layer 4: Knowledge Graph
 # ============================================================
+
 
 def test_layer4():
     print("\n=== Layer 4: Knowledge Graph ===")
@@ -314,8 +333,7 @@ def test_layer4():
 
     # 4.3 KG query (may return empty if not built)
     status, query_result = api_post("/api/kg/query", {"query": "偏差处理"})
-    test("4.3 KG query", status in (200, 404),
-         f"status={status}")
+    test("4.3 KG query", status in (200, 404), f"status={status}")
 
 
 # ============================================================
@@ -369,7 +387,7 @@ if __name__ == "__main__":
             time.sleep(2)
             try:
                 urllib.request.urlopen(f"{BASE_URL}/api/health", timeout=2)
-                print(f"Server ready after {(i+1)*2}s")
+                print(f"Server ready after {(i + 1) * 2}s")
                 break
             except Exception:
                 pass
@@ -377,6 +395,21 @@ if __name__ == "__main__":
             print("Server failed to start within 60s")
             proc.kill()
             sys.exit(1)
+
+    # Fetch auth token for production mode
+    try:
+        status, token_data = api_get("/api/auth/token")
+        if status == 200 and isinstance(token_data, dict):
+            token = token_data.get("token", "")
+            if token:
+                AUTH_TOKEN[0] = token
+                print(f"Auth token obtained: {token[:10]}...")
+            else:
+                print("No auth token returned")
+        else:
+            print(f"Warning: Could not get auth token (status={status})")
+    except Exception as e:
+        print(f"Warning: Could not get auth token: {e}")
 
     try:
         test_layer2()

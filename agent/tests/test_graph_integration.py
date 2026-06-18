@@ -1,13 +1,11 @@
 """Integration tests for the LangGraph audit workflow."""
 
-import sys
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from agent.graph import build_audit_graph, parse_document_node
-from agent.state import AuditState
 
 _FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -96,10 +94,12 @@ class TestBuildAuditGraph:
         }
 
         # Build graph with mocked nodes
-        with patch("agent.graph.regulation_expert_node", AsyncMock(return_value=mock_reg_result)), \
-             patch("agent.graph.risk_assessor_node", AsyncMock(return_value=mock_risk_result)), \
-             patch("agent.graph.report_writer_node", AsyncMock(return_value=mock_report_result)), \
-             patch("agent.graph.parse_file", return_value="Test document content about 偏差处理"):
+        with (
+            patch("agent.graph.regulation_expert_node", AsyncMock(return_value=mock_reg_result)),
+            patch("agent.graph.risk_assessor_node", AsyncMock(return_value=mock_risk_result)),
+            patch("agent.graph.report_writer_node", AsyncMock(return_value=mock_report_result)),
+            patch("agent.graph.parse_file", return_value="Test document content about 偏差处理"),
+        ):
             graph = build_audit_graph()
 
             initial_state = {

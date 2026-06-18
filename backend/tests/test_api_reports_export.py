@@ -1,6 +1,6 @@
 """Tests for report export endpoints (HTML and PDF)."""
 
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from httpx import AsyncClient

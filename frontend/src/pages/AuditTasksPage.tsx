@@ -21,6 +21,8 @@ import {
 } from 'antd';
 import {
   BranchesOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined,
   FileSearchOutlined,
   PlayCircleOutlined,
   PlusOutlined,
@@ -65,11 +67,11 @@ const TYPE_FILTER_OPTIONS = [
 const STATUS_DOT_COLORS: Record<string, string> = {
   pending: THEME.pending,
   running: THEME.primary,
-  awaiting_review: '#faad14',
-  rejected: '#ff4d4f',
+  awaiting_review: THEME.warning,
+  rejected: THEME.error,
   completed: THEME.success,
   failed: THEME.error,
-  cancelled: '#9CA3AF',
+  cancelled: THEME.textTertiary,
 };
 
 const AuditTasksPage: React.FC = () => {
@@ -88,6 +90,8 @@ const AuditTasksPage: React.FC = () => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
+  const [searchKeyword, setSearchKeyword] = useState('');
+  const [sortBy, setSortBy] = useState<'created_at' | 'status' | 'name'>('created_at');
   const [elapsed, setElapsed] = useState('');
   const [reviewComment, setReviewComment] = useState('');
   const lastMergedSseCount = useRef(0);
@@ -142,9 +146,9 @@ const AuditTasksPage: React.FC = () => {
       const items = result?.items || [];
       setTasks(items);
       syncSelectedTask(items, preferredId);
-    } catch {
+    } catch (e: unknown) {
       if (showSpinner) {
-        message.error('加载审计任务失败');
+        message.error(e instanceof Error ? e.message : '加载审计任务失败');
       }
     } finally {
       if (showSpinner) setLoading(false);
@@ -155,8 +159,8 @@ const AuditTasksPage: React.FC = () => {
     try {
       const result = await documentApi.list(1, 100);
       setDocuments((result?.items || []).filter((doc) => doc.process_status === 'processed'));
-    } catch {
-      message.error('加载已处理文档失败');
+    } catch (e: unknown) {
+      message.error(e instanceof Error ? e.message : '加载已处理文档失败');
     }
   }, []);
 
@@ -167,13 +171,90 @@ const AuditTasksPage: React.FC = () => {
         auditApi.getFindings(taskId).catch(() => []),
       ]);
 
-      setSelectedTask(task);
+      // Protect against progress regression: keep the higher progress value
+      setSelectedTask(prev => {
+        if (prev && prev.id === task.id) {
+          return {
+            ...task,
+            progress: Math.max(prev.progress || 0, task.progress || 0),
+            events: prev.events, // Preserve SSE events
+          };
+        }
+        return task;
+      });
       setSelectedTaskId(task.id);
-      setFindings(taskFindings);
-    } catch {
-      message.error('加载任务详情失败');
+      // Only set findings if this is still the selected task (race condition protection)
+      setSelectedTaskId(prev => {
+        if (prev === taskId) {
+          setFindings(taskFindings);
+        }
+        return prev;
+      });
+    } catch (e: unknown) {
+      message.error(e instanceof Error ? e.message : '加载任务详情失败');
     }
   }, []);
+
+  const handleApprove = useCallback(async (taskId: number) => {
+    setReviewComment('');
+    Modal.confirm({
+      title: '批准任务',
+      content: (
+        <div>
+          <p>确定要批准此任务吗？</p>
+          <Input.TextArea
+            placeholder="审核意见（可选）"
+            rows={3}
+            value={reviewComment}
+            onChange={(e) => setReviewComment(e.target.value)}
+          />
+        </div>
+      ),
+      onOk: async () => {
+        try {
+          await auditApi.approveTask(taskId, reviewComment);
+          message.success('任务已批准');
+          await loadTasks(false, selectedTaskId);
+          if (selectedTaskId) await loadTaskDetails(selectedTaskId);
+        } catch (err: unknown) {
+          message.error(err instanceof Error ? err.message : '批准失败，请重试');
+        }
+      },
+    });
+  }, [reviewComment, loadTasks, loadTaskDetails, selectedTaskId]);
+
+  const handleReject = useCallback(async (taskId: number) => {
+    setReviewComment('');
+    Modal.confirm({
+      title: '驳回任务',
+      content: (
+        <div>
+          <p>确定要驳回此任务吗？</p>
+          <Input.TextArea
+            placeholder="驳回原因（必填）"
+            rows={3}
+            value={reviewComment}
+            onChange={(e) => setReviewComment(e.target.value)}
+          />
+        </div>
+      ),
+      onOk: async () => {
+        if (!reviewComment.trim()) {
+          message.warning('请填写驳回原因');
+          throw new Error('Missing comment');
+        }
+        try {
+          await auditApi.rejectTask(taskId, reviewComment);
+          message.success('任务已驳回');
+          await loadTasks(false, selectedTaskId);
+          if (selectedTaskId) await loadTaskDetails(selectedTaskId);
+        } catch (err: unknown) {
+          if (err instanceof Error && err.message === 'Missing comment') return;
+          message.error(err instanceof Error ? err.message : '驳回失败，请重试');
+        }
+      },
+    });
+  }, [reviewComment, loadTasks, loadTaskDetails, selectedTaskId]);
 
   useEffect(() => {
     const taskId = Number(taskIdParam);
@@ -190,18 +271,32 @@ const AuditTasksPage: React.FC = () => {
   }, [loadTaskDetails, selectedTaskId]);
 
   // Merge SSE events into selectedTask display (when running or awaiting review)
+  // Use refs to track last merged values and avoid unnecessary updates
+  const lastMergedProgressRef = useRef(0);
+  const lastMergedStageRef = useRef('');
+
   useEffect(() => {
     if (!selectedTask || (selectedTask.status !== 'running' && selectedTask.status !== 'awaiting_review')) return;
     const newEvents = sseEvents.slice(lastMergedSseCount.current);
-    if (newEvents.length === 0 && !currentStage && sseProgress === 0) return;
+
+    // Only update if there's actually new data
+    const hasNewEvents = newEvents.length > 0;
+    const hasNewProgress = sseProgress > lastMergedProgressRef.current;
+    const hasNewStage = currentStage && currentStage !== lastMergedStageRef.current;
+
+    if (!hasNewEvents && !hasNewProgress && !hasNewStage) return;
+
     lastMergedSseCount.current = sseEvents.length;
+    if (hasNewProgress) lastMergedProgressRef.current = sseProgress;
+    if (hasNewStage) lastMergedStageRef.current = currentStage;
+
     setSelectedTask(prev => {
       if (!prev) return prev;
       return {
         ...prev,
         stage: currentStage || prev.stage,
         progress: Math.max(prev.progress || 0, sseProgress),
-        events: newEvents.length > 0
+        events: hasNewEvents
           ? [...(prev.events || []), ...newEvents].slice(-200)
           : prev.events,
       };
@@ -213,6 +308,13 @@ const AuditTasksPage: React.FC = () => {
     if (sseStatus === 'completed' || sseStatus === 'failed' || sseStatus === 'awaiting_review') {
       void loadTasks(false, selectedTaskId);
       if (selectedTaskId) void loadTaskDetails(selectedTaskId);
+      // Auto-scroll to review banner when awaiting review
+      if (sseStatus === 'awaiting_review') {
+        setTimeout(() => {
+          const banner = document.getElementById('awaiting-review-banner');
+          if (banner) banner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 500);
+      }
     }
   }, [sseStatus, selectedTaskId, loadTasks, loadTaskDetails]);
 
@@ -288,11 +390,11 @@ const AuditTasksPage: React.FC = () => {
         message.success('审计任务已启动');
         await loadTasks(true, result.id);
         await loadTaskDetails(result.id);
-      } catch {
-        message.warning('自动启动失败，请手动点击"运行"');
+      } catch (e: unknown) {
+        message.warning(e instanceof Error ? e.message : '自动启动失败，请手动点击"运行"');
       }
-    } catch {
-      message.error('创建审计任务失败');
+    } catch (e: unknown) {
+      message.error(e instanceof Error ? e.message : '创建审计任务失败');
     } finally {
       setCreating(false);
     }
@@ -304,8 +406,8 @@ const AuditTasksPage: React.FC = () => {
       message.success('审计任务已提交');
       await loadTasks(true, taskId);
       await loadTaskDetails(taskId);
-    } catch {
-      message.error('提交审计任务失败');
+    } catch (e: unknown) {
+      message.error(e instanceof Error ? e.message : '提交审计任务失败');
     }
   };
 
@@ -315,8 +417,8 @@ const AuditTasksPage: React.FC = () => {
       message.success('任务已取消');
       await loadTasks(false, selectedTaskId);
       if (selectedTaskId) await loadTaskDetails(selectedTaskId);
-    } catch {
-      message.error('取消任务失败');
+    } catch (e: unknown) {
+      message.error(e instanceof Error ? e.message : '取消任务失败');
     }
   };
 
@@ -326,13 +428,31 @@ const AuditTasksPage: React.FC = () => {
     setDrawerOpen(true);
   };
 
+  const STATUS_PRIORITY: Record<string, number> = {
+    running: 0, awaiting_review: 1, pending: 2, completed: 3, failed: 4, cancelled: 5,
+  };
+
   const filteredTasks = useMemo(() => {
-    return tasks.filter((task) => {
-      if (statusFilter && task.status !== statusFilter) return false;
-      if (typeFilter && task.task_type !== typeFilter) return false;
-      return true;
-    });
-  }, [tasks, statusFilter, typeFilter]);
+    return tasks
+      .filter((task) => {
+        if (statusFilter && task.status !== statusFilter) return false;
+        if (typeFilter && task.task_type !== typeFilter) return false;
+        if (searchKeyword && !task.task_name.toLowerCase().includes(searchKeyword.toLowerCase())) return false;
+        return true;
+      })
+      .sort((a, b) => {
+        if (sortBy === 'status') {
+          const pa = STATUS_PRIORITY[a.status] ?? 99;
+          const pb = STATUS_PRIORITY[b.status] ?? 99;
+          if (pa !== pb) return pa - pb;
+        }
+        if (sortBy === 'name') {
+          return a.task_name.localeCompare(b.task_name);
+        }
+        // Default: created_at descending
+        return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+      });
+  }, [tasks, statusFilter, typeFilter, searchKeyword, sortBy]);
 
   const selectedQuery = encodeURIComponent(
     findings[0]?.title || selectedTask?.task_name || 'GMP 偏差处理',
@@ -366,6 +486,23 @@ const AuditTasksPage: React.FC = () => {
             onChange={setTypeFilter}
             options={TYPE_FILTER_OPTIONS}
             style={{ width: 160 }}
+          />
+          <Input.Search
+            placeholder="搜索任务名称..."
+            allowClear
+            value={searchKeyword}
+            onChange={(e) => setSearchKeyword(e.target.value)}
+            style={{ width: 200 }}
+          />
+          <Select
+            value={sortBy}
+            onChange={setSortBy}
+            options={[
+              { label: '按时间排序', value: 'created_at' },
+              { label: '按状态排序', value: 'status' },
+              { label: '按名称排序', value: 'name' },
+            ]}
+            style={{ width: 130 }}
           />
           <div style={{ flex: 1 }} />
           <Text type="secondary">共 {filteredTasks.length} 个任务</Text>
@@ -522,8 +659,10 @@ const AuditTasksPage: React.FC = () => {
         width={window.innerWidth < 640 ? '100%' : 480}
         styles={{ body: { padding: '16px 24px' } }}
       >
-        {selectedTask ? (
-          <Space direction="vertical" size={20} style={{ width: '100%' }}>
+        {selectedTask ? (() => {
+          // Merge SSE currentStage with API stage: prefer API when SSE is at default 'pending'
+          const effectiveStage = (currentStage && currentStage !== 'pending') ? currentStage : (selectedTask.stage || 'pending');
+          return <Space direction="vertical" size={20} style={{ width: '100%' }}>
             {/* Header info */}
             <div>
               <Space wrap style={{ marginBottom: 12 }}>
@@ -535,7 +674,7 @@ const AuditTasksPage: React.FC = () => {
                 </Tag>
                 {selectedTask.stage && (
                   <Tag style={{ borderRadius: 999 }}>
-                    {STAGE_LABELS[selectedTask.status === 'running' ? (currentStage || selectedTask.stage) : selectedTask.stage] || selectedTask.stage}
+                    {STAGE_LABELS[effectiveStage] || effectiveStage}
                   </Tag>
                 )}
                 {elapsed && <Text type="secondary" style={{ fontSize: 12 }}>{elapsed}</Text>}
@@ -551,19 +690,21 @@ const AuditTasksPage: React.FC = () => {
             {/* Agent Flow Chart */}
             {(() => {
               const STAGE_ORDER = ['parsing', 'regulation', 'risk', 'report'];
-              // Use SSE currentStage when running (real-time), fallback to API stage
-              const stage = selectedTask.status === 'running' ? (currentStage || selectedTask.stage || '') : (selectedTask.stage || '');
+              const stage = effectiveStage;
               const currentIdx = STAGE_ORDER.indexOf(stage);
               // Determine the effective stage for the chart
               const chartStage = currentIdx >= 0 ? stage
                 : selectedTask.status === 'completed' ? 'report'
                 : selectedTask.status === 'failed' ? (stage || 'parsing')
+                : stage === 'awaiting_review' ? 'report'
                 : 'pending';
               const completedStages = selectedTask.status === 'completed'
                 ? STAGE_ORDER
-                : currentIdx > 0
-                  ? STAGE_ORDER.slice(0, currentIdx)
-                  : [];
+                : stage === 'awaiting_review'
+                  ? STAGE_ORDER  // All stages done when awaiting review
+                  : currentIdx > 0
+                    ? STAGE_ORDER.slice(0, currentIdx)
+                    : [];
               return (
                 <AgentFlowChart
                   currentStage={chartStage}
@@ -576,6 +717,51 @@ const AuditTasksPage: React.FC = () => {
                 />
               );
             })()}
+
+            {/* Awaiting Review Banner */}
+            {selectedTask.status === 'awaiting_review' && (
+              <div
+                id="awaiting-review-banner"
+                style={{
+                  marginBottom: 16,
+                  padding: '16px 20px',
+                  borderRadius: 12,
+                  background: THEME.bgWarning,
+                  border: `1px solid ${THEME.warning}40`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 16,
+                }}
+              >
+                <div>
+                  <Text strong style={{ fontSize: 15, color: THEME.warning }}>
+                    ⏸ 待审核 — 发现高风险问题，需要人工审批
+                  </Text>
+                  <div style={{ marginTop: 4 }}>
+                    <Text type="secondary" style={{ fontSize: 13 }}>
+                      请审查下方的审计发现，然后决定批准或驳回此任务。
+                    </Text>
+                  </div>
+                </div>
+                <Space>
+                  <Button
+                    type="primary"
+                    icon={<CheckCircleOutlined />}
+                    onClick={() => void handleApprove(selectedTask.id)}
+                  >
+                    批准
+                  </Button>
+                  <Button
+                    danger
+                    icon={<CloseCircleOutlined />}
+                    onClick={() => void handleReject(selectedTask.id)}
+                  >
+                    驳回
+                  </Button>
+                </Space>
+              </div>
+            )}
 
             {/* SSE Connection Error Alert */}
             {connectionError && selectedTask.status === 'running' && (
@@ -593,7 +779,7 @@ const AuditTasksPage: React.FC = () => {
             {thinkingEvents.length > 0 && (
               <AgentThinkingPanel
                 thinkingEvents={thinkingEvents}
-                currentStage={currentStage}
+                currentStage={effectiveStage}
                 lastActiveStage={lastActiveStage}
                 isRunning={selectedTask.status === 'running'}
               />
@@ -635,6 +821,18 @@ const AuditTasksPage: React.FC = () => {
               <Text strong style={{ fontSize: 13, color: THEME.textSecondary }}>
                 审计发现 {findings.length > 0 && `(${findings.length} 项)`}
               </Text>
+              {findings.length > 0 && (() => {
+                const counts = { high: 0, medium: 0, low: 0, info: 0 } as Record<string, number>;
+                findings.forEach((f) => { counts[f.severity] = (counts[f.severity] || 0) + 1; });
+                return (
+                  <Space size={8} style={{ marginTop: 6, marginBottom: 8 }}>
+                    {counts.high > 0 && <Tag color="red">高风险 {counts.high}</Tag>}
+                    {counts.medium > 0 && <Tag color="orange">中风险 {counts.medium}</Tag>}
+                    {counts.low > 0 && <Tag color="blue">低风险 {counts.low}</Tag>}
+                    {counts.info > 0 && <Tag color="default">信息 {counts.info}</Tag>}
+                  </Space>
+                );
+              })()}
               {findings.length > 0 ? (
                 <div style={{ marginTop: 8 }}>
                   {findings.map((item) => (
@@ -646,6 +844,7 @@ const AuditTasksPage: React.FC = () => {
                         setDrawerOpen(false);
                         navigate(`/kg?q=${encodeURIComponent(title)}&task_id=${taskId}`);
                       }}
+                      onStatusChange={() => void loadTaskDetails(selectedTask.id)}
                     />
                   ))}
                 </div>
@@ -719,8 +918,8 @@ const AuditTasksPage: React.FC = () => {
                               message.success('任务已批准');
                               await loadTasks(false, selectedTaskId);
                               if (selectedTaskId) await loadTaskDetails(selectedTaskId);
-                            } catch (err) {
-                              message.error('批准失败，请重试');
+                            } catch (err: unknown) {
+                              message.error(err instanceof Error ? err.message : '批准失败，请重试');
                             }
                           },
                         });
@@ -755,8 +954,8 @@ const AuditTasksPage: React.FC = () => {
                               message.success('任务已驳回');
                               await loadTasks(false, selectedTaskId);
                               if (selectedTaskId) await loadTaskDetails(selectedTaskId);
-                            } catch (err) {
-                              message.error('驳回失败，请重试');
+                            } catch (err: unknown) {
+                              message.error(err instanceof Error ? err.message : '驳回失败，请重试');
                             }
                           },
                         });
@@ -786,8 +985,8 @@ const AuditTasksPage: React.FC = () => {
                             await auditApi.cancelTask(selectedTask.id);
                             message.success('任务已取消');
                             void loadTasks(false, selectedTaskId);
-                          } catch {
-                            message.error('取消任务失败');
+                          } catch (e: unknown) {
+                            message.error(e instanceof Error ? e.message : '取消任务失败');
                           }
                         },
                       });
@@ -808,7 +1007,7 @@ const AuditTasksPage: React.FC = () => {
               </Space>
             </div>
           </Space>
-        ) : (
+        })() : (
           <Empty description="请选择一个审计任务查看详情" />
         )}
       </Drawer>

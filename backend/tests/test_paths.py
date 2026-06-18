@@ -1,6 +1,5 @@
 """Tests for app.core.paths module."""
 
-import os
 from pathlib import Path
 
 from app.core import paths
@@ -72,9 +71,21 @@ class TestPathConstants:
 
     def test_all_path_types_are_path(self):
         for name in [
-            "APP_DIR", "CONFIG_DIR", "STATIC_DIR", "AGENT_DIR", "TOOLS_DIR",
-            "KG_INPUT_DIR", "MODEL_DIR", "DATA_DIR", "DB_DIR", "LOG_DIR",
-            "DOCS_DIR", "PROCESSED_DIR", "REPORTS_DIR", "KG_OUTPUT_DIR", "ENV_FILE",
+            "APP_DIR",
+            "CONFIG_DIR",
+            "STATIC_DIR",
+            "AGENT_DIR",
+            "TOOLS_DIR",
+            "KG_INPUT_DIR",
+            "MODEL_DIR",
+            "DATA_DIR",
+            "DB_DIR",
+            "LOG_DIR",
+            "DOCS_DIR",
+            "PROCESSED_DIR",
+            "REPORTS_DIR",
+            "KG_OUTPUT_DIR",
+            "ENV_FILE",
             "CONFIG_DIR_WRITABLE",
         ]:
             assert isinstance(getattr(paths, name), Path), f"{name} should be Path"

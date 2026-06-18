@@ -5,9 +5,9 @@ then by sentences for oversized sections. Each chunk carries section path
 metadata for traceability in audit findings.
 """
 
-import re
 import logging
-from dataclasses import dataclass, field
+import re
+from dataclasses import dataclass
 
 from agent.config import CHUNK_MAX_CHARS, STUFF_LIMIT
 
@@ -15,25 +15,26 @@ logger = logging.getLogger(__name__)
 
 # Chinese/Markdown section heading patterns
 _SECTION_RE = re.compile(
-    r'^(?:'
-    r'#{1,4}\s+.+|'                              # Markdown: # ## ### ####
-    r'[一二三四五六七八九十]+[、.]\s*.+|'           # 一、 二、 三.
-    r'(?:第[一二三四五六七八九十百千]+[章节条款])[、.\s]*.*|'  # 第一章 第2节
-    r'\d+(?:\.\d+)*[、.\s]\s*\S.*'                # 1. 2.1 3.2.1
-    r')$',
+    r"^(?:"
+    r"#{1,4}\s+.+|"  # Markdown: # ## ### ####
+    r"[一二三四五六七八九十]+[、.]\s*.+|"  # 一、 二、 三.
+    r"(?:第[一二三四五六七八九十百千]+[章节条款])[、.\s]*.*|"  # 第一章 第2节
+    r"\d+(?:\.\d+)*[、.\s]\s*\S.*"  # 1. 2.1 3.2.1
+    r")$",
     re.MULTILINE,
 )
 
 # Paragraph split: two or more newlines
-_PARA_RE = re.compile(r'\n{2,}')
+_PARA_RE = re.compile(r"\n{2,}")
 
 # Sentence split: Chinese/English period, question mark, exclamation
-_SENTENCE_RE = re.compile(r'(?<=[。！？.!?])\s*')
+_SENTENCE_RE = re.compile(r"(?<=[。！？.!?])\s*")
 
 
 @dataclass
 class DocumentChunk:
     """A chunk of document content with section metadata."""
+
     content: str
     section_path: str = ""
     chunk_index: int = 0
@@ -87,21 +88,24 @@ def chunk_document(text: str, max_chars: int = 0) -> list[DocumentChunk]:
         sub_chunks = _split_content(section_content, max_chars)
         for sub in sub_chunks:
             if sub.strip():
-                chunks.append(DocumentChunk(
-                    content=sub.strip(),
-                    section_path=section_path,
-                    chunk_index=len(chunks),
-                ))
+                chunks.append(
+                    DocumentChunk(
+                        content=sub.strip(),
+                        section_path=section_path,
+                        chunk_index=len(chunks),
+                    )
+                )
 
     # Ensure at least one chunk
     if not chunks and text.strip():
-        chunks.append(DocumentChunk(
-            content=text.strip()[:max_chars],
-            chunk_index=0,
-        ))
+        chunks.append(
+            DocumentChunk(
+                content=text.strip()[:max_chars],
+                chunk_index=0,
+            )
+        )
 
-    logger.info("Document split into %d chunks (max_chars=%d, total=%d chars)",
-                len(chunks), max_chars, len(text))
+    logger.info("Document split into %d chunks (max_chars=%d, total=%d chars)", len(chunks), max_chars, len(text))
     return chunks
 
 
@@ -119,7 +123,7 @@ def _split_by_sections(text: str) -> list[tuple[str | None, str]]:
 
     # Content before first heading
     if matches[0].start() > 0:
-        pre = text[:matches[0].start()].strip()
+        pre = text[: matches[0].start()].strip()
         if pre:
             sections.append((None, pre))
 
@@ -239,8 +243,8 @@ def _title_similarity(a: str, b: str) -> float:
     """Bigram Jaccard similarity, works well for Chinese titles."""
     if not a or not b:
         return 0.0
-    bigrams_a = {a[i:i+2] for i in range(len(a) - 1)}
-    bigrams_b = {b[i:i+2] for i in range(len(b) - 1)}
+    bigrams_a = {a[i : i + 2] for i in range(len(a) - 1)}
+    bigrams_b = {b[i : i + 2] for i in range(len(b) - 1)}
     if not bigrams_a or not bigrams_b:
         return 0.0
     intersection = len(bigrams_a & bigrams_b)

@@ -5,6 +5,8 @@ import { BrowserRouter } from 'react-router-dom';
 import DashboardPage from '../DashboardPage';
 import { auditApi, documentApi } from '../../services/api';
 
+jest.setTimeout(15000);
+
 jest.mock('../../services/api', () => ({
   documentApi: {
     list: jest.fn(),

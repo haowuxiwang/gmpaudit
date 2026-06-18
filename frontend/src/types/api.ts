@@ -137,7 +137,7 @@ export interface Finding {
   id: number;
   task_id: number;
   finding_type: string;
-  severity: 'low' | 'medium' | 'high' | 'critical' | 'info';
+  severity: 'low' | 'medium' | 'high' | 'info';
   title: string;
   description: string;
   regulation_ref?: string;
@@ -145,6 +145,9 @@ export interface Finding {
   suggestion?: string;
   location?: string;
   document_id?: number;
+  status?: 'pending' | 'approved' | 'rejected';
+  reviewer_comment?: string | null;
+  reviewed_at?: string | null;
   created_at: string;
 }
 
@@ -182,3 +185,13 @@ export interface ConfigItem {
 }
 
 export type ConfigMap = Record<string, ConfigItem>;
+
+export interface LLMModel {
+  id: string;
+  name: string;
+  model: string;
+  available: boolean;
+  base_url: string;
+  default_model: string;
+  available_models: string[];
+}

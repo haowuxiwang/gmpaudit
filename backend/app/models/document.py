@@ -1,13 +1,17 @@
-from sqlalchemy import Column, Integer, String, DateTime, Text, Enum
-from sqlalchemy.sql import func
-from app.core.database import Base
 import enum
+
+from sqlalchemy import Column, DateTime, Enum, Integer, String, Text
+from sqlalchemy.sql import func
+
+from app.core.database import Base
+
 
 class DocumentStatus(enum.Enum):
     UPLOADED = "uploaded"
     PROCESSING = "processing"
     PROCESSED = "processed"
     FAILED = "failed"
+
 
 class Document(Base):
     __tablename__ = "documents"
@@ -18,7 +22,7 @@ class Document(Base):
     file_type = Column(String(50), nullable=False)
     file_size = Column(Integer, nullable=False)
     upload_time = Column(DateTime(timezone=True), server_default=func.now())
-    process_status = Column(Enum(DocumentStatus), default=DocumentStatus.UPLOADED)
+    process_status = Column(Enum(DocumentStatus), default=DocumentStatus.UPLOADED, index=True)
     doc_metadata = Column(Text, nullable=True)
     content_text = Column(Text, nullable=True)
     vector_id = Column(String(100), nullable=True)

@@ -1,10 +1,12 @@
-import httpx
 import json
 import logging
 import time
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, AsyncGenerator
+from collections.abc import AsyncGenerator
 from dataclasses import dataclass
+from typing import Any
+
+import httpx
 
 from app.core.config import settings
 from app.core.providers import PROVIDER_REGISTRY
@@ -14,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 class LLMError(Exception):
     """LLM API error with status code and response body."""
+
     def __init__(self, message: str, status_code: int = 0, response_body: str = ""):
         super().__init__(message)
         self.status_code = status_code
@@ -24,7 +27,7 @@ class LLMError(Exception):
 class LLMResponse:
     content: str
     model: str
-    usage: Dict[str, int]
+    usage: dict[str, int]
     finish_reason: str
 
 
@@ -32,11 +35,11 @@ class BaseLLMAdapter(ABC):
     """LLM适配器基类"""
 
     @abstractmethod
-    async def chat(self, messages: List[Dict[str, str]], **kwargs) -> LLMResponse:
+    async def chat(self, messages: list[dict[str, str]], **kwargs) -> LLMResponse:
         pass
 
     @abstractmethod
-    async def chat_stream(self, messages: List[Dict[str, str]], **kwargs) -> AsyncGenerator[str, None]:
+    async def chat_stream(self, messages: list[dict[str, str]], **kwargs) -> AsyncGenerator[str, None]:
         pass
 
 
@@ -70,7 +73,7 @@ class OpenAICompatibleAdapter(BaseLLMAdapter):
     async def close(self):
         await self._client.aclose()
 
-    async def chat(self, messages: List[Dict[str, str]], **kwargs) -> LLMResponse:
+    async def chat(self, messages: list[dict[str, str]], **kwargs) -> LLMResponse:
         response = await self._client.post(
             f"{self.base_url}/chat/completions",
             headers={
@@ -97,7 +100,7 @@ class OpenAICompatibleAdapter(BaseLLMAdapter):
             finish_reason=data["choices"][0].get("finish_reason", "stop"),
         )
 
-    async def chat_stream(self, messages: List[Dict[str, str]], **kwargs) -> AsyncGenerator[str, None]:
+    async def chat_stream(self, messages: list[dict[str, str]], **kwargs) -> AsyncGenerator[str, None]:
         async with self._client.stream(
             "POST",
             f"{self.base_url}/chat/completions",
@@ -144,7 +147,7 @@ class AnthropicAdapter(BaseLLMAdapter):
         await self._client.aclose()
 
     @staticmethod
-    def _extract_system(messages: List[Dict[str, str]]) -> tuple[str, List[Dict[str, str]]]:
+    def _extract_system(messages: list[dict[str, str]]) -> tuple[str, list[dict[str, str]]]:
         """Extract system message from messages array (Anthropic requires separate system param)."""
         system_parts = []
         filtered = []
@@ -155,9 +158,9 @@ class AnthropicAdapter(BaseLLMAdapter):
                 filtered.append(msg)
         return "\n\n".join(system_parts), filtered
 
-    async def chat(self, messages: List[Dict[str, str]], **kwargs) -> LLMResponse:
+    async def chat(self, messages: list[dict[str, str]], **kwargs) -> LLMResponse:
         system, user_messages = self._extract_system(messages)
-        body: Dict[str, Any] = {
+        body: dict[str, Any] = {
             "model": kwargs.get("model", self.model),
             "max_tokens": kwargs.get("max_tokens", 4096),
             "temperature": kwargs.get("temperature", 0.7),
@@ -185,9 +188,9 @@ class AnthropicAdapter(BaseLLMAdapter):
             finish_reason=data.get("stop_reason", "end_turn"),
         )
 
-    async def chat_stream(self, messages: List[Dict[str, str]], **kwargs) -> AsyncGenerator[str, None]:
+    async def chat_stream(self, messages: list[dict[str, str]], **kwargs) -> AsyncGenerator[str, None]:
         system, user_messages = self._extract_system(messages)
-        body: Dict[str, Any] = {
+        body: dict[str, Any] = {
             "model": kwargs.get("model", self.model),
             "max_tokens": kwargs.get("max_tokens", 4096),
             "temperature": kwargs.get("temperature", 0.7),
@@ -221,7 +224,7 @@ class AnthropicAdapter(BaseLLMAdapter):
 
 
 # Provider registry: name -> (base_url, default_model)
-PROVIDER_DEFAULTS: Dict[str, Dict[str, str]] = {
+PROVIDER_DEFAULTS: dict[str, dict[str, str]] = {
     k: {"base_url": v["base_url"], "model": v["default_model"]}
     for k, v in PROVIDER_REGISTRY.items()
     if k != "anthropic"  # Anthropic uses AnthropicAdapter, not OpenAICompatibleAdapter
@@ -232,7 +235,7 @@ class LLMEngine:
     """LLM引擎 - 支持多提供商"""
 
     def __init__(self):
-        self.adapters: Dict[str, BaseLLMAdapter] = {}
+        self.adapters: dict[str, BaseLLMAdapter] = {}
         self._init_adapters()
 
     def _init_adapters(self):
@@ -271,7 +274,11 @@ class LLMEngine:
         if settings.ANTHROPIC_API_KEY:
             base_url = getattr(settings, "ANTHROPIC_BASE_URL", "https://api.anthropic.com")
             raw_model = getattr(settings, "ANTHROPIC_MODEL", None)
-            model = raw_model if raw_model and not raw_model.startswith("your_") else PROVIDER_REGISTRY["anthropic"]["default_model"]
+            model = (
+                raw_model
+                if raw_model and not raw_model.startswith("your_")
+                else PROVIDER_REGISTRY["anthropic"]["default_model"]
+            )
             self.adapters["anthropic"] = AnthropicAdapter(
                 api_key=settings.ANTHROPIC_API_KEY,
                 base_url=base_url,
@@ -297,23 +304,22 @@ class LLMEngine:
         t0 = time.time()
         try:
             response = await adapter.chat(messages, timeout=settings.LLM_REQUEST_TIMEOUT)
-            logger.info(f"LLM analyze complete: provider={provider}, latency={time.time() - t0:.2f}s, usage={response.usage}")
+            logger.info(
+                f"LLM analyze complete: provider={provider}, latency={time.time() - t0:.2f}s, usage={response.usage}"
+            )
             return response
         except Exception as e:
             logger.error(f"LLM analyze failed: provider={provider}, latency={time.time() - t0:.2f}s, error={e}")
             raise
 
-    async def generate_report(self, findings: List[Dict[str, Any]], model: str = None) -> str:
+    async def generate_report(self, findings: list[dict[str, Any]], model: str = None) -> str:
         provider = model or settings.AGENT_LLM_PROVIDER
         adapter = self.adapters.get(provider)
         if not adapter:
             available = list(self.adapters.keys())
             raise ValueError(f"不支持的模型: {provider}，可用: {available}")
 
-        findings_text = "\n".join([
-            f"- [{f['severity']}] {f['title']}: {f['description']}"
-            for f in findings
-        ])
+        findings_text = "\n".join([f"- [{f['severity']}] {f['title']}: {f['description']}" for f in findings])
 
         prompt = f"""请基于以下审计发现生成一份专业的GMP合规性审计报告：
 
@@ -343,24 +349,29 @@ class LLMEngine:
             logger.error(f"LLM generate_report failed: provider={provider}, latency={time.time() - t0:.2f}s, error={e}")
             raise
 
-    def get_available_providers(self) -> List[Dict[str, Any]]:
+    def get_available_providers(self) -> list[dict[str, Any]]:
         """Return list of all providers, marking configured ones as available."""
         from app.core.providers import PROVIDER_REGISTRY
+
         result = []
         for name, info in PROVIDER_REGISTRY.items():
             if name in self.adapters:
                 adapter = self.adapters[name]
-                result.append({
-                    "name": name,
-                    "model": getattr(adapter, "model", info.get("default_model", "")),
-                    "available": True,
-                })
+                result.append(
+                    {
+                        "name": name,
+                        "model": getattr(adapter, "model", info.get("default_model", "")),
+                        "available": True,
+                    }
+                )
             else:
-                result.append({
-                    "name": name,
-                    "model": info.get("default_model", ""),
-                    "available": False,
-                })
+                result.append(
+                    {
+                        "name": name,
+                        "model": info.get("default_model", ""),
+                        "available": False,
+                    }
+                )
         return result
 
     async def reload_provider(self, name: str, api_key: str, base_url: str = None, model: str = None):
@@ -373,7 +384,9 @@ class LLMEngine:
             if not api_key:
                 self.adapters.pop(name, None)
                 return
-            resolved_model = (model if model and not model.startswith("your_") else None) or PROVIDER_REGISTRY["anthropic"]["default_model"]
+            resolved_model = (model if model and not model.startswith("your_") else None) or PROVIDER_REGISTRY[
+                "anthropic"
+            ]["default_model"]
             self.adapters[name] = AnthropicAdapter(
                 api_key=api_key,
                 base_url=base_url or "https://api.anthropic.com",
@@ -389,7 +402,9 @@ class LLMEngine:
             return
         # Skip placeholder values from .env.example
         resolved_model = (model if model and not model.startswith("your_") else None) or defaults.get("model", "")
-        resolved_url = (base_url if base_url and not base_url.startswith("your_") else None) or defaults.get("base_url", "")
+        resolved_url = (base_url if base_url and not base_url.startswith("your_") else None) or defaults.get(
+            "base_url", ""
+        )
         self.adapters[name] = OpenAICompatibleAdapter(
             api_key=api_key,
             base_url=resolved_url,

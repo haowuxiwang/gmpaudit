@@ -18,19 +18,20 @@ Usage:
 import contextvars
 import time
 import uuid
-from dataclasses import dataclass, field, asdict
-from datetime import datetime, timezone
-
+from dataclasses import asdict, dataclass, field
+from datetime import UTC, datetime
 
 # ---------------------------------------------------------------------------
 # Trace event data classes
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class KGTraceEvent:
     """Records a single KG/RAG query attempt."""
-    source: str = ""          # "lightrag" | "fallback_db" | "lightrag_failed"
-    query: str = ""           # actual query text sent to KG
+
+    source: str = ""  # "lightrag" | "fallback_db" | "lightrag_failed"
+    query: str = ""  # actual query text sent to KG
     result_count: int = 0
     latency_ms: float = 0.0
     error: str | None = None
@@ -42,9 +43,10 @@ class KGTraceEvent:
 @dataclass
 class LLMTraceEvent:
     """Records a single LLM call attempt."""
+
     provider: str = ""
     model: str = ""
-    node: str = ""            # regulation_expert | risk_assessor | report_writer
+    node: str = ""  # regulation_expert | risk_assessor | report_writer
     prompt_length: int = 0
     prompt_preview: str = ""  # first 200 chars
     response_length: int = 0
@@ -61,6 +63,7 @@ class LLMTraceEvent:
 @dataclass
 class NodeTraceEvent:
     """Records a single LangGraph node execution."""
+
     node: str = ""
     started_at: float = 0.0
     finished_at: float = 0.0
@@ -75,9 +78,11 @@ class NodeTraceEvent:
 # Pipeline trace container
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class PipelineTrace:
     """Container for all trace events in a single pipeline run."""
+
     run_id: str = field(default_factory=lambda: uuid.uuid4().hex[:12])
     document_name: str = ""
     kg_events: list[KGTraceEvent] = field(default_factory=list)
@@ -132,18 +137,14 @@ class PipelineTrace:
         for ne in self.node_events:
             status_icon = "ERROR" if ne.error else "OK"
             lines.append(
-                f"  [{status_icon}] {ne.node}: {ne.latency_ms:.0f}ms"
-                + (f" error={ne.error}" if ne.error else "")
+                f"  [{status_icon}] {ne.node}: {ne.latency_ms:.0f}ms" + (f" error={ne.error}" if ne.error else "")
             )
         lines.append("")
 
         # KG queries
         lines.append("--- KG/RAG Queries ---")
         for i, ke in enumerate(self.kg_events, 1):
-            lines.append(
-                f"  Q{i}: source={ke.source}, results={ke.result_count}, "
-                f"latency={ke.latency_ms:.0f}ms"
-            )
+            lines.append(f"  Q{i}: source={ke.source}, results={ke.result_count}, latency={ke.latency_ms:.0f}ms")
             if ke.query:
                 query_preview = ke.query[:80] + ("..." if len(ke.query) > 80 else "")
                 lines.append(f'       query="{query_preview}"')
@@ -156,10 +157,7 @@ class PipelineTrace:
         for i, le in enumerate(self.llm_events, 1):
             status_icon = "OK" if le.success else "FAIL"
             fb = " (FALLBACK)" if le.was_fallback else ""
-            lines.append(
-                f"  L{i}: [{status_icon}] {le.provider}/{le.model} "
-                f"node={le.node}{fb}"
-            )
+            lines.append(f"  L{i}: [{status_icon}] {le.provider}/{le.model} node={le.node}{fb}")
             lines.append(
                 f"       prompt={le.prompt_length}chars, "
                 f"response={le.response_length}chars, "
@@ -176,7 +174,9 @@ class PipelineTrace:
         lines.append("--- Summary ---")
         lines.append(f"  Nodes executed:   {s['total_nodes']}")
         lines.append(f"  KG queries:       {s['total_kg_queries']} (sources: {s['kg_sources']})")
-        lines.append(f"  LLM calls:        {s['total_llm_calls']} ({s['llm_successes']} ok, {s['llm_failures']} failed, {s['llm_fallbacks']} fallback)")
+        lines.append(
+            f"  LLM calls:        {s['total_llm_calls']} ({s['llm_successes']} ok, {s['llm_failures']} failed, {s['llm_fallbacks']} fallback)"
+        )
         lines.append(f"  LLM providers:    {s['llm_providers']}")
         lines.append(f"  Total latency:    {s['total_latency_ms']}ms")
 
@@ -187,9 +187,7 @@ class PipelineTrace:
 # Thread-local context
 # ---------------------------------------------------------------------------
 
-_current_trace: contextvars.ContextVar[PipelineTrace | None] = contextvars.ContextVar(
-    '_current_trace', default=None
-)
+_current_trace: contextvars.ContextVar[PipelineTrace | None] = contextvars.ContextVar("_current_trace", default=None)
 
 
 def get_current_trace() -> PipelineTrace | None:
@@ -211,8 +209,9 @@ def clear_current_trace():
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _utcnow() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def now_ms() -> float:

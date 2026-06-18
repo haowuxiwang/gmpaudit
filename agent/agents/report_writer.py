@@ -7,7 +7,7 @@ import logging
 from datetime import date
 from pathlib import Path
 
-from agent.config import get_llm_with_fallback, call_llm_with_retry
+from agent.config import call_llm_with_retry, get_llm_with_fallback
 from agent.tools.prompt_loader import load_prompt
 
 logger = logging.getLogger(__name__)
@@ -75,8 +75,12 @@ async def report_writer_node(state: AuditState) -> dict:
         # Fallback: generate a basic report without LLM
         try:
             fallback_md = _generate_fallback_report(
-                doc_name, doc_type, risk_score, risk_level,
-                regulation_summary, findings,
+                doc_name,
+                doc_type,
+                risk_score,
+                risk_level,
+                regulation_summary,
+                findings,
             )
         except Exception as fallback_err:
             logger.error(f"Fallback report generation also failed: {fallback_err}")
@@ -92,13 +96,15 @@ async def report_writer_node(state: AuditState) -> dict:
     # Save report to file
     safe_name = Path(doc_name).stem
     from datetime import datetime
+
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     report_filename = f"{safe_name}_{timestamp}.md"
     try:
         from app.core.paths import REPORTS_DIR as report_dir
     except ImportError:
-        # Standalone CLI mode: write next to project root, not inside bundle
-        report_dir = Path(__file__).resolve().parent.parent.parent.parent / "data" / "reports"
+        # Standalone CLI mode: write to project root/data/reports
+        # agent/agents/report_writer.py -> agent/agents -> agent -> project_root
+        report_dir = Path(__file__).resolve().parent.parent.parent / "data" / "reports"
     report_dir.mkdir(parents=True, exist_ok=True)
     report_path = report_dir / report_filename
 
@@ -167,16 +173,18 @@ def _generate_fallback_report(
             lines.append(f"证据: {f['evidence']}")
         lines.append("")
 
-    lines.extend([
-        "## 4. 风险评估",
-        f"- 风险评分: {risk_score}/100",
-        f"- 风险等级: {risk_level}",
-        "",
-        "## 5. 改进建议",
-        "根据上述发现实施纠正预防措施（CAPA）。",
-        "",
-        "## 6. 结论",
-        "审计完成。请参阅上述发现和建议。",
-    ])
+    lines.extend(
+        [
+            "## 4. 风险评估",
+            f"- 风险评分: {risk_score}/100",
+            f"- 风险等级: {risk_level}",
+            "",
+            "## 5. 改进建议",
+            "根据上述发现实施纠正预防措施（CAPA）。",
+            "",
+            "## 6. 结论",
+            "审计完成。请参阅上述发现和建议。",
+        ]
+    )
 
     return "\n".join(lines)

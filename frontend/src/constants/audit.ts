@@ -27,6 +27,7 @@ export const STAGE_LABELS: Record<string, string> = {
   regulation: '法规匹配',
   risk: '风险评估',
   report: '报告生成',
+  awaiting_review: '待审核',
   completed: '已完成',
   failed: '执行失败',
   cancelled: '已取消',
@@ -66,4 +67,11 @@ export const DOC_STATUS_LABELS: Record<string, string> = {
   processing: '处理中',
   processed: '已处理',
   failed: '处理失败',
+};
+
+export const DOC_STATUS_COLORS: Record<string, string> = {
+  uploaded: 'default',
+  processing: 'processing',
+  processed: 'success',
+  failed: 'error',
 };

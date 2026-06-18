@@ -1,11 +1,11 @@
 import logging
-from typing import List, Dict, Any
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
 class AuditEngine:
-    async def assess_risk(self, findings: List[Dict[str, Any]]) -> Dict[str, Any]:
+    async def assess_risk(self, findings: list[dict[str, Any]]) -> dict[str, Any]:
         high_count = sum(1 for f in findings if f.get("severity") == "high")
         medium_count = sum(1 for f in findings if f.get("severity") == "medium")
         low_count = sum(1 for f in findings if f.get("severity") == "low")

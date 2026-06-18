@@ -1,13 +1,13 @@
+import asyncio
 import json
 import logging
 import os
 import shutil
 import tempfile
 import uuid
-from datetime import timezone
-from typing import List
+from datetime import UTC
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, Request, UploadFile
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,6 +19,11 @@ from app.utils.file_utils import get_file_size, get_file_type
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+def _write_file_sync(path: str, data: bytes) -> None:
+    with open(path, "wb") as f:
+        f.write(data)
 
 
 def _parse_metadata(raw) -> dict | None:
@@ -70,11 +75,17 @@ async def _process_document_bg(document_id: int):
             await db.commit()
 
             from app.services.document_processor import get_document_processor
+
             process_result = await get_document_processor().process_document(document.file_path, document.file_type)
             document.content_text = process_result["content"]
             document.process_status = DocumentStatus.PROCESSED
             await db.commit()
-            logger.info("Document %s processed: %d chars, %d chunks", document_id, process_result["char_count"], process_result["chunk_count"])
+            logger.info(
+                "Document %s processed: %d chars, %d chunks",
+                document_id,
+                process_result["char_count"],
+                process_result["chunk_count"],
+            )
         except Exception as exc:
             logger.exception("Background processing failed for document %s", document_id)
             try:
@@ -89,10 +100,20 @@ async def _process_document_bg(document_id: int):
 
 
 @router.post("/upload")
-async def upload_document(file: UploadFile = File(...), background_tasks: BackgroundTasks = BackgroundTasks(), db: AsyncSession = Depends(get_db)):
+async def upload_document(
+    request: Request,
+    file: UploadFile = File(...),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
+    db: AsyncSession = Depends(get_db),
+):
     file_type = get_file_type(file.filename)
     if file_type == "unknown":
         raise HTTPException(status_code=400, detail="不支持的文件类型")
+
+    # Pre-check Content-Length before reading full file into memory
+    content_length = request.headers.get("content-length")
+    if content_length and int(content_length) > MAX_UPLOAD_SIZE + 1024:  # +1KB for multipart overhead
+        raise HTTPException(status_code=413, detail=f"文件大小超过限制（最大 {MAX_UPLOAD_SIZE // 1024 // 1024}MB）")
 
     content = await file.read()
     if len(content) > MAX_UPLOAD_SIZE:
@@ -102,8 +123,10 @@ async def upload_document(file: UploadFile = File(...), background_tasks: Backgr
     safe_filename = _generate_safe_filename(file.filename)
     file_path = os.path.join(upload_dir, safe_filename)
 
-    with open(file_path, "wb") as buffer:
-        buffer.write(content)
+    import asyncio
+
+    loop = asyncio.get_running_loop()
+    await loop.run_in_executor(None, lambda: _write_file_sync(file_path, content))
 
     try:
         document = Document(
@@ -127,7 +150,11 @@ async def upload_document(file: UploadFile = File(...), background_tasks: Backgr
 
 
 @router.post("/upload/batch")
-async def upload_documents_batch(files: List[UploadFile] = File(...), background_tasks: BackgroundTasks = BackgroundTasks(), db: AsyncSession = Depends(get_db)):
+async def upload_documents_batch(
+    files: list[UploadFile] = File(...),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
+    db: AsyncSession = Depends(get_db),
+):
     upload_dir = _get_upload_dir()
     results = []
 
@@ -141,13 +168,18 @@ async def upload_documents_batch(files: List[UploadFile] = File(...), background
         size = file.file.tell()
         file.file.seek(0)
         if size > MAX_UPLOAD_SIZE:
-            raise HTTPException(status_code=413, detail=f"文件 {file.filename} 超过大小限制（最大 {MAX_UPLOAD_SIZE // 1024 // 1024}MB）")
+            raise HTTPException(
+                status_code=413, detail=f"文件 {file.filename} 超过大小限制（最大 {MAX_UPLOAD_SIZE // 1024 // 1024}MB）"
+            )
 
         safe_filename = _generate_safe_filename(file.filename)
         file_path = os.path.join(upload_dir, safe_filename)
 
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+        def _write():
+            with open(file_path, "wb") as buffer:
+                shutil.copyfileobj(file.file, buffer)
+
+        await asyncio.to_thread(_write)
 
         try:
             document = Document(
@@ -174,7 +206,9 @@ async def upload_documents_batch(files: List[UploadFile] = File(...), background
 
 
 @router.get("/")
-async def list_documents(page: int = Query(1, ge=1, le=10000), page_size: int = Query(20, ge=1, le=100), db: AsyncSession = Depends(get_db)):
+async def list_documents(
+    page: int = Query(1, ge=1, le=10000), page_size: int = Query(20, ge=1, le=100), db: AsyncSession = Depends(get_db)
+):
     from sqlalchemy import func
 
     count_result = await db.execute(select(func.count()).select_from(Document))
@@ -189,8 +223,8 @@ async def list_documents(page: int = Query(1, ge=1, le=10000), page_size: int = 
                 "filename": document.filename,
                 "file_type": document.file_type,
                 "file_size": document.file_size,
-                "upload_time": document.upload_time.replace(tzinfo=timezone.utc).isoformat() if document.upload_time else None,
-                "created_at": document.upload_time.replace(tzinfo=timezone.utc).isoformat() if document.upload_time else None,
+                "upload_time": document.upload_time.replace(tzinfo=UTC).isoformat() if document.upload_time else None,
+                "created_at": document.upload_time.replace(tzinfo=UTC).isoformat() if document.upload_time else None,
                 "process_status": document.process_status.value,
                 "doc_metadata": _parse_metadata(document.doc_metadata),
             }
@@ -214,8 +248,8 @@ async def get_document(document_id: int, db: AsyncSession = Depends(get_db)):
         "filename": document.filename,
         "file_type": document.file_type,
         "file_size": document.file_size,
-        "upload_time": document.upload_time.replace(tzinfo=timezone.utc).isoformat() if document.upload_time else None,
-        "created_at": document.upload_time.replace(tzinfo=timezone.utc).isoformat() if document.upload_time else None,
+        "upload_time": document.upload_time.replace(tzinfo=UTC).isoformat() if document.upload_time else None,
+        "created_at": document.upload_time.replace(tzinfo=UTC).isoformat() if document.upload_time else None,
         "process_status": document.process_status.value,
         "doc_metadata": _parse_metadata(document.doc_metadata),
         "content_text": document.content_text,
@@ -250,7 +284,8 @@ async def process_document(document_id: int, db: AsyncSession = Depends(get_db))
     except Exception as exc:
         document.process_status = DocumentStatus.FAILED
         await db.commit()
-        raise HTTPException(status_code=500, detail=f"处理失败: {exc}") from exc
+        logger.exception("Document processing failed for %s", document.filename)
+        raise HTTPException(status_code=500, detail="文档处理失败") from exc
 
 
 @router.delete("/{document_id}")
@@ -262,12 +297,12 @@ async def delete_document(document_id: int, db: AsyncSession = Depends(get_db)):
 
     # Check for related findings before deleting
     from app.models.finding import Finding
+
     findings_result = await db.execute(select(Finding).where(Finding.document_id == document_id))
     related_findings = findings_result.scalars().all()
     if related_findings:
         raise HTTPException(
-            status_code=400,
-            detail=f"文档被 {len(related_findings)} 条审计发现引用，请先删除相关审计任务"
+            status_code=400, detail=f"文档被 {len(related_findings)} 条审计发现引用，请先删除相关审计任务"
         )
 
     if document.file_path:

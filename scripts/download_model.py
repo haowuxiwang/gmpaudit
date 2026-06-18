@@ -10,23 +10,22 @@ If the model already exists, the script exits with a message.
 import sys
 from pathlib import Path
 
-if getattr(sys, 'frozen', False):
-    PROJECT_ROOT = Path(sys.executable).parent
-else:
-    PROJECT_ROOT = Path(__file__).parent.parent
+PROJECT_ROOT = Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).parent.parent
 MODEL_DIR = PROJECT_ROOT / "model"
 MODEL_ID = "BAAI/bge-large-zh-v1.5"
 
 
 def main():
-    if MODEL_DIR.is_dir() and (MODEL_DIR / "pytorch_model.bin").exists():
+    if MODEL_DIR.is_dir() and (
+        (MODEL_DIR / "pytorch_model.bin").exists() or (MODEL_DIR / "model.safetensors").exists()
+    ):
         print(f"Model already exists at {MODEL_DIR}")
         return
 
     try:
         from modelscope import snapshot_download
     except ImportError:
-        if getattr(sys, 'frozen', False):
+        if getattr(sys, "frozen", False):
             print(
                 "ERROR: modelscope is not installed. In packaged mode, "
                 "auto-install is not supported.\n"
@@ -35,6 +34,7 @@ def main():
             sys.exit(1)
         print("Installing modelscope...")
         import subprocess
+
         subprocess.check_call([sys.executable, "-m", "pip", "install", "modelscope"])
         from modelscope import snapshot_download
 

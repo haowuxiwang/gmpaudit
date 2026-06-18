@@ -44,8 +44,8 @@ const ReportsPage: React.FC = () => {
       setLoading(true);
       const result = await reportApi.list(taskId);
       setReports(result?.items || []);
-    } catch {
-      message.error('加载报告失败');
+    } catch (e: unknown) {
+      message.error(e instanceof Error ? e.message : '加载报告失败');
     } finally {
       setLoading(false);
     }
@@ -61,8 +61,8 @@ const ReportsPage: React.FC = () => {
       setDetailOpen(true);
       const result = await reportApi.get(record.id);
       setDetailContent(result);
-    } catch {
-      message.error('加载报告详情失败');
+    } catch (e: unknown) {
+      message.error(e instanceof Error ? e.message : '加载报告详情失败');
       setDetailOpen(false);
     } finally {
       setDetailLoading(false);
@@ -102,8 +102,8 @@ const ReportsPage: React.FC = () => {
       document.body.removeChild(anchor);
       URL.revokeObjectURL(url);
       message.success({ content: 'PDF 导出成功', key: 'pdf' });
-    } catch {
-      message.error({ content: 'PDF 导出失败', key: 'pdf' });
+    } catch (e: unknown) {
+      message.error({ content: e instanceof Error ? e.message : 'PDF 导出失败', key: 'pdf' });
     }
   };
 

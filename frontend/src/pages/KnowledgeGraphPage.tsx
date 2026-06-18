@@ -48,8 +48,8 @@ const CATEGORY_COLORS: Record<string, string> = {
   regulation: '#0f766e',
   法规: '#0f766e',
   法规文件: '#0f766e',
-  unknown: '#94a3b8',
-  未知: '#94a3b8',
+  unknown: THEME.textTertiary,
+  未知: THEME.textTertiary,
 };
 
 const KnowledgeGraphPage: React.FC = () => {
@@ -76,6 +76,7 @@ const KnowledgeGraphPage: React.FC = () => {
       setGraphData(data);
     } catch {
       setGraphData(null);
+      message.error('加载图谱数据失败');
     } finally {
       setGraphLoading(false);
     }
@@ -122,6 +123,7 @@ const KnowledgeGraphPage: React.FC = () => {
         }
       } catch {
         setBuilding(false);
+        message.error('构建状态查询失败，已停止轮询');
       }
     }, 8000);
 
@@ -201,8 +203,8 @@ const KnowledgeGraphPage: React.FC = () => {
           await kgApi.deleteDocument(filename);
           message.success('文档已移除');
           void loadData();
-        } catch {
-          message.error('删除失败');
+        } catch (error: unknown) {
+          message.error(error instanceof Error ? `删除失败: ${error.message}` : '删除失败');
         }
       },
     });

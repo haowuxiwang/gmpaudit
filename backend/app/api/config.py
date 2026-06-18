@@ -1,15 +1,14 @@
 import asyncio
+import contextlib
 import logging
 import os
 import re
 import sys
-from pathlib import Path
-from typing import Dict
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.models.configuration import Configuration
@@ -32,6 +31,7 @@ def _mask_value(key: str, value: str) -> str:
     if len(value) <= 8:
         return "****"
     return value[:4] + "****" + value[-4:]
+
 
 # Mapping from config key to (settings_attr, provider_name)
 _LLM_KEY_MAP = {
@@ -79,7 +79,11 @@ async def _apply_setting(key: str, value: str):
     attr, provider = mapping
 
     # Validate: reject placeholder and masked API keys, URLs, and model names
-    if ("api_key" in attr.lower() or "base_url" in attr.lower() or "model" in attr.lower()) and isinstance(value, str) and re.match(r'^your_', value, re.IGNORECASE):
+    if (
+        ("api_key" in attr.lower() or "base_url" in attr.lower() or "model" in attr.lower())
+        and isinstance(value, str)
+        and re.match(r"^your_", value, re.IGNORECASE)
+    ):
         raise HTTPException(status_code=422, detail=f"{key} 为占位符值，请填写真实配置")
 
     # Update settings singleton
@@ -89,12 +93,12 @@ async def _apply_setting(key: str, value: str):
         try:
             value = int(value)
         except ValueError:
-            raise HTTPException(status_code=422, detail=f"配置项 {key} 需要整数值，收到: {value}")
+            raise HTTPException(status_code=422, detail=f"配置项 {key} 需要整数值，收到: {value}") from None
     elif isinstance(current, float):
         try:
             value = float(value)
         except ValueError:
-            raise HTTPException(status_code=422, detail=f"配置项 {key} 需要小数值，收到: {value}")
+            raise HTTPException(status_code=422, detail=f"配置项 {key} 需要小数值，收到: {value}") from None
     setattr(settings, attr, value)
     logger.info("Config updated: %s", attr)
 
@@ -112,6 +116,7 @@ async def _apply_setting(key: str, value: str):
     if key.lower() == "agent_llm_provider":
         try:
             from agent.config import clear_llm_cache
+
             clear_llm_cache()
             logger.info("Agent LLM cache cleared due to provider change to %s", value)
         except ImportError:
@@ -121,6 +126,7 @@ async def _apply_setting(key: str, value: str):
 def _atomic_write_text(path, content: str, encoding: str = "utf-8"):
     """Atomically write text to a file using write-to-temp-then-rename."""
     import tempfile
+
     tmp_fd, tmp_path = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
     try:
         with os.fdopen(tmp_fd, "w", encoding=encoding) as f:
@@ -131,16 +137,15 @@ def _atomic_write_text(path, content: str, encoding: str = "utf-8"):
         os.rename(tmp_path, path)
     except Exception:
         # Clean up temp file on failure
-        try:
+        with contextlib.suppress(OSError):
             os.unlink(tmp_path)
-        except OSError:
-            pass
         raise
 
 
 def _update_env_file(attr: str, value: str):
     """Update a single key in config/.env file."""
     from app.core.paths import ENV_FILE
+
     env_path = ENV_FILE
     if not env_path.exists():
         return
@@ -157,12 +162,13 @@ def _update_env_file(attr: str, value: str):
             lines.append(f"{attr}={value}")
         _atomic_write_text(env_path, "\n".join(lines) + "\n")
     except Exception as e:
-        logger.warning("Failed to persist %s to .env: %s", attr, e)
+        logger.exception("Failed to persist %s to .env: %s", attr, e)
 
 
 def _batch_update_env_file(updates: dict[str, str]):
     """Batch update multiple keys in config/.env file in a single read/write."""
     from app.core.paths import ENV_FILE
+
     env_path = ENV_FILE
     if not env_path.exists():
         return
@@ -201,7 +207,7 @@ async def _reload_llm_provider(provider: str):
             engine.reload_provider(provider, api_key=api_key or "", base_url=base_url, model=model),
             timeout=10,
         )
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.warning("LLM provider reload timed out for %s", provider)
         return
     logger.info("Reloaded LLM provider: %s", provider)
@@ -209,20 +215,31 @@ async def _reload_llm_provider(provider: str):
     # Clear agent-side LangChain LLM cache so next audit uses the new provider
     try:
         from agent.config import clear_llm_cache
+
         clear_llm_cache(provider)
     except ImportError:
         pass
+
 
 @router.get("/")
 async def get_config(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Configuration))
     configs = result.scalars().all()
-    return {c.config_key: {"value": _mask_value(c.config_key, c.config_value), "type": c.config_type, "description": c.description} for c in configs}
+    return {
+        c.config_key: {
+            "value": _mask_value(c.config_key, c.config_value),
+            "type": c.config_type,
+            "description": c.description,
+        }
+        for c in configs
+    }
+
 
 @router.get("/llm/models")
 async def get_available_models():
+    from app.core.providers import PROVIDER_REGISTRY, get_provider_names
     from app.services.llm_engine import get_llm_engine
-    from app.core.providers import get_provider_names, PROVIDER_REGISTRY
+
     engine = get_llm_engine()
     providers = engine.get_available_providers()
     names = get_provider_names()
@@ -247,7 +264,12 @@ async def get_config_by_key(key: str, db: AsyncSession = Depends(get_db)):
     config = result.scalar_one_or_none()
     if not config:
         raise HTTPException(status_code=404, detail="配置不存在")
-    return {"key": config.config_key, "value": _mask_value(config.config_key, config.config_value), "type": config.config_type, "description": config.description}
+    return {
+        "key": config.config_key,
+        "value": _mask_value(config.config_key, config.config_value),
+        "type": config.config_type,
+        "description": config.description,
+    }
 
 
 class ConfigUpdateRequest(BaseModel):
@@ -257,12 +279,20 @@ class ConfigUpdateRequest(BaseModel):
 
 @router.put("/{key}")
 async def update_config(key: str, req: ConfigUpdateRequest, db: AsyncSession = Depends(get_db)):
+    # Whitelist: only allow known config keys
+    if key.lower() not in _LLM_KEY_MAP:
+        raise HTTPException(status_code=400, detail=f"Unknown config key: {key}")
+
     value = req.value
     description = req.description
 
     # Validate placeholder before DB write
     lower_key = key.lower()
-    if ("api_key" in lower_key or "base_url" in lower_key or "model" in lower_key) and isinstance(value, str) and re.match(r'^your_', value, re.IGNORECASE):
+    if (
+        ("api_key" in lower_key or "base_url" in lower_key or "model" in lower_key)
+        and isinstance(value, str)
+        and re.match(r"^your_", value, re.IGNORECASE)
+    ):
         raise HTTPException(status_code=422, detail=f"{key} 为占位符值，请填写真实配置")
 
     result = await db.execute(select(Configuration).where(Configuration.config_key == key))
@@ -297,7 +327,7 @@ async def update_config(key: str, req: ConfigUpdateRequest, db: AsyncSession = D
 
 
 class BatchConfigRequest(BaseModel):
-    configs: Dict[str, str]
+    configs: dict[str, str]
 
 
 @router.post("/batch")
@@ -305,12 +335,16 @@ async def batch_update_config(request: BatchConfigRequest, db: AsyncSession = De
     from app.core.config import settings
 
     # Pre-filter: skip placeholder/masked API key values
-    _placeholder_re = re.compile(r'^your_', re.IGNORECASE)
+    _placeholder_re = re.compile(r"^your_", re.IGNORECASE)
     filtered_configs = {}
     auto_provider = None
     for key, value in request.configs.items():
         lower_key = key.lower()
-        if ("api_key" in lower_key or "base_url" in lower_key or "model" in lower_key) and isinstance(value, str) and _placeholder_re.match(value):
+        if (
+            ("api_key" in lower_key or "base_url" in lower_key or "model" in lower_key)
+            and isinstance(value, str)
+            and _placeholder_re.match(value)
+        ):
             logger.info("Skipping placeholder/masked config: %s", key)
             continue
         filtered_configs[key] = value
@@ -377,6 +411,7 @@ async def batch_update_config(request: BatchConfigRequest, db: AsyncSession = De
     if auto_provider:
         try:
             from agent.config import clear_llm_cache
+
             clear_llm_cache()
             logger.info("Agent LLM cache cleared due to provider auto-set to %s", auto_provider)
         except ImportError:
@@ -388,9 +423,11 @@ async def batch_update_config(request: BatchConfigRequest, db: AsyncSession = De
 @router.post("/test-webhook")
 async def test_webhook():
     from app.core.config import settings
+
     if not settings.FEISHU_WEBHOOK_URL:
         return {"success": False, "error": "未配置 Webhook URL"}
     from app.services.notification import send_feishu_notification
+
     success = await send_feishu_notification("测试通知", "这是一条来自 AuditBee 的测试消息", "info")
     return {"success": success, "error": None if success else "发送失败，请检查 Webhook URL 和网络"}
 
@@ -406,7 +443,8 @@ class TestLLMRequest(BaseModel):
 async def test_llm_connection(request: TestLLMRequest):
     """Test LLM provider connectivity with a lightweight request."""
     import time as _time
-    from app.services.llm_engine import OpenAICompatibleAdapter, AnthropicAdapter
+
+    from app.services.llm_engine import AnthropicAdapter, OpenAICompatibleAdapter
 
     provider = request.provider.lower()
     api_key = request.api_key

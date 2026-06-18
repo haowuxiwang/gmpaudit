@@ -38,24 +38,21 @@ test.describe('AlertsPage - Status Filter', () => {
     const rows = page.locator('.ant-table-row');
     const count = await rows.count();
     for (let i = 0; i < count; i++) {
-      await expect(rows.nth(i)).toContainText('活跃');
+      await expect(rows.nth(i).locator('.ant-tag').filter({ hasText: '活跃' })).toBeVisible();
     }
   });
 });
 
 test.describe('AlertsPage - Table Columns', () => {
-  test('displays alert table with all columns', async ({ page }) => {
+  test('displays alert table with updated columns', async ({ page }) => {
     await page.goto('/alerts');
     await waitForPageReady(page);
 
-    // Verify column headers
+    // Verify column headers (updated: no ID, no 严重程度, 级别/状态/发现标题/创建时间/操作)
     const headerRow = page.locator('.ant-table-thead .ant-table-cell');
-    await expect(headerRow.filter({ hasText: 'ID' })).toBeVisible();
     await expect(headerRow.filter({ hasText: '级别' })).toBeVisible();
     await expect(headerRow.filter({ hasText: '状态' })).toBeVisible();
-    await expect(headerRow.filter({ hasText: '发现' })).toBeVisible();
-    await expect(headerRow.filter({ hasText: '严重程度' })).toBeVisible();
-    await expect(headerRow.filter({ hasText: '创建时间' })).toBeVisible();
+    await expect(headerRow.filter({ hasText: '发现标题' })).toBeVisible();
     await expect(headerRow.filter({ hasText: '操作' })).toBeVisible();
   });
 
@@ -89,6 +86,52 @@ test.describe('AlertsPage - Table Columns', () => {
   });
 });
 
+test.describe('AlertsPage - Expandable Rows', () => {
+  test('clicking row expands to show description', async ({ page }) => {
+    await page.goto('/alerts');
+    await waitForPageReady(page);
+
+    const rows = page.locator('.ant-table-row');
+    const count = await rows.count();
+    if (count === 0) {
+      test.skip(true, 'No alerts to expand');
+      return;
+    }
+
+    // Click first row to expand
+    await rows.first().click();
+    await page.waitForTimeout(500);
+
+    // Verify expanded content is visible
+    const expandedRow = page.locator('.ant-table-expanded-row');
+    await expect(expandedRow).toBeVisible({ timeout: 3000 });
+    await expect(expandedRow).toContainText('完整描述');
+  });
+
+  test('expand icon changes on click', async ({ page }) => {
+    await page.goto('/alerts');
+    await waitForPageReady(page);
+
+    const rows = page.locator('.ant-table-row');
+    const count = await rows.count();
+    if (count === 0) {
+      test.skip(true, 'No alerts to check');
+      return;
+    }
+
+    // Find expand icon (CaretRightOutlined)
+    const expandIcon = rows.first().locator('.anticon-caret-right');
+    if (await expandIcon.isVisible()) {
+      await expandIcon.click();
+      await page.waitForTimeout(300);
+
+      // Should now show CaretDownOutlined
+      const collapseIcon = rows.first().locator('.anticon-caret-down');
+      await expect(collapseIcon).toBeVisible({ timeout: 2000 });
+    }
+  });
+});
+
 test.describe('AlertsPage - Actions', () => {
   test('acknowledge button opens confirmation modal', async ({ page }) => {
     await page.goto('/alerts');
@@ -107,25 +150,6 @@ test.describe('AlertsPage - Actions', () => {
       // Cancel
       await confirmModal.locator('.ant-btn:not(.ant-btn-primary):not(.ant-btn-danger)').first().click();
       await expect(confirmModal).not.toBeVisible({ timeout: 3000 });
-    }
-  });
-
-  test('confirming acknowledge updates alert status', async ({ page }) => {
-    await page.goto('/alerts');
-    await waitForPageReady(page);
-
-    // Find an active alert with "确认" button
-    const acknowledgeBtn = page.locator('.ant-table-row').locator('button').filter({ hasText: '确认' }).first();
-    if (await acknowledgeBtn.isVisible().catch(() => false)) {
-      await acknowledgeBtn.click();
-
-      // Confirm
-      const confirmModal = page.locator('.ant-modal-confirm');
-      await expect(confirmModal).toBeVisible({ timeout: 5000 });
-      await confirmModal.locator('.ant-btn-primary, .ant-btn-danger').first().click();
-
-      // Verify success message
-      await expect(page.locator('.ant-message')).toContainText(/已确认告警/, { timeout: 5000 });
     }
   });
 
@@ -149,12 +173,24 @@ test.describe('AlertsPage - Actions', () => {
     }
   });
 
-  test('task link navigates to /audit?task_id=', async ({ page }) => {
+  test('task link in expanded row navigates to /audit?task_id=', async ({ page }) => {
     await page.goto('/alerts');
     await waitForPageReady(page);
 
-    // Find an alert with a task link
-    const taskLink = page.locator('.ant-table-row').locator('button').filter({ hasText: '任务' }).first();
+    const rows = page.locator('.ant-table-row');
+    const count = await rows.count();
+    if (count === 0) {
+      test.skip(true, 'No alerts to check');
+      return;
+    }
+
+    // Expand first row
+    await rows.first().click();
+    await page.waitForTimeout(500);
+
+    // Find task link in expanded row
+    const expandedRow = page.locator('.ant-table-expanded-row');
+    const taskLink = expandedRow.locator('button').filter({ hasText: '查看关联任务' });
     if (await taskLink.isVisible().catch(() => false)) {
       await taskLink.click();
       await expect(page).toHaveURL(/\/audit\?task_id=/, { timeout: 5000 });

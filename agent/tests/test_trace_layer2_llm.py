@@ -15,18 +15,21 @@ class TestLLMStability:
 
     def test_default_provider_set(self):
         from agent.config import get_default_provider
+
         provider = get_default_provider()
         assert provider, "Default provider is empty"
         assert isinstance(provider, str)
 
     def test_provider_fallback_works(self):
         from agent.config import get_llm_with_fallback
+
         llm = get_llm_with_fallback(temperature=0.1)
         assert llm is not None, "get_llm_with_fallback returned None"
         assert hasattr(llm, "ainvoke"), "LLM instance missing ainvoke method"
 
     def test_llm_has_provider_tag(self):
         from agent.config import get_llm_with_fallback
+
         llm = get_llm_with_fallback(temperature=0.1)
         assert hasattr(llm, "_provider"), "LLM missing _provider attribute"
         assert llm._provider, "_provider is empty"
@@ -34,7 +37,8 @@ class TestLLMStability:
     def test_10_consecutive_calls_no_401(self):
         """Make 10 consecutive LLM calls and verify no auth errors."""
         import asyncio
-        from agent.config import get_llm_with_fallback, call_llm_with_retry
+
+        from agent.config import call_llm_with_retry, get_llm_with_fallback
 
         llm = get_llm_with_fallback(temperature=0.1)
 
@@ -61,7 +65,8 @@ class TestLLMStability:
     def test_response_parseable(self):
         """LLM returns parseable content."""
         import asyncio
-        from agent.config import get_llm_with_fallback, call_llm_with_retry
+
+        from agent.config import call_llm_with_retry, get_llm_with_fallback
 
         async def run():
             llm = get_llm_with_fallback(temperature=0.1)

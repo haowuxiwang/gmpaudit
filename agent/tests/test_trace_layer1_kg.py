@@ -5,10 +5,7 @@ No LLM calls required — only checks data files and fallback DB.
 """
 
 import json
-import sys
 from pathlib import Path
-
-import pytest
 
 # Project root
 _PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -52,10 +49,7 @@ class TestKGDataExists:
         with open(status_file, encoding="utf-8") as f:
             data = json.load(f)
         # Count processed documents
-        processed = sum(
-            1 for v in data.values()
-            if isinstance(v, dict) and v.get("status") == "processed"
-        )
+        processed = sum(1 for v in data.values() if isinstance(v, dict) and v.get("status") == "processed")
         assert processed >= 5, f"Expected >= 5 processed docs, found {processed}"
 
 
@@ -64,25 +58,30 @@ class TestFallbackDB:
 
     def test_all_regulations_count(self):
         from agent.tools.regulation_db import GMP_REGULATIONS
+
         assert len(GMP_REGULATIONS) >= 20, f"Expected >= 20 regulations, found {len(GMP_REGULATIONS)}"
 
     def test_search_deviation(self):
         from agent.tools.regulation_db import search_regulations
+
         results = search_regulations("偏差处理", n_results=5)
         assert len(results) > 0, "No results for '偏差处理'"
 
     def test_search_capa(self):
         from agent.tools.regulation_db import search_regulations
+
         results = search_regulations("CAPA 纠正预防", n_results=5)
         assert len(results) > 0, "No results for 'CAPA'"
 
     def test_search_change_control(self):
         from agent.tools.regulation_db import search_regulations
+
         results = search_regulations("变更控制", n_results=5)
         assert len(results) > 0, "No results for '变更控制'"
 
     def test_search_result_structure(self):
         from agent.tools.regulation_db import search_regulations
+
         results = search_regulations("文件管理", n_results=3)
         for r in results:
             assert "regulation" in r, "Result missing 'regulation' field"

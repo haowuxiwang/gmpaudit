@@ -35,27 +35,36 @@ export function useTaskSSE(taskId: number | null, isActive: boolean): UseTaskSSE
   const eventsRef = useRef<TaskEvent[]>([]);
   const lastActiveStageRef = useRef('pending');
 
-  // Reset state when task changes OR when re-activated (same task re-run)
+  // Debug logging helper — uses refs to avoid stale closures in useEffect
+  const stateRef = useRef({ taskId, isActive, currentStage, progress, status });
+  stateRef.current = { taskId, isActive, currentStage, progress, status };
+  const logSSE = (action: string, data?: unknown) => {
+    const s = stateRef.current;
+    console.log(`[useTaskSSE] ${action}`, data ?? '', { taskId: s.taskId, isActive: s.isActive, stage: s.currentStage, progress: s.progress, status: s.status });
+  };
+
+  // Reset state when task changes (but keep progress for same task)
+  const prevTaskIdRef = useRef<number | null>(null);
   const prevIsActiveRef = useRef(false);
   useEffect(() => {
-    // Reset on task change
-    setEvents([]);
-    setThinkingEvents([]);
-    setCurrentStage('pending');
-    setProgress(0);
-    setStatus('pending');
-    eventsRef.current = [];
-  }, [taskId]);
-
-  // Also reset when isActive transitions from false to true (same task re-run)
-  useEffect(() => {
-    if (isActive && !prevIsActiveRef.current) {
+    if (taskId !== prevTaskIdRef.current) {
+      logSSE('task changed, resetting', { from: prevTaskIdRef.current, to: taskId });
       setEvents([]);
       setThinkingEvents([]);
       setCurrentStage('pending');
       setProgress(0);
       setStatus('pending');
       eventsRef.current = [];
+      prevTaskIdRef.current = taskId;
+    }
+  }, [taskId]);
+
+  // When isActive transitions from false to true, only reset events (keep progress)
+  useEffect(() => {
+    if (isActive && !prevIsActiveRef.current) {
+      logSSE('isActive: false -> true (SSE connecting)');
+    } else if (!isActive && prevIsActiveRef.current) {
+      logSSE('isActive: true -> false (SSE disconnecting)');
     }
     prevIsActiveRef.current = isActive;
   }, [isActive]);
@@ -64,10 +73,20 @@ export function useTaskSSE(taskId: number | null, isActive: boolean): UseTaskSSE
     ? `${API_BASE_URL}/audit/tasks/${taskId}/stream`
     : null;
 
+  // Log SSE connection state changes
+  const prevUrlRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (url !== prevUrlRef.current) {
+      logSSE('SSE url changed', { from: prevUrlRef.current, to: url });
+      prevUrlRef.current = url;
+    }
+  }, [url]);
+
   const { connectionError } = useSSE({
     url,
     onEvent: {
-      event: (data: TaskEvent) => {
+      event: (raw: unknown) => {
+        const data = raw as TaskEvent;
         const next = [...eventsRef.current, data];
         eventsRef.current = next.length > MAX_EVENTS ? next.slice(-MAX_EVENTS) : next;
         setEvents([...eventsRef.current]);
@@ -77,25 +96,31 @@ export function useTaskSSE(taskId: number | null, isActive: boolean): UseTaskSSE
           setProgress(prev => Math.max(prev, stageProgress));
         }
       },
-      agent_thinking: (data: AgentThinkingEvent) => {
+      agent_thinking: (raw: unknown) => {
+        const data = raw as AgentThinkingEvent;
         const MAX_THINKING_EVENTS = 500;
         setThinkingEvents(prev => {
           const next = [...prev, data];
           return next.length > MAX_THINKING_EVENTS ? next.slice(-MAX_THINKING_EVENTS) : next;
         });
         if (data.stage && data.status === 'started') {
+          logSSE('stage <- agent_thinking', { to: data.stage });
           setCurrentStage(data.stage);
           lastActiveStageRef.current = data.stage;
         }
       },
-      progress: (data: { percent: number; stage: string }) => {
+      progress: (raw: unknown) => {
+        const data = raw as { percent: number; stage: string };
         setProgress(prev => Math.max(prev, data.percent));
         if (data.stage) {
+          logSSE('stage <- progress', { to: data.stage });
           setCurrentStage(data.stage);
           lastActiveStageRef.current = data.stage;
         }
       },
-      done: (data: { status: string }) => {
+      done: (raw: unknown) => {
+        const data = raw as { status: string };
+        logSSE('done', { status: data.status });
         setStatus(data.status);
         if (data.status === 'completed') {
           setProgress(100);

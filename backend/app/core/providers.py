@@ -4,10 +4,8 @@ This is a pure data module with NO imports from app.* so that
 tkinter_launcher.py (which avoids app.* imports) can safely use it.
 """
 
-from typing import Dict, List
-
 # Provider registry: provider_key -> {name, base_url, default_model, available_models}
-PROVIDER_REGISTRY: Dict[str, Dict[str, object]] = {
+PROVIDER_REGISTRY: dict[str, dict[str, object]] = {
     "deepseek": {
         "name": "DeepSeek",
         "base_url": "https://api.deepseek.com/v1",
@@ -42,7 +40,12 @@ PROVIDER_REGISTRY: Dict[str, Dict[str, object]] = {
         "name": "SiliconFlow",
         "base_url": "https://api.siliconflow.cn/v1",
         "default_model": "deepseek-ai/DeepSeek-V3.2",
-        "available_models": ["deepseek-ai/DeepSeek-V3.2", "Qwen/Qwen2.5-72B-Instruct", "meta-llama/Meta-Llama-3.1-70B-Instruct"],
+        "available_models": [
+            "deepseek-ai/DeepSeek-V3.2",
+            "deepseek-ai/DeepSeek-V3",
+            "Qwen/Qwen2.5-72B-Instruct",
+            "meta-llama/Meta-Llama-3.1-70B-Instruct",
+        ],
     },
     "openrouter": {
         "name": "OpenRouter",
@@ -64,14 +67,11 @@ def get_provider_defaults(provider: str) -> dict:
     return PROVIDER_REGISTRY.get(provider, {})
 
 
-def get_provider_names() -> Dict[str, str]:
+def get_provider_names() -> dict[str, str]:
     """Returns {provider_key: display_name} mapping."""
     return {k: v["name"] for k, v in PROVIDER_REGISTRY.items()}
 
 
 def get_provider_list() -> list[dict]:
     """Returns list of provider dicts for API responses."""
-    return [
-        {"id": k, "name": v["name"], "model": v["default_model"]}
-        for k, v in PROVIDER_REGISTRY.items()
-    ]
+    return [{"id": k, "name": v["name"], "model": v["default_model"]} for k, v in PROVIDER_REGISTRY.items()]

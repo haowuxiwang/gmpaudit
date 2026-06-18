@@ -1,9 +1,9 @@
 """Document-to-Markdown converter using Microsoft markitdown."""
 
 import asyncio
+import logging
 import os
 import tempfile
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +14,7 @@ def _get_markitdown():
     global _markitdown_instance
     if _markitdown_instance is None:
         from markitdown import MarkItDown
+
         _markitdown_instance = MarkItDown()
     return _markitdown_instance
 

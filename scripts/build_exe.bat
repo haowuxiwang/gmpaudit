@@ -101,13 +101,26 @@ if exist lightrag_index\lightrag_output (
 )
 
 echo.
-echo [7/7] Copying embedding model...
+echo [7/8] Copying embedding model...
 if exist model (
     xcopy /E /I /Y model dist\AuditBee\model
     echo   Embedding model copied.
 ) else (
-    echo   WARNING: model/ directory not found. User must download manually.
+    echo   ERROR: model/ directory not found.
+    echo   Run 'python scripts/download_model.py' first, or place the BAAI/bge-large-zh-v1.5 model in model/
+    pause
+    exit /b 1
 )
+
+echo.
+echo [8/8] Cleaning runtime data from dist...
+if exist dist\AuditBee\data\database del /q dist\AuditBee\data\database\* 2>nul
+if exist dist\AuditBee\data\documents del /q dist\AuditBee\data\documents\* 2>nul
+if exist dist\AuditBee\data\reports del /q dist\AuditBee\data\reports\* 2>nul
+if exist dist\AuditBee\data\logs del /q dist\AuditBee\data\logs\* 2>nul
+if exist dist\AuditBee\data\processed del /q dist\AuditBee\data\processed\* 2>nul
+if exist dist\AuditBee\data\audit_memory.jsonl del dist\AuditBee\data\audit_memory.jsonl 2>nul
+echo   Runtime data cleaned (database, documents, reports, logs, processed).
 
 echo.
 echo [VERIFY] Checking critical bundled files...
@@ -154,8 +167,11 @@ if not exist dist\AuditBee\_internal\markitdown\__init__.py (
 )
 if %VERIFY_OK%==0 (
     echo.
-    echo   *** VERIFICATION FAILED - see above errors ***
+    echo   *** VERIFICATION FAILED - Aborting ***
+    echo   Fix the missing components listed above and retry.
     echo.
+    pause
+    exit /b 1
 )
 echo.
 echo ========================================

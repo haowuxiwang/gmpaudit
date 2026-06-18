@@ -51,7 +51,8 @@ frontend/build/
 frontend/dist/
 backend/static/
 
-# Tools logs
+# Tools (large binaries, download separately)
+tools/ffmpeg/
 tools/日志.txt
 
 # Local model files (large, download separately)

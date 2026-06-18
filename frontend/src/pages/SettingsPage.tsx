@@ -22,8 +22,8 @@ import {
   SettingOutlined,
 } from '@ant-design/icons';
 
-import { configApi, LLMModel } from '../services/api';
-import type { ConfigMap } from '../types/api';
+import { configApi } from '../services/api';
+import type { ConfigMap, LLMModel } from '../types/api';
 import { THEME } from '../constants/theme';
 
 const { Title, Text, Paragraph } = Typography;
@@ -69,10 +69,13 @@ const SettingsPage: React.FC = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [models, result]: [LLMModel[], ConfigMap] = await Promise.all([
+      const [modelsResult, configResult] = await Promise.allSettled([
         configApi.getModels(),
         configApi.getAll(),
       ]);
+
+      const models: LLMModel[] = modelsResult.status === 'fulfilled' ? modelsResult.value : [];
+      const result: ConfigMap = configResult.status === 'fulfilled' ? configResult.value : {};
 
       setProviders(models);
 
@@ -97,8 +100,8 @@ const SettingsPage: React.FC = () => {
 
       setConfig(flat);
       setDraft(flat);
-    } catch {
-      message.error('加载配置失败');
+    } catch (e: unknown) {
+      message.error(e instanceof Error ? e.message : '加载配置失败');
     } finally {
       setLoading(false);
     }
@@ -119,6 +122,17 @@ const SettingsPage: React.FC = () => {
     }
     return keys;
   }, [draft, config]);
+
+  // Prevent accidental page leave when there are unsaved changes
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (dirtyKeys.size > 0) {
+        e.preventDefault();
+      }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [dirtyKeys.size]);
 
   const handleSave = async () => {
     try {
@@ -162,8 +176,8 @@ const SettingsPage: React.FC = () => {
       await configApi.batchUpdate(changes);
       setConfig((prev) => ({ ...prev, ...changes }));
       message.success(`已保存 ${Object.keys(changes).length} 项配置`);
-    } catch {
-      message.error('保存配置失败');
+    } catch (e: unknown) {
+      message.error(e instanceof Error ? e.message : '保存配置失败');
     } finally {
       setSaving(false);
     }
