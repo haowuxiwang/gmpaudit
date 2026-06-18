@@ -1,6 +1,5 @@
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router-dom';
 
 import KnowledgeGraphPage from '../KnowledgeGraphPage';
@@ -214,7 +213,6 @@ describe('KnowledgeGraphPage branch coverage', () => {
 
   // --- Node detail modal close ---
   test('node detail modal has close button', async () => {
-    const user = userEvent.setup();
     renderWithRouter(<KnowledgeGraphPage />);
 
     await waitFor(() => {

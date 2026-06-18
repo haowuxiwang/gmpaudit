@@ -20,7 +20,7 @@ const CONTEXT_WINDOW = 500; // chars before/after highlight
  * Normalize text for fuzzy matching: remove whitespace, punctuation, newlines.
  */
 function normalizeForMatch(text: string): string {
-  return text.replace(/[\s\n\r\t.,;:!?，。；：！？、\-\(\)\[\]\{\}「」『』""''"]+/g, '');
+  return text.replace(/[\s\n\r\t.,;:!?，。；：！？、\-()[]{}「」『』""''"]+/g, '');
 }
 
 /**
@@ -72,7 +72,7 @@ function getWindowAroundHighlight(
     let charCount = 0;
     let origIdx = 0;
     for (let i = 0; i < text.length && charCount < partialIdx; i++) {
-      if (!/[\s\n\r\t.,;:!?，。；：！？、\-\(\)\[\]\{\}「」『』""''"]/.test(text[i])) {
+      if (!/[\s\n\r\t.,;:!?，。；：！？、\-()[]{}「」『』""''"]/.test(text[i])) {
         charCount++;
       }
       origIdx = i;
@@ -91,7 +91,7 @@ function getWindowAroundHighlight(
   let charCount = 0;
   let origIdx = 0;
   for (let i = 0; i < text.length && charCount < fuzzyIdx; i++) {
-    if (!/[\s\n\r\t.,;:!?，。；：！？、\-\(\)\[\]\{\}「」『』""''"]/.test(text[i])) {
+    if (!/[\s\n\r\t.,;:!?，。；：！？、\-()[]{}「」『』""''"]/.test(text[i])) {
       charCount++;
     }
     origIdx = i;
@@ -202,9 +202,9 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({ documentId, highlight
             <Text type="secondary" style={{ fontSize: 12 }}>
               {usedLocation ? `定位到章节: ${location}` : '显示相关段落'}
             </Text>
-            <a onClick={() => setShowFull(true)} style={{ fontSize: 12 }}>
+            <Typography.Link onClick={() => setShowFull(true)} style={{ fontSize: 12 }}>
               查看完整文档
-            </a>
+            </Typography.Link>
           </div>
           <div
             style={{

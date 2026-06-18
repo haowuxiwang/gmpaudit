@@ -9,8 +9,6 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import StreamingResponse
 
-logger = logging.getLogger(__name__)
-
 from app.core.database import get_db
 from app.models.audit_task import AuditTask, TaskStatus, TaskType
 from app.models.document import Document, DocumentStatus
@@ -18,6 +16,8 @@ from app.models.finding import Finding
 from app.services.audit_engine import get_audit_engine
 from app.services.task_runner import append_event, build_task_payload, set_stage
 from app.utils.agent_helpers import is_agent_available
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 

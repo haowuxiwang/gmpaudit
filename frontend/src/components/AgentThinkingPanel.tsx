@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Card, Collapse, Typography } from 'antd';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Collapse, Typography } from 'antd';
 import {
   CheckCircleFilled,
   ClockCircleOutlined,
@@ -104,7 +104,7 @@ const AgentThinkingPanel: React.FC<AgentThinkingPanelProps> = ({
     if (isAwaitingReview) return `已完成 ${completedCount}/${STEPS.length} 个步骤，等待审批`;
     if (thinkingEvents.length === 0) return '等待开始';
     return `已完成 ${completedCount}/${STEPS.length} 个步骤`;
-  }, [isRunning, currentStage, thinkingEvents.length, completedCount, isFailed, isAwaitingReview]);
+  }, [isRunning, currentStage, lastActiveStage, thinkingEvents.length, completedCount, isFailed, isAwaitingReview]);
 
   return (
     <Collapse

@@ -1,6 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { render, screen, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 
 import AuditTasksPage from '../AuditTasksPage';
@@ -956,7 +955,6 @@ describe('AuditTasksPage branch coverage', () => {
       page_size: 20,
     } as any);
 
-    const user = userEvent.setup();
     renderWithRouter(<AuditTasksPage />);
 
     await waitFor(() => {

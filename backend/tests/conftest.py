@@ -13,9 +13,9 @@ _project_root = str(Path(__file__).resolve().parent.parent.parent)
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
-from app.core.database import Base, get_db
-from app.main import app
-from app.services.task_runner import get_task_runner_factory
+from app.core.database import Base, get_db  # noqa: E402
+from app.main import app  # noqa: E402
+from app.services.task_runner import get_task_runner_factory  # noqa: E402
 
 TEST_DATABASE_URL = "sqlite+aiosqlite:///./test.db"
 

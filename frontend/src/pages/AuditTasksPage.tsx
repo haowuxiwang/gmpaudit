@@ -109,7 +109,7 @@ const AuditTasksPage: React.FC = () => {
     selectedTask.status === 'pending' ||
     selectedTask.stage === 'queued'
   );
-  const { events: sseEvents, thinkingEvents, currentStage, lastActiveStage, progress: sseProgress, status: sseStatus, connectionError, resetProgress } = useTaskSSE(
+  const { events: sseEvents, thinkingEvents, currentStage, lastActiveStage, progress: sseProgress, status: sseStatus, connectionError } = useTaskSSE(
     selectedTaskId,
     selectedTaskIsRunning,
   );
@@ -301,6 +301,7 @@ const AuditTasksPage: React.FC = () => {
           : prev.events,
       };
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sseEvents, currentStage, sseProgress, selectedTask?.id, selectedTask?.status]);
 
   // On SSE "done", do one final refresh
@@ -428,11 +429,10 @@ const AuditTasksPage: React.FC = () => {
     setDrawerOpen(true);
   };
 
-  const STATUS_PRIORITY: Record<string, number> = {
-    running: 0, awaiting_review: 1, pending: 2, completed: 3, failed: 4, cancelled: 5,
-  };
-
   const filteredTasks = useMemo(() => {
+    const STATUS_PRIORITY: Record<string, number> = {
+      running: 0, awaiting_review: 1, pending: 2, completed: 3, failed: 4, cancelled: 5,
+    };
     return tasks
       .filter((task) => {
         if (statusFilter && task.status !== statusFilter) return false;

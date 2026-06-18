@@ -9,8 +9,6 @@ import time
 
 import pytest
 
-pytestmark = pytest.mark.benchmark
-
 from app.services.event_bus import EventBus
 from app.services.task_runner import (
     _utcnow,
@@ -21,6 +19,8 @@ from app.services.task_runner import (
     validate_findings,
 )
 from app.utils.file_utils import get_file_type
+
+pytestmark = pytest.mark.benchmark
 
 
 def _make_task(config=None):

@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import KnowledgeGraphPage from '../KnowledgeGraphPage';
 import { kgApi } from '../../services/api';

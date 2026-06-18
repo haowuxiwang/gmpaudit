@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import ErrorBoundary from '../ErrorBoundary';
 
@@ -76,7 +76,6 @@ describe('ErrorBoundary - branch coverage', () => {
 
   test('go home button resets error state', async () => {
     const user = userEvent.setup();
-    const originalHref = window.location.href;
     // Mock window.location.href setter
     const mockAssign = jest.fn();
     Object.defineProperty(window, 'location', {

@@ -1,6 +1,5 @@
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router-dom';
 
 import AuditTasksPage from '../AuditTasksPage';
@@ -1098,7 +1097,6 @@ describe('AuditTasksPage extended tests', () => {
 
   // --- Type filter ---
   test('type filter changes displayed tasks', async () => {
-    const user = userEvent.setup();
     renderWithRouter(<AuditTasksPage />);
 
     await waitFor(() => {
