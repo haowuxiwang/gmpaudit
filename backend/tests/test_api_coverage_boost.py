@@ -335,7 +335,12 @@ class TestAuditRunTask:
         original_factory = fastapi_app.state.task_runner_factory
         fastapi_app.state.task_runner_factory = mock_factory
         try:
-            with patch("app.api.audit.is_agent_available", return_value=True):
+            mock_engine = MagicMock()
+            mock_engine.adapters = {"test": MagicMock()}
+            with (
+                patch("app.api.audit.is_agent_available", return_value=True),
+                patch("app.services.llm_engine.get_llm_engine", return_value=mock_engine),
+            ):
                 resp = await client.post(f"/api/audit/tasks/{task.id}/run")
             assert resp.status_code == 503
         finally:
