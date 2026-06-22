@@ -16,7 +16,8 @@ async def test_run_audit_task_not_found(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_run_audit_task_already_running(client: AsyncClient, db_session: AsyncSession):
-    from unittest.mock import MagicMock, patch as _patch
+    from unittest.mock import MagicMock
+    from unittest.mock import patch as _patch
 
     task = AuditTask(
         task_name="Running Task",
