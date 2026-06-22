@@ -55,7 +55,7 @@ class Settings(BaseSettings):
     MAX_CONCURRENT_TASKS: int = 5
     MAX_CONCURRENT_LLM_CALLS: int = 3
     DOCUMENT_PROCESS_TIMEOUT: int = 300
-    LLM_REQUEST_TIMEOUT: int = 120
+    LLM_REQUEST_TIMEOUT: int = 180
     AGENT_TASK_TIMEOUT: int = 1200
 
     model_config = ConfigDict(

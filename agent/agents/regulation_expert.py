@@ -134,6 +134,9 @@ async def _search_regulations(query: str) -> tuple[list[dict], str]:
                     latency_ms=round(latency, 1),
                 )
             )
+    except LLMAuthError:
+        # API key errors must propagate — user needs to know their key is invalid
+        raise
     except Exception as e:
         latency = now_ms() - t0
         if trace:

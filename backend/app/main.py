@@ -424,10 +424,35 @@ _AUTH_SKIP_PATHS = {
 
 @app.middleware("http")
 async def _authenticate(request, call_next):
-    """Validate API token on all requests except health/token/docs. Active in frozen (production) mode only."""
-    if not getattr(sys, "frozen", False):
+    """Validate API token on all requests except health/token/docs.
+
+    In frozen (production) mode: all endpoints require auth (except skip paths).
+    In dev mode: only sensitive endpoints require auth (config mutations, audit actions).
+    """
+    import re
+
+    # Paths that require auth even in dev mode (sensitive mutation endpoints)
+    _SENSITIVE_PATHS_RE = re.compile(
+        r"^/api/config/(batch|test-llm|test-webhook)$"
+        r"|^/api/config/[^/]+$"  # PUT /api/config/{key} (matched by method below)
+        r"|^/api/audit/tasks/[^/]+/(run|cancel|approve|reject)$"
+    )
+    _SENSITIVE_METHODS = {"PUT", "POST", "DELETE", "PATCH"}
+
+    is_frozen = getattr(sys, "frozen", False)
+    path = request.url.path
+
+    # Skip paths that never need auth
+    if path in _AUTH_SKIP_PATHS or path.startswith("/static"):
         return await call_next(request)
-    if request.url.path in _AUTH_SKIP_PATHS or request.url.path.startswith("/static"):
+
+    # In frozen mode, all endpoints require auth
+    # In dev mode, only sensitive mutation endpoints require auth
+    requires_auth = is_frozen or (
+        request.method in _SENSITIVE_METHODS and _SENSITIVE_PATHS_RE.match(path)
+    )
+
+    if not requires_auth:
         return await call_next(request)
 
     token = request.headers.get("Authorization", "").removeprefix("Bearer ").strip()

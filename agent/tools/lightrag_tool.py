@@ -527,6 +527,10 @@ async def lightrag_search(query: str, method: str = "local") -> list[dict]:
         _set_cached(query, method, results)
         return results
     except Exception as e:
+        # Let LLMAuthError propagate immediately — don't mask API key failures
+        from agent.config import LLMAuthError
+        if isinstance(e, LLMAuthError):
+            raise
         logger.warning("LightRAG search failed: %s", e)
         raise
 
