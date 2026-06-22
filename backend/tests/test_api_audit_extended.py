@@ -16,6 +16,8 @@ async def test_run_audit_task_not_found(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_run_audit_task_already_running(client: AsyncClient, db_session: AsyncSession):
+    from unittest.mock import MagicMock, patch as _patch
+
     task = AuditTask(
         task_name="Running Task",
         task_type=TaskType.DEVIATION_ANALYSIS,
@@ -25,11 +27,13 @@ async def test_run_audit_task_already_running(client: AsyncClient, db_session: A
     await db_session.commit()
     await db_session.refresh(task)
 
-    response = await client.post(f"/api/audit/tasks/{task.id}/run")
+    with _patch("app.api.audit.is_agent_available", return_value=True):
+        mock_engine = MagicMock()
+        mock_engine.adapters = {"test": MagicMock()}
+        with _patch("app.services.llm_engine.get_llm_engine", return_value=mock_engine):
+            response = await client.post(f"/api/audit/tasks/{task.id}/run")
     assert response.status_code == 400
-    detail = response.json()["detail"]
-    # Either "运行中" or "未配置 LLM" (LLM check fires first)
-    assert "运行中" in detail or "llm" in detail.lower() or "未配置" in detail
+    assert "运行中" in response.json()["detail"]
 
 
 @pytest.mark.asyncio

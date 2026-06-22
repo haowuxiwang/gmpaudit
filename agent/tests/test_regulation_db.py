@@ -84,7 +84,7 @@ class TestSearchRegulations:
 
     def test_no_match(self):
         """Non-matching query returns empty list."""
-        results = search_regulations("qwertyuiopasdfghjkl")
+        results = search_regulations("zzzzzzzzzzzzzzz")
         assert results == []
 
     def test_n_results_limit(self):

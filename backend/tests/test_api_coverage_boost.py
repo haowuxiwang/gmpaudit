@@ -269,24 +269,33 @@ class TestAuditRunTask:
     async def test_run_task_already_running(self, client: AsyncClient, db_session):
         task = await _create_task(db_session, status=TaskStatus.RUNNING)
         with patch("app.api.audit.is_agent_available", return_value=True):
-            resp = await client.post(f"/api/audit/tasks/{task.id}/run")
-            assert resp.status_code == 400
-            assert "运行中" in resp.json()["detail"]
+            mock_engine = MagicMock()
+            mock_engine.adapters = {"test": MagicMock()}
+            with patch("app.services.llm_engine.get_llm_engine", return_value=mock_engine):
+                resp = await client.post(f"/api/audit/tasks/{task.id}/run")
+                assert resp.status_code == 400
+                assert "运行中" in resp.json()["detail"]
 
     async def test_run_task_document_not_found(self, client: AsyncClient, db_session):
         task = await _create_task(db_session, document_ids=[99999])
         with patch("app.api.audit.is_agent_available", return_value=True):
-            resp = await client.post(f"/api/audit/tasks/{task.id}/run")
-            assert resp.status_code == 400
-            assert "文档 99999 不存在" in resp.json()["detail"]
+            mock_engine = MagicMock()
+            mock_engine.adapters = {"test": MagicMock()}
+            with patch("app.services.llm_engine.get_llm_engine", return_value=mock_engine):
+                resp = await client.post(f"/api/audit/tasks/{task.id}/run")
+                assert resp.status_code == 400
+                assert "文档 99999 不存在" in resp.json()["detail"]
 
     async def test_run_task_document_not_processed(self, client: AsyncClient, db_session):
         doc = await _create_doc(db_session, process_status=DocumentStatus.UPLOADED)
         task = await _create_task(db_session, document_ids=[doc.id])
         with patch("app.api.audit.is_agent_available", return_value=True):
-            resp = await client.post(f"/api/audit/tasks/{task.id}/run")
-            assert resp.status_code == 400
-            assert "未处理" in resp.json()["detail"]
+            mock_engine = MagicMock()
+            mock_engine.adapters = {"test": MagicMock()}
+            with patch("app.services.llm_engine.get_llm_engine", return_value=mock_engine):
+                resp = await client.post(f"/api/audit/tasks/{task.id}/run")
+                assert resp.status_code == 400
+                assert "未处理" in resp.json()["detail"]
 
     async def test_run_task_success(self, client: AsyncClient, db_session):
         doc = await _create_doc(db_session, process_status=DocumentStatus.PROCESSED)
@@ -301,7 +310,10 @@ class TestAuditRunTask:
         fastapi_app.state.task_runner_factory = mock_factory
         try:
             with patch("app.api.audit.is_agent_available", return_value=True):
-                resp = await client.post(f"/api/audit/tasks/{task.id}/run")
+                mock_engine = MagicMock()
+                mock_engine.adapters = {"test": MagicMock()}
+                with patch("app.services.llm_engine.get_llm_engine", return_value=mock_engine):
+                    resp = await client.post(f"/api/audit/tasks/{task.id}/run")
             assert resp.status_code == 200
             data = resp.json()
             assert data["status"] == "pending"
