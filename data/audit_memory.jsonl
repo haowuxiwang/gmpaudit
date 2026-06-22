@@ -9,3 +9,12 @@
 {"task_id": 1, "task_name": "Agent audit - sop.txt", "timestamp": "2026-06-18T07:57:35.793313+00:00", "findings_count": 0, "findings": [], "documents": ["sop.txt"], "risk_levels": {"sop.txt": "unknown"}}
 {"task_id": 1, "task_name": "Agent audit - change.txt", "timestamp": "2026-06-18T07:57:37.344902+00:00", "findings_count": 0, "findings": [], "documents": ["change.txt"], "risk_levels": {"change.txt": "unknown"}}
 {"task_id": 1, "task_name": "Agent audit - success.txt", "timestamp": "2026-06-18T08:17:09.008203+00:00", "findings_count": 0, "findings": [], "documents": ["success.txt"], "risk_levels": {"success.txt": "unknown"}}
+{"task_id": 1, "task_name": "Agent audit - test.txt", "timestamp": "2026-06-22T00:10:51.769913+00:00", "findings_count": 0, "findings": [], "documents": ["test.txt"], "risk_levels": {"test.txt": "not_assessed"}}
+{"task_id": 1, "task_name": "Agent audit - test.txt", "timestamp": "2026-06-22T00:18:00.600908+00:00", "findings_count": 0, "findings": [], "documents": ["test.txt"], "risk_levels": {"test.txt": "not_assessed"}}
+{"task_id": 1, "task_name": "Agent audit - sop.txt", "timestamp": "2026-06-22T00:19:26.224279+00:00", "findings_count": 0, "findings": [], "documents": ["sop.txt"], "risk_levels": {"sop.txt": "unknown"}}
+{"task_id": 1, "task_name": "Agent audit - change.txt", "timestamp": "2026-06-22T00:29:23.594724+00:00", "findings_count": 0, "findings": [], "documents": ["change.txt"], "risk_levels": {"change.txt": "unknown"}}
+{"task_id": 1, "task_name": "Agent audit - sop.txt", "timestamp": "2026-06-22T00:31:55.809762+00:00", "findings_count": 0, "findings": [], "documents": ["sop.txt"], "risk_levels": {"sop.txt": "unknown"}}
+{"task_id": 1, "task_name": "Agent audit - change.txt", "timestamp": "2026-06-22T00:31:56.626207+00:00", "findings_count": 0, "findings": [], "documents": ["change.txt"], "risk_levels": {"change.txt": "unknown"}}
+{"task_id": 1, "task_name": "Agent audit - change.txt", "timestamp": "2026-06-22T00:34:46.783248+00:00", "findings_count": 0, "findings": [], "documents": ["change.txt"], "risk_levels": {"change.txt": "unknown"}}
+{"task_id": 1, "task_name": "Agent audit - sop.txt", "timestamp": "2026-06-22T00:34:46.844460+00:00", "findings_count": 0, "findings": [], "documents": ["sop.txt"], "risk_levels": {"sop.txt": "unknown"}}
+{"task_id": 1, "task_name": "Agent audit - test.txt", "timestamp": "2026-06-22T01:26:47.159316+00:00", "findings_count": 0, "findings": [], "documents": ["test.txt"], "risk_levels": {"test.txt": "not_assessed"}}

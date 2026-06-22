@@ -259,10 +259,9 @@ class TestAuditRunTask:
     async def test_run_task_no_llm_configured(self, client: AsyncClient, db_session):
         task = await _create_task(db_session)
         with patch("app.api.audit.is_agent_available", return_value=True):
-            with patch("app.services.llm_engine.LLMEngine") as MockEngine:
-                mock_instance = MagicMock()
-                mock_instance.adapters = {}
-                MockEngine.return_value = mock_instance
+            mock_engine = MagicMock()
+            mock_engine.adapters = {}
+            with patch("app.services.llm_engine.get_llm_engine", return_value=mock_engine):
                 resp = await client.post(f"/api/audit/tasks/{task.id}/run")
                 assert resp.status_code == 400
                 assert "LLM" in resp.json()["detail"] or "llm" in resp.json()["detail"].lower()
@@ -506,7 +505,7 @@ class TestAuditFindings:
 
     async def test_get_findings_with_data(self, client: AsyncClient, db_session):
         task = await _create_task(db_session, status=TaskStatus.COMPLETED)
-        finding = await _create_finding(
+        await _create_finding(
             db_session,
             task.id,
             evidence="Evidence text",
@@ -650,7 +649,7 @@ class TestAuditDashboard:
 
     async def test_dashboard_with_data(self, client: AsyncClient, db_session):
         task1 = await _create_task(db_session, task_name="T1", status=TaskStatus.COMPLETED)
-        task2 = await _create_task(db_session, task_name="T2", status=TaskStatus.PENDING)
+        await _create_task(db_session, task_name="T2", status=TaskStatus.PENDING)
         await _create_finding(db_session, task1.id, severity=SeverityLevel.HIGH)
         await _create_finding(db_session, task1.id, severity=SeverityLevel.MEDIUM)
 

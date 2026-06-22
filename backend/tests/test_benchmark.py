@@ -141,7 +141,7 @@ class TestEventBusBenchmarks:
     async def test_publish_multi_subscriber_performance(self):
         """publish() to 10 subscribers should be fast (< 1ms)."""
         bus = EventBus()
-        for i in range(10):
+        for _i in range(10):
             await bus.subscribe(1)
 
         async def publish_one():

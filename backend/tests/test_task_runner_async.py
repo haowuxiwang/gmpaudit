@@ -261,7 +261,7 @@ class TestTaskRunnerRun:
         session.execute = AsyncMock(side_effect=mock_execute)
         session.commit = AsyncMock()
 
-        queue = await event_bus.subscribe(1)
+        await event_bus.subscribe(1)
 
         with patch.object(task_runner, "_execute_task", new_callable=AsyncMock, side_effect=asyncio.CancelledError):
             await task_runner._run(1)
@@ -291,7 +291,7 @@ class TestTaskRunnerRun:
         session.execute = AsyncMock(side_effect=mock_execute)
         session.commit = AsyncMock()
 
-        queue = await event_bus.subscribe(1)
+        await event_bus.subscribe(1)
 
         with patch.object(task_runner, "_execute_task", new_callable=AsyncMock, side_effect=RuntimeError("boom")):
             await task_runner._run(1)
@@ -308,7 +308,7 @@ class TestTaskRunnerMarkFailed:
         task = _make_mock_task()
         session.commit = AsyncMock()
 
-        queue = await event_bus.subscribe(1)
+        await event_bus.subscribe(1)
 
         with patch("app.services.task_runner.is_feishu_configured", return_value=False):
             await task_runner._mark_failed(session, task, "test error")
@@ -323,7 +323,7 @@ class TestTaskRunnerMarkFailed:
         task = _make_mock_task()
         session.commit = AsyncMock()
 
-        queue = await event_bus.subscribe(1)
+        await event_bus.subscribe(1)
 
         with (
             patch("app.services.task_runner.is_feishu_configured", return_value=True),
@@ -338,7 +338,7 @@ class TestTaskRunnerMarkFailed:
         task = _make_mock_task()
         session.commit = AsyncMock()
 
-        queue = await event_bus.subscribe(1)
+        await event_bus.subscribe(1)
 
         with (
             patch("app.services.task_runner.is_feishu_configured", return_value=True),

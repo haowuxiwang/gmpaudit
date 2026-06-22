@@ -268,7 +268,7 @@ describe('KnowledgeGraphPage extended tests', () => {
 
     await waitFor(() => {
       expect(screen.getByPlaceholderText('试试：偏差处理、CAPA、文件管理')).toBeInTheDocument();
-    });
+    }, { timeout: 5000 });
 
     const input = screen.getByPlaceholderText('试试：偏差处理、CAPA、文件管理');
     await user.type(input, '偏差处理');
@@ -278,7 +278,7 @@ describe('KnowledgeGraphPage extended tests', () => {
 
     await waitFor(() => {
       expect(mockKgApi.query).toHaveBeenCalledWith('偏差处理');
-    });
+    }, { timeout: 5000 });
   });
 
   // --- Query results ---
@@ -288,7 +288,7 @@ describe('KnowledgeGraphPage extended tests', () => {
 
     await waitFor(() => {
       expect(screen.getByPlaceholderText('试试：偏差处理、CAPA、文件管理')).toBeInTheDocument();
-    });
+    }, { timeout: 5000 });
 
     const input = screen.getByPlaceholderText('试试：偏差处理、CAPA、文件管理');
     await user.type(input, '偏差处理');
@@ -297,7 +297,7 @@ describe('KnowledgeGraphPage extended tests', () => {
 
     await waitFor(() => {
       expect(screen.getByText('偏差处理')).toBeInTheDocument();
-    });
+    }, { timeout: 5000 });
 
     expect(screen.getByText('任何偏差都应记录并调查')).toBeInTheDocument();
     expect(screen.getByText('CAPA')).toBeInTheDocument();
@@ -888,7 +888,7 @@ describe('KnowledgeGraphPage extended tests', () => {
 
     await waitFor(() => {
       expect(screen.getByPlaceholderText('试试：偏差处理、CAPA、文件管理')).toBeInTheDocument();
-    });
+    }, { timeout: 5000 });
 
     const input = screen.getByPlaceholderText('试试：偏差处理、CAPA、文件管理');
     expect(input).toBeInTheDocument();

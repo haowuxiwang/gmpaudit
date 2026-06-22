@@ -248,7 +248,7 @@ async def test_update_config_auto_sets_agent_provider(client: AsyncClient, db_se
 @pytest.mark.asyncio
 async def test_update_config_api_key_with_reload(client: AsyncClient, db_session: AsyncSession):
     """Updating an API key should trigger LLM provider reload."""
-    with patch("app.api.config._apply_setting", new_callable=AsyncMock) as mock_apply:
+    with patch("app.api.config._apply_setting", new_callable=AsyncMock):
         resp = await client.put(
             "/api/config/deepseek_api_key",
             json={"value": "sk-new-key-12345678"},

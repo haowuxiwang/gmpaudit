@@ -31,6 +31,7 @@ known-first-party = ["app"]
 "backend/app/api/kg.py" = ["E402"]
 "backend/app/api/reports.py" = ["E402"]
 "backend/app/main.py" = ["E402"]
+"backend/tests/*.py" = ["SIM117"]
 
 [tool.ruff.format]
 quote-style = "double"

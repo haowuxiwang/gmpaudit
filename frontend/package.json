@@ -6,8 +6,8 @@
   "scripts": {
     "start": "react-scripts start",
     "build": "cross-env GENERATE_SOURCEMAP=false NODE_OPTIONS=--max-old-space-size=4096 react-scripts build",
-    "test": "react-scripts test",
-    "test:coverage": "react-scripts test --coverage --watchAll=false",
+    "test": "react-scripts test --maxWorkers=2",
+    "test:coverage": "react-scripts test --coverage --watchAll=false --maxWorkers=2",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "electron": "electron .",

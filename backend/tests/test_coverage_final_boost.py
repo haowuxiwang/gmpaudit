@@ -623,7 +623,7 @@ async def test_list_reports_null_created_at(client: AsyncClient, db_session: Asy
 @pytest.mark.asyncio
 async def test_db_health_error(client: AsyncClient):
     """DB health check should return 503 when DB query fails."""
-    with patch("app.api.health.get_db") as mock_get_db:
+    with patch("app.api.health.get_db"):
         mock_session = AsyncMock()
         mock_session.execute = AsyncMock(side_effect=Exception("DB connection lost"))
 
@@ -901,7 +901,7 @@ async def test_batch_update_clears_agent_cache_on_auto_set(client: AsyncClient):
 
     orig_key = os.environ.get("QWEN_API_KEY", "")
     try:
-        with patch("agent.config.clear_llm_cache") as mock_clear:
+        with patch("agent.config.clear_llm_cache"):
             resp = await client.post("/api/config/batch", json={"configs": {"qwen_api_key": "sk-qwen-batch-12345678"}})
         assert resp.status_code == 200
     finally:
@@ -2301,7 +2301,7 @@ async def test_batch_update_auto_provider_clears_cache(client: AsyncClient):
 
     orig_key = os.environ.get("GLM_API_KEY", "")
     try:
-        with patch("agent.config.clear_llm_cache") as mock_clear:
+        with patch("agent.config.clear_llm_cache"):
             resp = await client.post("/api/config/batch", json={"configs": {"glm_api_key": "sk-glm-test-12345678"}})
         assert resp.status_code == 200
     finally:

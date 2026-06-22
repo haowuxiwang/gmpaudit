@@ -1,5 +1,6 @@
 """Tests for app.core.database — engine creation, pragma setup, get_db."""
 
+import contextlib
 from collections.abc import AsyncGenerator
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -82,10 +83,8 @@ class TestGetDb:
         assert isinstance(session, AsyncSession)
 
         # Clean up
-        try:
+        with contextlib.suppress(StopAsyncIteration):
             await gen.__anext__()
-        except StopAsyncIteration:
-            pass
 
     @pytest.mark.asyncio
     async def test_get_db_rollback_on_exception(self):
@@ -126,10 +125,8 @@ class TestGetDb:
             await gen.__anext__()
 
             # Normal exit (StopAsyncIteration)
-            try:
+            with contextlib.suppress(StopAsyncIteration):
                 await gen.__anext__()
-            except StopAsyncIteration:
-                pass
 
             mock_session.close.assert_awaited_once()
 

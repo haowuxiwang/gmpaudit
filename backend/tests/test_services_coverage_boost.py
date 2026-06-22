@@ -34,7 +34,6 @@ class TestEventBusPublishDoneQueueFullAfterDrain:
 
         # Patch q.put_nowait to always raise QueueFull for done_event
         # but allow drain (get_nowait) to work
-        original_put_nowait = q.put_nowait
 
         call_count = 0
 
@@ -53,7 +52,7 @@ class TestEventBusPublishDoneQueueFullAfterDrain:
         """With maxsize=1, publish_done drains filler, puts done_event, then
         drains done_event to push sentinel. Final state: just sentinel."""
         bus = EventBus()
-        q = await bus.subscribe(1)
+        await bus.subscribe(1)
 
         # Use a queue of size 1 so we can control what happens
         small_queue = asyncio.Queue(maxsize=1)
@@ -189,7 +188,7 @@ class TestEventBusSubscribeUpdatesActivity:
     @pytest.mark.asyncio
     async def test_subscribe_sets_last_activity(self):
         bus = EventBus()
-        q = await bus.subscribe(42)
+        await bus.subscribe(42)
         assert 42 in bus._last_activity
         assert bus._last_activity[42] > 0
 

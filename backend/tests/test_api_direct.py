@@ -280,7 +280,7 @@ class TestAuditRunTaskDirect:
                 with pytest.raises(HTTPException) as exc_info:
                     await run_audit_task(task.id, req, db_session)
                 assert exc_info.value.status_code == 400
-                assert "not found" in exc_info.value.detail.lower() or "Document" in exc_info.value.detail
+                assert "不存在" in exc_info.value.detail or "not found" in exc_info.value.detail.lower()
 
     async def test_run_task_document_not_processed(self, db_session: AsyncSession):
         from app.api.audit import run_audit_task
@@ -449,7 +449,7 @@ class TestAuditApproveTaskDirect:
         from app.api.audit import ReviewComment, approve_task
 
         task = await _create_task(db_session, status=TaskStatus.AWAITING_REVIEW)
-        finding = await _create_finding(db_session, task.id, severity=SeverityLevel.HIGH)
+        await _create_finding(db_session, task.id, severity=SeverityLevel.HIGH)
         body = ReviewComment(comment="Approved")
         req = _mock_request()
 
@@ -516,7 +516,7 @@ class TestAuditGetFindingsDirect:
         from app.api.audit import get_task_findings
 
         task = await _create_task(db_session)
-        finding = await _create_finding(db_session, task.id)
+        await _create_finding(db_session, task.id)
 
         result = await get_task_findings(task.id, db_session)
         assert len(result) == 1
@@ -529,7 +529,7 @@ class TestAuditGetFindingsDirect:
         from app.api.audit import get_task_findings
 
         task = await _create_task(db_session)
-        finding = await _create_finding(
+        await _create_finding(
             db_session,
             task.id,
             status=FindingStatus.APPROVED,
@@ -987,7 +987,7 @@ class TestReportsExportPdfDirect:
         task = await _create_task(db_session)
         report = await _create_report(db_session, task.id, content="# PDF Report\n\nContent here.")
 
-        with patch("app.api.reports.settings") as mock_settings:
+        with patch("app.api.reports.settings"):
             # Just test that it doesn't crash; PDF libs may not be installed
             try:
                 result = await export_report_pdf(report.id, db_session)
@@ -1023,7 +1023,7 @@ class TestAlertsListDirect:
 
         task = await _create_task(db_session)
         finding = await _create_finding(db_session, task.id)
-        alert = await _create_alert(db_session, finding.id)
+        await _create_alert(db_session, finding.id)
 
         result = await list_alerts(status=None, page=1, page_size=20, db=db_session)
         assert result["total"] == 1

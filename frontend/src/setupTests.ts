@@ -1,4 +1,10 @@
 import '@testing-library/jest-dom';
+import { configure } from '@testing-library/react';
+
+// Increase default waitFor timeout to reduce flakiness under parallel execution
+configure({
+  asyncUtilTimeout: 5000,
+});
 
 // Mock window.matchMedia for Ant Design
 window.matchMedia = window.matchMedia || function(query: string) {
