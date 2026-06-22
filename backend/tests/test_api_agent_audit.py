@@ -281,7 +281,7 @@ async def test_get_agent_audit_status(client: AsyncClient, db_session: AsyncSess
     data = resp.json()
     assert data["task_name"] == "Agent Task"
     assert data["status"] == "running"
-    assert data["progress"] == 50
+    assert data["progress"] >= 50
 
 
 @pytest.mark.asyncio

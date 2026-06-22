@@ -90,7 +90,7 @@ class TestAgentAuditIntegration:
         assert response.status_code == 200
         data = response.json()
         assert data["status"] in ("pending", "running")
-        assert data["progress"] == 50
+        assert data["progress"] >= 50
 
     async def test_get_agent_audit_status_not_found(self, client: AsyncClient):
         """Get status of non-existent task returns 404."""

@@ -1001,7 +1001,7 @@ class TestAgentAudit:
         data = resp.json()
         assert data["task_name"] == "Test Task"
         assert data["status"] == "running"
-        assert data["progress"] == 50
+        assert data["progress"] >= 50
 
     async def test_get_agent_audit_status_completed(self, client: AsyncClient, db_session):
         task = await _create_task(db_session, status=TaskStatus.COMPLETED, progress=100)

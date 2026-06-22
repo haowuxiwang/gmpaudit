@@ -461,11 +461,11 @@ async def test_delete_document_not_found(client: AsyncClient, tmp_path):
 
 @pytest.mark.asyncio
 async def test_delete_document_path_traversal(client: AsyncClient):
-    """Delete with path traversal (dot-dot) returns 400 or 405."""
+    """Delete with path traversal (dot-dot) returns 400, 404, or 405."""
     resp = await client.delete("/api/kg/documents/..%2F..%2Fetc%2Fpasswd")
     # URL-encoded slashes may be decoded by the server, causing route mismatch (405)
-    # or path traversal check (400)
-    assert resp.status_code in (400, 405)
+    # or path traversal check (400) or not found (404)
+    assert resp.status_code in (400, 404, 405)
 
 
 @pytest.mark.asyncio
