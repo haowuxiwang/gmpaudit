@@ -15,10 +15,22 @@ from app.main import app
 @pytest.fixture
 async def auth_client():
     """Client with api_token set (simulates a session with auth enabled)."""
+    from app.core.database import get_db
     from app.services.event_bus import EventBus
 
     app.state.api_token = "test-token-12345"
     app.state.event_bus = EventBus()
+
+    # Use test database session
+    from tests.conftest import async_session
+
+    app.state.session_factory = async_session
+
+    async def override_get_db():
+        async with async_session() as session:
+            yield session
+
+    app.dependency_overrides[get_db] = override_get_db
 
     async with AsyncClient(
         transport=ASGITransport(app=app),
@@ -29,6 +41,7 @@ async def auth_client():
     # Cleanup
     if hasattr(app.state, "api_token"):
         del app.state.api_token
+    app.dependency_overrides.clear()
 
 
 # ---------------------------------------------------------------------------

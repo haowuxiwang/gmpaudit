@@ -37,6 +37,7 @@ def _safe_flag_modified(instance, attr: str) -> None:
     if hasattr(instance, "_sa_instance_state"):
         flag_modified(instance, attr)
 
+
 logger = logging.getLogger(__name__)
 
 TASK_TYPE_TO_AGENT_TYPE = {

@@ -456,9 +456,7 @@ async def _authenticate(request, call_next):
 
     # In frozen mode, all endpoints require auth
     # In dev mode, only sensitive mutation endpoints require auth
-    requires_auth = is_frozen or (
-        request.method in _SENSITIVE_METHODS and _SENSITIVE_PATHS_RE.match(path)
-    )
+    requires_auth = is_frozen or (request.method in _SENSITIVE_METHODS and _SENSITIVE_PATHS_RE.match(path))
 
     if not requires_auth:
         return await call_next(request)
