@@ -4,7 +4,7 @@
 
 AuditBee is an AI-powered GMP compliance audit assistant for pharmaceutical quality management personnel. It combines multi-agent orchestration with knowledge graph retrieval to automate document analysis, risk identification, and report generation.
 
-## Current Status (2026-05-22)
+## Current Status (2026-06-25)
 
 ### What Works
 - **Core pipeline**: End-to-end audit from document upload to structured report
@@ -14,7 +14,7 @@ AuditBee is an AI-powered GMP compliance audit assistant for pharmaceutical qual
 - **Multi-LLM**: 8 providers supported via adapter pattern with hot-swap
 - **Notifications**: Feishu webhook with HMAC-SHA256 signed cards
 - **Document processing**: .pdf, .docx, .doc, .txt, .jpg/.png/.tiff (OCR via RapidOCR)
-- **Testing**: Backend 181 + Agent 73 = 254 tests, all green. TypeScript 0 errors.
+- **Testing**: Backend 1321 + Agent 418 + Frontend 1066 tests, CI all green
 - **Config security**: API keys masked in GET responses (`_mask_value()`)
 - **Report export**: HTML export with print-friendly CSS (`GET /api/reports/{id}/export/html`)
 - **Alerts enrichment**: Risk alerts include finding title, description, severity via SQLAlchemy relationship

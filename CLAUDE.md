@@ -115,6 +115,14 @@ gmpaudit/
 - Models use SQLAlchemy declarative base with Enum columns for status/type fields
 - All DB operations are async (`await db.execute`, `await db.commit`)
 
+### Knowledge Graph Upload Pattern
+- PDF/DOCX converted to Markdown via `markitdown` library before saving
+- Empty conversion result rejected with HTTP 400 (prevents 0kb files for scanned PDFs)
+- TXT/MD files saved as-is (binary copy)
+- Index build is a separate step (`POST /kg/build`), runs in background via `BackgroundTasks`
+- Query uses LightRAG with local embedding model (BAAI/bge-large-zh-v1.5)
+- **Limitation**: markitdown has no OCR fallback; scanned/image-only PDFs fail (use DocumentProcessor for OCR)
+
 ### LLM Adapter Pattern
 - `LLMEngine` singleton with 8 providers (DeepSeek, Qwen, GLM, OpenAI, Anthropic, SiliconFlow, OpenRouter, Mimo)
 - 7 use `OpenAICompatibleAdapter`, Anthropic uses `AnthropicAdapter`
