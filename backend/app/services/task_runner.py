@@ -12,12 +12,6 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm.attributes import flag_modified
 
-
-def _safe_flag_modified(instance, attr: str) -> None:
-    """Flag attribute as modified, safe for mock objects in tests."""
-    if hasattr(instance, "_sa_instance_state"):
-        flag_modified(instance, attr)
-
 from app.core.config import settings
 from app.models.audit_task import AuditTask, TaskStatus, TaskType
 from app.models.document import Document, DocumentStatus
@@ -36,6 +30,12 @@ from app.utils.agent_helpers import (
     is_agent_available,
     normalize_finding,
 )
+
+
+def _safe_flag_modified(instance, attr: str) -> None:
+    """Flag attribute as modified, safe for mock objects in tests."""
+    if hasattr(instance, "_sa_instance_state"):
+        flag_modified(instance, attr)
 
 logger = logging.getLogger(__name__)
 

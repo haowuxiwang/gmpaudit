@@ -4,7 +4,6 @@ The middleware requires a valid Bearer token for sensitive mutation endpoints
 (config changes, audit actions) even in dev (non-frozen) mode.
 """
 
-import sys
 from unittest.mock import patch
 
 import pytest

@@ -205,7 +205,8 @@ const AuditTasksPage: React.FC = () => {
     } catch (e: unknown) {
       message.error(e instanceof Error ? e.message : '加载任务详情失败');
     }
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTaskId]);
 
   const handleApprove = useCallback(async (taskId: number) => {
     setReviewComment('');
