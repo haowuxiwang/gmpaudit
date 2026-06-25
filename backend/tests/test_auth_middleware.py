@@ -197,11 +197,23 @@ async def test_health_no_auth_needed(auth_client: AsyncClient):
 @pytest.mark.asyncio
 async def test_no_token_set_skips_auth():
     """When api_token is not set on app.state, auth should be skipped entirely."""
+    from app.core.database import get_db
     from app.services.event_bus import EventBus
 
     if hasattr(app.state, "api_token"):
         del app.state.api_token
     app.state.event_bus = EventBus()
+
+    # Use test database session
+    from tests.conftest import async_session
+
+    app.state.session_factory = async_session
+
+    async def override_get_db():
+        async with async_session() as session:
+            yield session
+
+    app.dependency_overrides[get_db] = override_get_db
 
     async with AsyncClient(
         transport=ASGITransport(app=app),
