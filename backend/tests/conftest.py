@@ -71,6 +71,7 @@ async def client() -> AsyncGenerator[AsyncClient, None]:
 
     app.dependency_overrides[get_db] = override_get_db
     app.state.event_bus = EventBus()
+    app.state.session_factory = async_session
     app.state.task_runner_factory = get_task_runner_factory(async_session, max_concurrency=1)
 
     async with AsyncClient(

@@ -28,6 +28,15 @@ def get_db_session():
     return async_session()
 
 
+def _get_session_factory(app):
+    """Get session factory, preferring app state (for test overrides)."""
+    if hasattr(app.state, "session_factory"):
+        return app.state.session_factory
+    from app.core.database import async_session
+
+    return async_session
+
+
 class AuditTaskCreate(BaseModel):
     task_name: str
     task_type: TaskType
@@ -408,7 +417,8 @@ async def stream_task_events(task_id: int, request: Request, db: AsyncSession = 
         try:
             # Re-check status after subscribing to catch transitions that happened between request and subscribe
             # Use a fresh session (not the dependency-injected one) to avoid session lifecycle issues
-            async with get_db_session() as db_session:
+            session_factory = _get_session_factory(request.app)
+            async with session_factory() as db_session:
                 refreshed = (
                     await db_session.execute(select(AuditTask).where(AuditTask.id == task_id))
                 ).scalar_one_or_none()
@@ -463,12 +473,13 @@ async def stream_task_events(task_id: int, request: Request, db: AsyncSession = 
 async def stream_all_tasks(request: Request):
     async def event_generator():
         last_statuses = {}
+        session_factory = _get_session_factory(request.app)
         while True:
             if await request.is_disconnected():
                 break
 
             try:
-                async with get_db_session() as session:
+                async with session_factory() as session:
                     result = await session.execute(
                         select(AuditTask.id, AuditTask.status, AuditTask.progress, AuditTask.task_name).order_by(
                             AuditTask.created_at.desc()
