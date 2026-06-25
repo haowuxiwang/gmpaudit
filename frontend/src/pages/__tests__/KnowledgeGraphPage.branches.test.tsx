@@ -500,7 +500,8 @@ describe('KnowledgeGraphPage branch coverage', () => {
     renderWithRouter(<KnowledgeGraphPage />);
 
     await waitFor(() => {
-      expect(screen.getByPlaceholderText('试试：偏差处理、CAPA、文件管理')).toBeInTheDocument();
+      const input = screen.getByPlaceholderText('试试：偏差处理、CAPA、文件管理');
+      expect(input).not.toBeDisabled();
     });
 
     const input = screen.getByPlaceholderText('试试：偏差处理、CAPA、文件管理');
@@ -640,7 +641,8 @@ describe('KnowledgeGraphPage branch coverage', () => {
     renderWithRouter(<KnowledgeGraphPage />);
 
     await waitFor(() => {
-      expect(screen.getByPlaceholderText('试试：偏差处理、CAPA、文件管理')).toBeInTheDocument();
+      const input = screen.getByPlaceholderText('试试：偏差处理、CAPA、文件管理');
+      expect(input).not.toBeDisabled();
     });
 
     const input = screen.getByPlaceholderText('试试：偏差处理、CAPA、文件管理');

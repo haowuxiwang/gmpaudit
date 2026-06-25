@@ -340,6 +340,11 @@ async def upload_document(
             md_text = await convert_to_markdown(content, file.filename)
         except RuntimeError as exc:
             raise HTTPException(status_code=400, detail="文档转换失败") from exc
+        if not md_text or not md_text.strip():
+            raise HTTPException(
+                status_code=400,
+                detail="文档转换结果为空（可能是扫描件/图片PDF，markitdown 无法提取文字）。请上传包含可选择文字的文档，或先用 OCR 工具处理。",
+            )
         save_name = os.path.splitext(file.filename)[0] + ".md"
         filepath = os.path.join(INPUT_DIR, save_name)
         if not _validate_path_within_input(filepath):
