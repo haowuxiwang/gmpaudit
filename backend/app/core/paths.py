@@ -6,6 +6,7 @@ Design principle:
 """
 
 import os
+import shutil
 import sys
 from pathlib import Path
 
@@ -79,3 +80,15 @@ def ensure_writable_dirs() -> None:
         KG_INPUT_DIR,
     ]:
         d.mkdir(parents=True, exist_ok=True)
+
+
+def ensure_env_file() -> None:
+    """Copy .env.example to writable config dir if .env doesn't exist."""
+    env_dest = CONFIG_DIR_WRITABLE / ".env"
+    if env_dest.exists():
+        return
+    bundled_example = CONFIG_DIR / ".env.example"
+    source_example = APP_DIR / "config" / ".env.example"
+    src = bundled_example if bundled_example.exists() else source_example
+    if src.exists():
+        shutil.copy2(str(src), str(env_dest))

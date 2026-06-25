@@ -107,6 +107,7 @@ const AuditTasksPage: React.FC = () => {
   const selectedTaskIsRunning = !!selectedTask && (
     selectedTask.status === 'running' ||
     selectedTask.status === 'pending' ||
+    selectedTask.status === 'awaiting_review' ||
     selectedTask.stage === 'queued'
   );
   const { events: sseEvents, thinkingEvents, currentStage, lastActiveStage, progress: sseProgress, status: sseStatus, connectionError } = useTaskSSE(
@@ -124,11 +125,13 @@ const AuditTasksPage: React.FC = () => {
       if (!nextTask) return null;
       // Preserve SSE-enriched fields for running tasks to prevent flicker
       if (prev && prev.id === nextTask.id && prev.status === 'running') {
+        // Detect re-run: if API reports much lower progress, task was restarted
+        const isRerun = (prev.progress || 0) > 10 && (nextTask.progress || 0) <= 5;
         return {
           ...nextTask,
-          stage: prev.stage,
-          progress: Math.max(prev.progress || 0, nextTask.progress || 0),
-          events: prev.events,
+          stage: isRerun ? nextTask.stage : prev.stage,
+          progress: isRerun ? nextTask.progress : Math.max(prev.progress || 0, nextTask.progress || 0),
+          events: isRerun ? [] : prev.events,
         };
       }
       return nextTask;
@@ -165,19 +168,28 @@ const AuditTasksPage: React.FC = () => {
   }, []);
 
   const loadTaskDetails = useCallback(async (taskId: number) => {
+    // Capture which task was selected when request was made (for race condition protection)
+    const requestedForId = selectedTaskId;
     try {
       const [task, taskFindings] = await Promise.all([
         auditApi.getTask(taskId),
         auditApi.getFindings(taskId).catch(() => []),
       ]);
 
-      // Protect against progress regression: keep the higher progress value
+      // Race condition: if user switched to a different task while this request was in flight,
+      // don't overwrite the currently selected task with stale data
+      if (requestedForId !== null && requestedForId !== taskId) return;
+
+      // Protect against progress regression, but allow reset on re-run
       setSelectedTask(prev => {
         if (prev && prev.id === task.id) {
+          // Detect re-run: task status changed to running/pending with low progress
+          const isRerun = (prev.progress || 0) > 10 && (task.progress || 0) <= 5
+            && (task.status === 'running' || task.status === 'pending');
           return {
             ...task,
-            progress: Math.max(prev.progress || 0, task.progress || 0),
-            events: prev.events, // Preserve SSE events
+            progress: isRerun ? task.progress : Math.max(prev.progress || 0, task.progress || 0),
+            events: isRerun ? [] : prev.events, // Clear stale SSE events on re-run
           };
         }
         return task;
@@ -275,6 +287,12 @@ const AuditTasksPage: React.FC = () => {
   const lastMergedProgressRef = useRef(0);
   const lastMergedStageRef = useRef('');
 
+  // Reset merge refs when selected task changes (prevents stale values from previous run)
+  useEffect(() => {
+    lastMergedProgressRef.current = 0;
+    lastMergedStageRef.current = '';
+  }, [selectedTaskId]);
+
   useEffect(() => {
     if (!selectedTask || (selectedTask.status !== 'running' && selectedTask.status !== 'awaiting_review')) return;
     const newEvents = sseEvents.slice(lastMergedSseCount.current);
@@ -282,7 +300,9 @@ const AuditTasksPage: React.FC = () => {
     // Only update if there's actually new data
     const hasNewEvents = newEvents.length > 0;
     const hasNewProgress = sseProgress > lastMergedProgressRef.current;
-    const hasNewStage = currentStage && currentStage !== lastMergedStageRef.current;
+    // Ignore SSE initial values ('pending', 'queued') — they are placeholders, not real stages
+    const isActiveStage = currentStage && currentStage !== 'pending' && currentStage !== 'queued';
+    const hasNewStage = isActiveStage && currentStage !== lastMergedStageRef.current;
 
     if (!hasNewEvents && !hasNewProgress && !hasNewStage) return;
 
@@ -294,7 +314,7 @@ const AuditTasksPage: React.FC = () => {
       if (!prev) return prev;
       return {
         ...prev,
-        stage: currentStage || prev.stage,
+        stage: isActiveStage ? currentStage : prev.stage,
         progress: Math.max(prev.progress || 0, sseProgress),
         events: hasNewEvents
           ? [...(prev.events || []), ...newEvents].slice(-200)
@@ -325,7 +345,7 @@ const AuditTasksPage: React.FC = () => {
 
     const interval = setInterval(() => {
       void loadTasks(false, selectedTaskId);
-    }, 30000);
+    }, 5000);
 
     return () => clearInterval(interval);
   }, [hasRunning, loadTasks, selectedTaskId]);
@@ -574,7 +594,7 @@ const AuditTasksPage: React.FC = () => {
                   {/* Stage tag — use SSE currentStage for selected running task */}
                   <Tag style={{ borderRadius: 999, margin: 0 }}>
                     {STAGE_LABELS[
-                      (isSelected && selectedTaskIsRunning ? (currentStage || task.stage) : task.stage) || 'pending'
+                      (isSelected && selectedTaskIsRunning && currentStage && currentStage !== 'pending' && currentStage !== 'queued' ? currentStage : task.stage) || 'pending'
                     ] || task.stage || '等待执行'}
                   </Tag>
 

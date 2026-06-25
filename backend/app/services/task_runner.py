@@ -10,6 +10,13 @@ if TYPE_CHECKING:
 
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from sqlalchemy.orm.attributes import flag_modified
+
+
+def _safe_flag_modified(instance, attr: str) -> None:
+    """Flag attribute as modified, safe for mock objects in tests."""
+    if hasattr(instance, "_sa_instance_state"):
+        flag_modified(instance, attr)
 
 from app.core.config import settings
 from app.models.audit_task import AuditTask, TaskStatus, TaskType
@@ -84,6 +91,7 @@ def append_event(task: AuditTask, message: str, stage: str | None = None, level:
         }
     )
     set_execution_meta(task, meta)
+    _safe_flag_modified(task, "config")
     return meta
 
 
@@ -96,6 +104,9 @@ def set_stage(task: AuditTask, stage: str, error: str | None = None) -> dict[str
     if stage in {"completed", "failed"}:
         meta["completed_at"] = _utcnow()
     set_execution_meta(task, meta)
+    # Force SQLAlchemy to detect the JSON column change (nested dict mutations
+    # may not be tracked reliably with aiosqlite + plain Column(JSON))
+    _safe_flag_modified(task, "config")
     return meta
 
 
@@ -522,19 +533,22 @@ class TaskRunner:
 
                     if kind == "on_chain_start" and node_name in NODE_STAGE_MAP:
                         stage_name = NODE_STAGE_MAP[node_name]
+                        thinking_event = {
+                            "stage": stage_name,
+                            "node": node_name,
+                            "status": "started",
+                            "message": NODE_START_MESSAGES.get(node_name, f"Agent {node_name} started"),
+                            "doc_name": document.filename,
+                        }
                         await self._publish(
                             task_id,
                             {
                                 "type": "agent_thinking",
-                                "data": {
-                                    "stage": stage_name,
-                                    "node": node_name,
-                                    "status": "started",
-                                    "message": NODE_START_MESSAGES.get(node_name, f"Agent {node_name} started"),
-                                    "doc_name": document.filename,
-                                },
+                                "data": thinking_event,
                             },
                         )
+                        # Persist for SSE reconnect replay
+                        thinking_events.append(thinking_event)
                         if node_name in NODE_PROGRESS_MAP:
                             node_pct = NODE_PROGRESS_MAP[node_name]
                             progress = percent_start + int((node_pct / 80) * (percent_end - percent_start))
@@ -799,11 +813,13 @@ class TaskRunner:
             if all_thinking_events:
                 task_config.setdefault("execution", {})["thinking_events"] = all_thinking_events
             task.config = task_config
+            _safe_flag_modified(task, "config")
 
             # Update task with document results
             meta = get_execution_meta(task)
             meta["documents"] = document_results
             set_execution_meta(task, meta)
+            _safe_flag_modified(task, "config")
             task.progress = 80
             await db.commit()
             await self._publish_progress(task_id, 80, "report")

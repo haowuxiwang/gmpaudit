@@ -69,16 +69,16 @@ class TestBackendBenchmarks:
         assert result.avg_ms < 0.05, f"get_execution_meta too slow: {result.avg_ms:.4f}ms avg"
 
     def test_set_stage_performance(self):
-        """set_stage() should be fast (< 0.1ms per call)."""
+        """set_stage() should be fast (< 0.25ms per call)."""
         task = _make_task()
         result = _benchmark(lambda: set_stage(task, "running"), iterations=5000, name="set_stage")
-        assert result.avg_ms < 0.1, f"set_stage too slow: {result.avg_ms:.4f}ms avg"
+        assert result.avg_ms < 0.25, f"set_stage too slow: {result.avg_ms:.4f}ms avg"
 
     def test_append_event_performance(self):
-        """append_event() should be fast (< 0.1ms per call)."""
+        """append_event() should be fast (< 0.3ms per call)."""
         task = _make_task()
         result = _benchmark(lambda: append_event(task, "test event"), iterations=5000, name="append_event")
-        assert result.avg_ms < 0.1, f"append_event too slow: {result.avg_ms:.4f}ms avg"
+        assert result.avg_ms < 0.3, f"append_event too slow: {result.avg_ms:.4f}ms avg"
 
     def test_validate_findings_performance(self):
         """validate_findings() with 100 findings should be fast (< 1ms)."""

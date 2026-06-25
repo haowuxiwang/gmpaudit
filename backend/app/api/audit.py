@@ -425,6 +425,11 @@ async def stream_task_events(task_id: int, request: Request, db: AsyncSession = 
             for event in execution.get("thinking_events", []):
                 yield f"event: agent_thinking\ndata: {json.dumps({'type': 'agent_thinking', 'data': event})}\n\n"
 
+            # Sync current stage for running tasks (so flow chart updates on reconnect)
+            if refreshed.status == TaskStatus.RUNNING:
+                current_stage = execution.get("stage", "running")
+                yield f"event: progress\ndata: {json.dumps({'type': 'progress', 'data': {'percent': refreshed.progress or 0, 'stage': current_stage}})}\n\n"
+
             # If task already finished, send done and close
             if refreshed.status in terminal_statuses:
                 yield f"event: done\ndata: {json.dumps({'type': 'done', 'status': refreshed.status.value})}\n\n"

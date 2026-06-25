@@ -194,7 +194,7 @@ a = Analysis(
         'agent.trace',
         *_extra_hidden,
     ],
-    hookspath=[],
+    hookspath=[os.path.join(PROJECT_ROOT, 'scripts', 'hooks')],
     hooksconfig={},
     runtime_hooks=[],
     excludes=[
@@ -206,6 +206,9 @@ a = Analysis(
         'paddle',
         'llvmlite',
         'agent.tests',
+        'torch.cuda',
+        'torch.distributed',
+        'torch.testing',
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,

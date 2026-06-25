@@ -63,6 +63,9 @@ async def run_agent_audit(
     meta = get_execution_meta(task)
     meta["focus"] = request.focus or ""
     set_execution_meta(task, meta)
+    from sqlalchemy.orm.attributes import flag_modified
+
+    flag_modified(task, "config")
     append_event(task, "Agent audit queued", stage="queued")
     db.add(task)
     await db.commit()

@@ -31,6 +31,7 @@ gmpaudit/
   config/           # .env, .env.example
   data/             # Runtime data (documents, database, reports, logs)
   scripts/          # start.bat, start.sh, build_exe.bat, build.spec
+    hooks/          # Custom PyInstaller hooks (hook-torch.py)
   model/            # Pre-downloaded embedding model (BAAI/bge-large-zh-v1.5)
   tools/            # Bundled tools (ffmpeg)
   agent/            # LangGraph multi-agent system (PRIMARY audit engine)
@@ -95,6 +96,16 @@ gmpaudit/
 - `TaskRunner.cancel(task_id)` calls `asyncio_task.cancel()` on the active task
 - `CancelledError` caught separately from `Exception` in `_run()` (Python 3.9+ `BaseException` hierarchy)
 - Status set to `CANCELLED` (new enum value), EventBus notified via `_publish_done(task_id, "cancelled")`
+
+### Human-in-the-Loop Review
+- High-risk findings trigger `AWAITING_REVIEW` status (review gate)
+- Frontend shows approve/reject banner; API: `POST /audit/tasks/{id}/approve` / `reject`
+- After approval, task moves to `COMPLETED`; after rejection, findings are marked and task completes
+
+### Concurrency Model
+- `asyncio.Semaphore(5)` gates parallel task execution (`MAX_CONCURRENT_TASKS`)
+- Within a task, multiple documents processed in parallel (`MAX_CONCURRENT_LLM_CALLS=3`)
+- Progress uses atomic `UPDATE ... WHERE progress < percent` to prevent race conditions
 
 ### Backend API Pattern
 - Routes use `APIRouter()` with dependency injection via `Depends(get_db)` for async DB sessions
@@ -179,9 +190,9 @@ scripts\build_exe.bat  # PyInstaller packaging → dist\AuditBee\
 
 ## Linting / Formatting
 
-No explicit linter or formatter config found. Follow existing code style:
-- Backend: PEP 8, 4-space indent, double quotes for strings
-- Frontend: Standard CRA TypeScript, 2-space indent, single quotes
+- Backend: `ruff check` + `ruff format --check` (CI enforced)
+- Frontend: ESLint + Prettier (CI enforced)
+- Style: PEP 8, 4-space indent, double quotes (Python); 2-space indent, single quotes (TypeScript)
 
 ## Environment Variables
 

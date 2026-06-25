@@ -55,6 +55,7 @@ export function useTaskSSE(taskId: number | null, isActive: boolean): UseTaskSSE
       setProgress(0);
       setStatus('pending');
       eventsRef.current = [];
+      lastActiveStageRef.current = 'pending';
       prevTaskIdRef.current = taskId;
     }
   }, [taskId]);
@@ -95,6 +96,11 @@ export function useTaskSSE(taskId: number | null, isActive: boolean): UseTaskSSE
         if (stageProgress !== undefined) {
           setProgress(prev => Math.max(prev, stageProgress));
         }
+        // Sync currentStage from event stage data
+        if (data.stage) {
+          setCurrentStage(data.stage);
+          lastActiveStageRef.current = data.stage;
+        }
       },
       agent_thinking: (raw: unknown) => {
         const data = raw as AgentThinkingEvent;
@@ -133,6 +139,7 @@ export function useTaskSSE(taskId: number | null, isActive: boolean): UseTaskSSE
           setCurrentStage('awaiting_review');
         } else {
           setProgress(90);
+          setCurrentStage('completed');
         }
       },
     },

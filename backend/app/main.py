@@ -419,6 +419,8 @@ _AUTH_SKIP_PATHS = {
     "/docs",
     "/openapi.json",
     "/",
+    "/index.html",
+    "/favicon.ico",
 }
 
 
@@ -444,6 +446,12 @@ async def _authenticate(request, call_next):
 
     # Skip paths that never need auth
     if path in _AUTH_SKIP_PATHS or path.startswith("/static"):
+        return await call_next(request)
+
+    # Skip SSE stream endpoints — EventSource API cannot send custom headers
+    if path.startswith("/api/audit/tasks/") and path.endswith("/stream"):
+        return await call_next(request)
+    if path == "/api/audit/tasks/stream":
         return await call_next(request)
 
     # In frozen mode, all endpoints require auth
