@@ -204,6 +204,19 @@ async def build_index(
     if not os.path.isdir(INPUT_DIR) or not any(f.endswith((".txt", ".md")) for f in os.listdir(INPUT_DIR)):
         raise HTTPException(status_code=400, detail="没有输入文件，请通过 Web 界面上传法规文档")
 
+    # LLM availability check
+    try:
+        from agent.config import get_llm_config
+
+        llm_config = get_llm_config()
+        if not llm_config.get("api_key"):
+            raise HTTPException(status_code=503, detail="LLM 未配置，请在设置中配置 API Key")
+    except HTTPException:
+        raise
+    except Exception as llm_exc:
+        logger.warning("LLM config check failed: %s", llm_exc)
+        raise HTTPException(status_code=503, detail=f"LLM 配置检查失败: {llm_exc}") from llm_exc
+
     # Persist "building: True" to DB immediately so frontend polls see correct state
     _build_status["building"] = True
     _build_status["started_at"] = datetime.now(UTC).isoformat()
@@ -261,6 +274,19 @@ async def query_kg(request: QueryRequest):
     index_info = _get_index_info()
     if not index_info["built"]:
         raise HTTPException(status_code=400, detail="知识图谱索引尚未构建，请先构建索引")
+
+    # LLM availability check
+    try:
+        from agent.config import get_llm_config
+
+        llm_config = get_llm_config()
+        if not llm_config.get("api_key"):
+            raise HTTPException(status_code=503, detail="LLM 未配置，请在设置中配置 API Key")
+    except HTTPException:
+        raise
+    except Exception as llm_exc:
+        logger.warning("LLM config check failed: %s", llm_exc)
+        raise HTTPException(status_code=503, detail=f"LLM 配置检查失败: {llm_exc}") from llm_exc
 
     try:
         from agent.tools.lightrag_tool import lightrag_search
@@ -341,10 +367,30 @@ async def upload_document(
         except RuntimeError as exc:
             raise HTTPException(status_code=400, detail="文档转换失败") from exc
         if not md_text or not md_text.strip():
-            raise HTTPException(
-                status_code=400,
-                detail="文档转换结果为空（可能是扫描件/图片PDF，markitdown 无法提取文字）。请上传包含可选择文字的文档，或先用 OCR 工具处理。",
-            )
+            # OCR fallback for scanned/image PDFs
+            if ext == ".pdf":
+                import tempfile
+
+                from app.services.document_processor import get_document_processor
+
+                tmp_path = None
+                try:
+                    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+                        tmp.write(content)
+                        tmp_path = tmp.name
+                    dp = get_document_processor()
+                    loop = asyncio.get_running_loop()
+                    md_text = await loop.run_in_executor(None, dp._process_pdf_sync, tmp_path)
+                except Exception as ocr_exc:
+                    logger.warning("OCR fallback failed for %s: %s", file.filename, ocr_exc)
+                finally:
+                    if tmp_path and os.path.exists(tmp_path):
+                        os.remove(tmp_path)
+            if not md_text or not md_text.strip():
+                raise HTTPException(
+                    status_code=400,
+                    detail="文档转换结果为空（扫描件 OCR 也无法提取文字）。请上传包含可选择文字的文档。",
+                )
         save_name = os.path.splitext(file.filename)[0] + ".md"
         filepath = os.path.join(INPUT_DIR, save_name)
         if not _validate_path_within_input(filepath):
