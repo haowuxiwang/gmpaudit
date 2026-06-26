@@ -117,6 +117,36 @@ async def _seed_configurations():
         logging.getLogger(__name__).warning("Failed to seed configurations: %s", e)
 
 
+async def _sync_db_to_env():
+    """Read DB config values into os.environ and settings (DB is authoritative)."""
+    import os
+
+    from sqlalchemy import select
+
+    from app.api.config import _LLM_KEY_MAP
+    from app.models.configuration import Configuration
+
+    try:
+        async with async_session() as db:
+            result = await db.execute(select(Configuration))
+            rows = result.scalars().all()
+            updated = 0
+            for row in rows:
+                key = row.config_key
+                val = row.config_value
+                if not val or key not in _LLM_KEY_MAP:
+                    continue
+                attr, env_key = _LLM_KEY_MAP[key]
+                os.environ[env_key] = val
+                if hasattr(settings, attr):
+                    setattr(settings, attr, val)
+                updated += 1
+            if updated:
+                logging.getLogger(__name__).info("Synced %d config values from DB to runtime", updated)
+    except Exception as e:
+        logging.getLogger(__name__).warning("Failed to sync DB config to runtime: %s", e)
+
+
 async def startup():
     _configure_logging()
 
@@ -221,6 +251,9 @@ async def startup():
 
     # Seed configurations table from .env so GET /config/ returns real values
     await _seed_configurations()
+
+    # Sync DB config values back to runtime (DB is authoritative after UI edits)
+    await _sync_db_to_env()
 
     # Zombie task recovery is handled by TaskRunner.startup_recover()
     # which resets RUNNING/PENDING tasks to PENDING and re-enqueues them

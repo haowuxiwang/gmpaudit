@@ -210,7 +210,7 @@ async def build_index(
 
         llm_config = get_llm_config()
         if not llm_config.get("api_key"):
-            raise HTTPException(status_code=503, detail="LLM 未配置，请在设置中配置 API Key")
+            raise HTTPException(status_code=503, detail="LLM 未配置，请在「设置」页面配置 API Key 后重试")
     except HTTPException:
         raise
     except Exception as llm_exc:
@@ -281,7 +281,7 @@ async def query_kg(request: QueryRequest):
 
         llm_config = get_llm_config()
         if not llm_config.get("api_key"):
-            raise HTTPException(status_code=503, detail="LLM 未配置，请在设置中配置 API Key")
+            raise HTTPException(status_code=503, detail="LLM 未配置，请在「设置」页面配置 API Key 后重试")
     except HTTPException:
         raise
     except Exception as llm_exc:

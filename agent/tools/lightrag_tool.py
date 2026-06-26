@@ -497,11 +497,18 @@ async def lightrag_search(query: str, method: str = "local") -> list[dict]:
         # Pre-extract keywords locally to skip LightRAG's LLM-based keyword extraction (saves 3-8s)
         hl_keywords, ll_keywords = _extract_keywords_locally(query)
 
+        # Check if reranker is configured
+        import os
+
+        has_reranker = bool(
+            os.getenv("JINA_API_KEY") or os.getenv("COHERE_API_KEY") or os.getenv("DASHSCOPE_API_KEY")
+        )
+
         param = QueryParam(
             mode=mode,
             top_k=10,
             chunk_top_k=10,
-            enable_rerank=True,
+            enable_rerank=has_reranker,
             hl_keywords=hl_keywords,
             ll_keywords=ll_keywords,
         )
@@ -511,7 +518,8 @@ async def lightrag_search(query: str, method: str = "local") -> list[dict]:
         )
 
         if not result or not result.strip():
-            _set_cached(query, method, [])
+            # Do NOT cache empty results -- they may succeed on retry with a working LLM
+            logger.warning("lightrag_search returned empty for query: %s", query[:50])
             return []
 
         # Return as single coherent result (LightRAG returns synthesized text, not a list)
