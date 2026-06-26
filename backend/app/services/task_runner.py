@@ -320,9 +320,7 @@ class TaskRunner:
                 )
                 # Also persist stage to config JSON for reconnect recovery
                 # Read-modify-write on the ORM object for the JSON column
-                task_row = (
-                    await db.execute(select(AuditTask).where(AuditTask.id == task_id))
-                ).scalar_one_or_none()
+                task_row = (await db.execute(select(AuditTask).where(AuditTask.id == task_id))).scalar_one_or_none()
                 if task_row and task_row.config:
                     execution = task_row.config.get("execution", {})
                     execution["stage"] = stage
