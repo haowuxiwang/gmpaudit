@@ -154,6 +154,18 @@ async def run_audit_task(
     if not engine.adapters:
         raise HTTPException(status_code=400, detail="未配置 LLM API Key，请在「设置」页面配置后再运行审计任务")
 
+    # Validate documents exist and are processed BEFORE atomic UPDATE
+    task = (await db.execute(select(AuditTask).where(AuditTask.id == task_id))).scalar_one_or_none()
+    if task is None:
+        raise HTTPException(status_code=404, detail="任务不存在")
+
+    for doc_id in task.document_ids or []:
+        document = (await db.execute(select(Document).where(Document.id == doc_id))).scalar_one_or_none()
+        if document is None:
+            raise HTTPException(status_code=400, detail=f"文档 {doc_id} 不存在")
+        if document.process_status != DocumentStatus.PROCESSED:
+            raise HTTPException(status_code=400, detail=f"文档未处理完成: {document.filename}")
+
     # Atomic check-and-set to prevent TOCTOU race condition
     from sqlalchemy import update as sa_update
 
@@ -163,20 +175,10 @@ async def run_audit_task(
         .values(status=TaskStatus.PENDING, progress=0, error_message=None)
     )
     if result.rowcount == 0:
-        # Use select() instead of db.get() to bypass identity map cache
-        task = (await db.execute(select(AuditTask).where(AuditTask.id == task_id))).scalar_one_or_none()
-        if task is None:
-            raise HTTPException(status_code=404, detail="任务不存在")
         raise HTTPException(status_code=400, detail="任务正在运行中")
 
-    task = (await db.execute(select(AuditTask).where(AuditTask.id == task_id))).scalar_one()
-
-    for doc_id in task.document_ids or []:
-        document = (await db.execute(select(Document).where(Document.id == doc_id))).scalar_one_or_none()
-        if document is None:
-            raise HTTPException(status_code=400, detail=f"文档 {doc_id} 不存在")
-        if document.process_status != DocumentStatus.PROCESSED:
-            raise HTTPException(status_code=400, detail=f"文档未处理完成: {document.filename}")
+    # Re-fetch to get updated status
+    task = (await db.execute(select(AuditTask).where(AuditTask.id == task_id))).scalar_one_or_none()
 
     set_stage(task, "queued")
     append_event(task, "Task queued for execution", stage="queued")

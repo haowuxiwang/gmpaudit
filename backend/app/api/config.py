@@ -86,6 +86,10 @@ async def _apply_setting(key: str, value: str):
     ):
         raise HTTPException(status_code=422, detail=f"{key} 为占位符值，请填写真实配置")
 
+    # Sanitize: reject newlines in values to prevent .env injection
+    if isinstance(value, str) and ("\n" in value or "\r" in value):
+        raise HTTPException(status_code=422, detail=f"{key} 值包含非法字符（换行符）")
+
     # Update settings singleton
     # Cast to correct type
     current = getattr(settings, attr, None)
@@ -334,18 +338,28 @@ class BatchConfigRequest(BaseModel):
 async def batch_update_config(request: BatchConfigRequest, db: AsyncSession = Depends(get_db)):
     from app.core.config import settings
 
-    # Pre-filter: skip placeholder/masked API key values
+    # Pre-filter: skip placeholder/masked API key values and unknown keys
     _placeholder_re = re.compile(r"^your_", re.IGNORECASE)
+    _allowed_keys = {k.lower() for k in _LLM_KEY_MAP}
+    _allowed_keys.update({"log_level", "max_concurrent_tasks", "max_concurrent_llm_calls",
+                          "document_process_timeout", "llm_request_timeout", "cors_origins"})
     filtered_configs = {}
     auto_provider = None
     for key, value in request.configs.items():
         lower_key = key.lower()
+        if lower_key not in _allowed_keys:
+            logger.warning("Skipping unknown config key: %s", key)
+            continue
         if (
             ("api_key" in lower_key or "base_url" in lower_key or "model" in lower_key)
             and isinstance(value, str)
             and _placeholder_re.match(value)
         ):
             logger.info("Skipping placeholder/masked config: %s", key)
+            continue
+        # Sanitize: reject newlines in values
+        if isinstance(value, str) and ("\n" in value or "\r" in value):
+            logger.warning("Skipping config with newline: %s", key)
             continue
         filtered_configs[key] = value
         # Auto-detect provider from API key for AGENT_LLM_PROVIDER
