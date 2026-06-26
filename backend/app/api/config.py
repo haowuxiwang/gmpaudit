@@ -341,8 +341,16 @@ async def batch_update_config(request: BatchConfigRequest, db: AsyncSession = De
     # Pre-filter: skip placeholder/masked API key values and unknown keys
     _placeholder_re = re.compile(r"^your_", re.IGNORECASE)
     _allowed_keys = {k.lower() for k in _LLM_KEY_MAP}
-    _allowed_keys.update({"log_level", "max_concurrent_tasks", "max_concurrent_llm_calls",
-                          "document_process_timeout", "llm_request_timeout", "cors_origins"})
+    _allowed_keys.update(
+        {
+            "log_level",
+            "max_concurrent_tasks",
+            "max_concurrent_llm_calls",
+            "document_process_timeout",
+            "llm_request_timeout",
+            "cors_origins",
+        }
+    )
     filtered_configs = {}
     auto_provider = None
     for key, value in request.configs.items():
