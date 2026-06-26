@@ -309,23 +309,25 @@ class TaskRunner:
         # Atomic UPDATE: persist both progress AND stage to DB
         # Stage is stored in config.execution.stage for reconnect recovery
         try:
-            from sqlalchemy import text as sa_text
             from sqlalchemy import update as sa_update
 
             async with self._session_factory() as db:
+                # Update progress column
                 await db.execute(
                     sa_update(AuditTask)
                     .where(AuditTask.id == task_id, AuditTask.progress < percent)
                     .values(progress=percent)
                 )
                 # Also persist stage to config JSON for reconnect recovery
-                await db.execute(
-                    sa_text(
-                        "UPDATE audit_tasks SET config = json_set(config, '$.execution.stage', :stage) "
-                        "WHERE id = :task_id"
-                    ),
-                    {"stage": stage, "task_id": task_id},
-                )
+                # Read-modify-write on the ORM object for the JSON column
+                task_row = (
+                    await db.execute(select(AuditTask).where(AuditTask.id == task_id))
+                ).scalar_one_or_none()
+                if task_row and task_row.config:
+                    execution = task_row.config.get("execution", {})
+                    execution["stage"] = stage
+                    task_row.config["execution"] = execution
+                    _safe_flag_modified(task_row, "config")
                 await db.commit()
         except Exception:
             logger.debug("Failed to persist progress for task %d (non-critical)", task_id)
