@@ -306,8 +306,10 @@ class TaskRunner:
                     "data": {"percent": percent, "stage": stage},
                 },
             )
-        # Atomic UPDATE prevents read-modify-write race in parallel document processing
+        # Atomic UPDATE: persist both progress AND stage to DB
+        # Stage is stored in config.execution.stage for reconnect recovery
         try:
+            from sqlalchemy import text as sa_text
             from sqlalchemy import update as sa_update
 
             async with self._session_factory() as db:
@@ -315,6 +317,14 @@ class TaskRunner:
                     sa_update(AuditTask)
                     .where(AuditTask.id == task_id, AuditTask.progress < percent)
                     .values(progress=percent)
+                )
+                # Also persist stage to config JSON for reconnect recovery
+                await db.execute(
+                    sa_text(
+                        "UPDATE audit_tasks SET config = json_set(config, '$.execution.stage', :stage) "
+                        "WHERE id = :task_id"
+                    ),
+                    {"stage": stage, "task_id": task_id},
                 )
                 await db.commit()
         except Exception:

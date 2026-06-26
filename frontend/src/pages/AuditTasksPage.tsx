@@ -708,7 +708,16 @@ const AuditTasksPage: React.FC = () => {
             {/* Agent Flow Chart */}
             {(() => {
               const STAGE_ORDER = ['parsing', 'regulation', 'risk', 'report'];
-              const stage = effectiveStage;
+              const STAGE_PROGRESS_MAP: Record<string, number> = { parsing: 5, regulation: 25, risk: 50, report: 70, completed: 100 };
+              let stage = effectiveStage;
+              // Infer stage from progress when stage is "running" (not in STAGE_ORDER)
+              if (!STAGE_ORDER.includes(stage) && selectedTask.status === 'running') {
+                const p = selectedTask.progress || 0;
+                if (p >= 70) stage = 'report';
+                else if (p >= 50) stage = 'risk';
+                else if (p >= 25) stage = 'regulation';
+                else if (p >= 5) stage = 'parsing';
+              }
               const currentIdx = STAGE_ORDER.indexOf(stage);
               // Determine the effective stage for the chart
               const chartStage = currentIdx >= 0 ? stage
