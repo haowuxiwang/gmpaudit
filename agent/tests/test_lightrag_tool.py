@@ -368,7 +368,7 @@ class TestLightragSearch:
         assert result == [{"title": "cached"}]
 
     async def test_empty_result(self):
-        """Empty RAG result returns empty list and caches it."""
+        """Empty RAG result returns empty list without caching."""
         mock_rag = MagicMock()
         mock_rag.aquery = AsyncMock(return_value="")
 
@@ -378,8 +378,8 @@ class TestLightragSearch:
             result = await lightrag_search("new query", method="local")
 
         assert result == []
-        # Should be cached now
-        assert _get_cached("new query", "local") == []
+        # Should NOT be cached (empty results are not cached to allow retry)
+        assert _get_cached("new query", "local") is None
 
     async def test_success_with_result(self):
         """Non-empty RAG result wraps in expected format."""
