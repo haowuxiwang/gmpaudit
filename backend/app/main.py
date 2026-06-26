@@ -332,7 +332,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="AuditBee",
     description="AI-powered GMP compliance audit system with multi-agent workflow.",
-    version="1.0.3",
+    version="1.1.0",
     lifespan=lifespan,
 )
 

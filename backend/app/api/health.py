@@ -39,7 +39,7 @@ async def full_health_check():
     checks = {
         "status": "ok",
         "service": "AuditBee",
-        "version": "1.0.3",
+        "version": "1.1.0",
         "checks": {},
     }
 

@@ -1,6 +1,6 @@
 {
   "name": "auditbee-frontend",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "AuditBee - AI-powered GMP compliance audit",
   "main": "electron/main.ts",
   "scripts": {

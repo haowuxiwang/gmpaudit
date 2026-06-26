@@ -614,14 +614,14 @@ const AuditTasksPage: React.FC = () => {
 
                   {/* Actions */}
                   <Space size={0} onClick={(e) => e.stopPropagation()}>
-                    {task.status === 'pending' && (
+                    {(task.status === 'pending' || task.status === 'failed') && (
                       <Button
                         type="link"
                         size="small"
                         icon={<PlayCircleOutlined />}
                         onClick={() => void handleRun(task.id)}
                       >
-                        运行
+                        {task.status === 'failed' ? '重试' : '运行'}
                       </Button>
                     )}
                     {task.report_id && (
@@ -914,9 +914,9 @@ const AuditTasksPage: React.FC = () => {
             {/* Actions */}
             <div style={{ borderTop: `1px solid ${THEME.border}`, paddingTop: 16 }}>
               <Space>
-                {selectedTask.status === 'pending' && (
+                {(selectedTask.status === 'pending' || selectedTask.status === 'failed') && (
                   <Button type="primary" icon={<PlayCircleOutlined />} onClick={() => void handleRun(selectedTask.id)}>
-                    运行
+                    {selectedTask.status === 'failed' ? '重试' : '运行'}
                   </Button>
                 )}
                 {selectedTask.status === 'awaiting_review' && (
