@@ -30,4 +30,4 @@ async def test_full_health_check(client: AsyncClient):
     assert "disk" in data["checks"]
     assert "llm" in data["checks"]
     assert data["service"] == "AuditBee"
-    assert data["version"] == "1.0.3"
+    assert data["version"] == "1.1.0"
