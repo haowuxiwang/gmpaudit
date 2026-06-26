@@ -137,9 +137,15 @@ const SettingsPage: React.FC = () => {
   const handleSave = async () => {
     try {
       setSaving(true);
+      // Detect masked values (e.g. "sk-e****xvz") to avoid overwriting real keys
+      const isMasked = (v: string) => /\*\*\*\*/.test(v);
       const changes: Record<string, string> = {};
       for (const [key, value] of Object.entries(draft)) {
         if (value !== (config[key] || '')) {
+          // Skip masked API key values - they would destroy the real key
+          if (isMasked(value) && key.includes('api_key')) {
+            continue;
+          }
           changes[key] = value;
         }
       }

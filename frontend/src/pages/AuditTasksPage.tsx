@@ -93,7 +93,6 @@ const AuditTasksPage: React.FC = () => {
   const [searchKeyword, setSearchKeyword] = useState('');
   const [sortBy, setSortBy] = useState<'created_at' | 'status' | 'name'>('created_at');
   const [elapsed, setElapsed] = useState('');
-  const [reviewComment, setReviewComment] = useState('');
   const lastMergedSseCount = useRef(0);
   const prevTaskStatusRef = useRef<string | null>(null);
 
@@ -209,7 +208,7 @@ const AuditTasksPage: React.FC = () => {
   }, [selectedTaskId]);
 
   const handleApprove = useCallback(async (taskId: number) => {
-    setReviewComment('');
+    let comment = '';
     Modal.confirm({
       title: '批准任务',
       content: (
@@ -218,14 +217,13 @@ const AuditTasksPage: React.FC = () => {
           <Input.TextArea
             placeholder="审核意见（可选）"
             rows={3}
-            value={reviewComment}
-            onChange={(e) => setReviewComment(e.target.value)}
+            onChange={(e) => { comment = e.target.value; }}
           />
         </div>
       ),
       onOk: async () => {
         try {
-          await auditApi.approveTask(taskId, reviewComment);
+          await auditApi.approveTask(taskId, comment);
           message.success('任务已批准');
           await loadTasks(false, selectedTaskId);
           if (selectedTaskId) await loadTaskDetails(selectedTaskId);
@@ -234,10 +232,10 @@ const AuditTasksPage: React.FC = () => {
         }
       },
     });
-  }, [reviewComment, loadTasks, loadTaskDetails, selectedTaskId]);
+  }, [loadTasks, loadTaskDetails, selectedTaskId]);
 
   const handleReject = useCallback(async (taskId: number) => {
-    setReviewComment('');
+    let comment = '';
     Modal.confirm({
       title: '驳回任务',
       content: (
@@ -246,18 +244,17 @@ const AuditTasksPage: React.FC = () => {
           <Input.TextArea
             placeholder="驳回原因（必填）"
             rows={3}
-            value={reviewComment}
-            onChange={(e) => setReviewComment(e.target.value)}
+            onChange={(e) => { comment = e.target.value; }}
           />
         </div>
       ),
       onOk: async () => {
-        if (!reviewComment.trim()) {
+        if (!comment.trim()) {
           message.warning('请填写驳回原因');
           throw new Error('Missing comment');
         }
         try {
-          await auditApi.rejectTask(taskId, reviewComment);
+          await auditApi.rejectTask(taskId, comment);
           message.success('任务已驳回');
           await loadTasks(false, selectedTaskId);
           if (selectedTaskId) await loadTaskDetails(selectedTaskId);
@@ -267,7 +264,7 @@ const AuditTasksPage: React.FC = () => {
         }
       },
     });
-  }, [reviewComment, loadTasks, loadTaskDetails, selectedTaskId]);
+  }, [loadTasks, loadTaskDetails, selectedTaskId]);
 
   useEffect(() => {
     const taskId = Number(taskIdParam);
@@ -919,7 +916,7 @@ const AuditTasksPage: React.FC = () => {
                     <Button
                       type="primary"
                       onClick={() => {
-                        setReviewComment('');
+                        let drawerApproveComment = '';
                         Modal.confirm({
                           title: '批准任务',
                           content: (
@@ -928,14 +925,13 @@ const AuditTasksPage: React.FC = () => {
                               <Input.TextArea
                                 placeholder="审核意见（可选）"
                                 rows={3}
-                                value={reviewComment}
-                                onChange={(e) => setReviewComment(e.target.value)}
+                                onChange={(e) => { drawerApproveComment = e.target.value; }}
                               />
                             </div>
                           ),
                           onOk: async () => {
                             try {
-                              await auditApi.approveTask(selectedTask.id, reviewComment);
+                              await auditApi.approveTask(selectedTask.id, drawerApproveComment);
                               message.success('任务已批准');
                               await loadTasks(false, selectedTaskId);
                               if (selectedTaskId) await loadTaskDetails(selectedTaskId);
@@ -951,7 +947,7 @@ const AuditTasksPage: React.FC = () => {
                     <Button
                       danger
                       onClick={() => {
-                        setReviewComment('');
+                        let drawerRejectComment = '';
                         Modal.confirm({
                           title: '驳回任务',
                           content: (
@@ -960,18 +956,17 @@ const AuditTasksPage: React.FC = () => {
                               <Input.TextArea
                                 placeholder="驳回原因（必填）"
                                 rows={3}
-                                value={reviewComment}
-                                onChange={(e) => setReviewComment(e.target.value)}
+                                onChange={(e) => { drawerRejectComment = e.target.value; }}
                               />
                             </div>
                           ),
                           onOk: async () => {
-                            if (!reviewComment.trim()) {
+                            if (!drawerRejectComment.trim()) {
                               message.warning('请填写驳回原因');
                               throw new Error('Missing comment');
                             }
                             try {
-                              await auditApi.rejectTask(selectedTask.id, reviewComment);
+                              await auditApi.rejectTask(selectedTask.id, drawerRejectComment);
                               message.success('任务已驳回');
                               await loadTasks(false, selectedTaskId);
                               if (selectedTaskId) await loadTaskDetails(selectedTaskId);
