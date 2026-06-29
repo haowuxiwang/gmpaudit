@@ -378,7 +378,7 @@ _metrics = {
 _rate_limit_store: dict[str, list[float]] = {}
 _RATE_LIMIT_GENERAL = 120  # requests per minute for general endpoints
 _RATE_LIMIT_EXPENSIVE = 20  # requests per minute for expensive endpoints
-_RATE_LIMIT_EXPENSIVE_PATHS = {"/api/config/test-llm", "/api/kg/build", "/api/agent-audit/run"}
+_RATE_LIMIT_EXPENSIVE_PATHS = {"/api/config/test-llm", "/api/agent-audit/run"}
 
 
 @app.middleware("http")
