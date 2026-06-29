@@ -517,9 +517,25 @@ async def lightrag_search(query: str, method: str = "local") -> list[dict]:
             timeout=120,
         )
 
-        if not result or not result.strip():
-            # Do NOT cache empty results -- they may succeed on retry with a working LLM
-            logger.warning("lightrag_search returned empty for query: %s", query[:50])
+        # result is None means LightRAG's aquery_llm caught an exception (e.g. LLM auth error)
+        # result is "" means the query found no relevant context
+        if result is None:
+            logger.error("lightrag_search LLM synthesis failed for query: %s", query[:50])
+            # Check if the LLM is configured to give a meaningful error
+            from agent.config import LLMAuthError, get_default_provider, get_llm_config
+
+            provider = get_default_provider()
+            config = get_llm_config(provider)
+            if not config.get("api_key") or config["api_key"].startswith("your_"):
+                raise LLMAuthError(
+                    f"LLM API Key 未配置（{provider}），请在「设置」页面配置后重试"
+                )
+            raise LLMAuthError(
+                f"LLM 查询失败（{provider}），请检查 API Key 是否有效，或在「设置」页面更换提供商"
+            )
+        if not result.strip():
+            # Empty string: no context found in the graph, not an error
+            logger.info("lightrag_search found no context for query: %s", query[:50])
             return []
 
         # Return as single coherent result (LightRAG returns synthesized text, not a list)
