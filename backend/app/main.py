@@ -136,8 +136,8 @@ async def _sync_db_to_env():
                 val = row.config_value
                 if not val or key not in _LLM_KEY_MAP:
                     continue
-                attr, env_key = _LLM_KEY_MAP[key]
-                os.environ[env_key] = val
+                attr, _ = _LLM_KEY_MAP[key]
+                os.environ[attr] = val
                 if hasattr(settings, attr):
                     setattr(settings, attr, val)
                 updated += 1
